@@ -16,3 +16,7 @@ Corridor systems remain in `index.html` **quarantined** as a temporary Forge hos
 
 ## Left in place
 `D:\Dev\ZombieWaves` — deletion is Eric decision **E.1**.
+
+
+## 2026-08-02 recovery
+Product index.html is Codex S.3 greybox (57699c). Corridor Forge host lives at orge_host_corridor_QUARANTINE.html (do not ship as product).
