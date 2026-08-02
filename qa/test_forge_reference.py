@@ -14,6 +14,8 @@ from playwright.sync_api import sync_playwright
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# Product entrypoint is the S.3 greybox (no Forge UI). The harvested Forge v3 host lives here:
+FORGE_HOST = 'forge_host_corridor_QUARANTINE.html'
 TABS = ['ENTITIES', 'PLAYER', 'WEAPONS', 'WAVES + BOSS', 'BALANCE', 'WORLD', 'SPRITES', 'AUDIO', 'DATA']
 
 
@@ -60,7 +62,7 @@ class ForgeBrowserTests(unittest.TestCase):
         self.context.close()
 
     def open_tab(self, tab):
-        self.page.goto(f'{self.base}/index.html?forge=1&ftab={tab}', wait_until='domcontentloaded')
+        self.page.goto(f'{self.base}/{FORGE_HOST}?forge=1&ftab={tab}', wait_until='domcontentloaded')
         self.page.wait_for_timeout(450)
         self.assertFalse(self.errors, self.errors)
 
