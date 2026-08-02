@@ -1,0 +1,16 @@
+{
+  "name": "HiVE SWARM",
+  "short_name": "HiVE SWARM",
+  "description": "360° run-and-gun survivors-like. Steer free, auto-fire the horde, level up mid-run.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#07030f",
+  "theme_color": "#0a0518",
+  "orientation": "any",
+  "icons": [
+    { "src": "./assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
