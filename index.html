@@ -19,7 +19,7 @@ let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(
 Object.assign(EDIT.waves,{budgetBase:EDIT.waves.budgetBase??4,budgetExponent:EDIT.waves.budgetExponent??1.11});
 function persistForge(){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){alert('Storage full — Forge values were not saved.')}}
 const SPRITES={};function spriteFor(src){if(!src)return null;if(!SPRITES[src]){let image=new Image();image.src=src;SPRITES[src]=image}return SPRITES[src]}
-const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;function sfx(name,vol=.25){if(!audioOn||!SFX[name])return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
+const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
 let player={x:0,y:0,r:16,hp:100,maxHp:100,speed:245,pickupRadius:90,inv:0,angle:0};
 let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0;
 let WEAPON,ENEMIES;function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius});WEAPON=EDIT.weapons[0];ENEMIES=EDIT.entities}applyForge();
