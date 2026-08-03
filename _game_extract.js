@@ -26,7 +26,7 @@ addEventListener('keydown',e=>{keys.add(e.key.toLowerCase());if(['arrowup','arro
 canvas.addEventListener('pointerdown',e=>{pointer.active=true;pointer.x=e.clientX;pointer.y=e.clientY;canvas.setPointerCapture(e.pointerId);STICK.active=true;STICK.base.x=e.clientX;STICK.base.y=e.clientY;stickSet(e.clientX,e.clientY)});canvas.addEventListener('pointermove',e=>{if(pointer.active){pointer.x=e.clientX;pointer.y=e.clientY;if(STICK.active)stickSet(e.clientX,e.clientY)}});canvas.addEventListener('pointerup',()=>{pointer.active=false;stickRelease()});canvas.addEventListener('pointercancel',()=>{pointer.active=false;stickRelease()});
 const FORGE_KEY='hive_swarm_forge_values_v1', copy=o=>JSON.parse(JSON.stringify(o));
 const META_KEY='hive_swarm_meta_v1';let META=(()=>{try{return Object.assign({credits:0,damage:0,hp:0,speed:0},JSON.parse(localStorage.getItem(META_KEY)||'{}'))}catch(_){return {credits:0,damage:0,hp:0,speed:0}}})();function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(META))}catch(_){}}
-const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034},drops:{xp:1,metaChance:.08},weapons:[{id:'weapon.pulse',name:'Pulse Carbine',damage:17,rate:.18,speed:720,shots:1,pierce:1,color:'#b7fff5',range:760}],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:28,speed:72,damage:8,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}]};
+const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034},drops:{xp:1,metaChance:.08,healChance:.07,heal:12},weapons:[{id:'weapon.pulse',name:'Pulse Carbine',damage:17,rate:.18,speed:720,shots:1,pierce:1,color:'#b7fff5',range:760}],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:28,speed:72,damage:8,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}]};
 function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object')Object.assign(next[key],saved[key])}return next}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
 Object.assign(EDIT.waves,{budgetBase:EDIT.waves.budgetBase??4,budgetExponent:EDIT.waves.budgetExponent??1.11});
@@ -46,18 +46,37 @@ function followCamera(){let dx=player.x-cam.x,dy=player.y-cam.y,deadX=VIEW.w*CAM
 function update(dt){if(state!=='play')return;elapsed+=dt;wave=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));followCamera();
 spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=WEAPON.rate;fire()}
 for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1;e.x+=vx/d*e.speed*dt;e.y+=vy/d*e.speed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}e.hit=Math.max(0,e.hit-dt);if(d<e.r+player.r){if(!player.inv){player.hp-=e.damage;player.inv=.45;shake=8;burst(player.x,player.y,'#ff718a',14);if(player.hp<=0){player.hp=0;state='dead'}}e.x-=vx/d*20;e.y-=vy/d*20}}
-for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;let removed=b.life<=0;for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,WEAPON.color,3);b.pierce--;if(e.hp<=0){score+=10;sfx('kill',.18);if((e.type.dropXp||0)>=5){META.credits++;saveMeta()}pickups.push({x:e.x,y:e.y,value:(e.type.dropXp||1)*EDIT.drops.xp});burst(e.x,e.y,e.color,12);enemies.splice(j,1)}if(b.pierce<0)removed=true}}if(removed)bullets.splice(i,1)}
+for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;let removed=b.life<=0;for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,WEAPON.color,3);b.pierce--;if(e.hp<=0){score+=10;sfx('kill',.18);if((e.type.dropXp||0)>=5){META.credits++;saveMeta()}pickups.push({x:e.x,y:e.y,value:(e.type.dropXp||1)*EDIT.drops.xp});
+              // Red health drop. Rarer than XP and only worth grabbing when hurt, so it reads as a
+              // real decision rather than free healing. FORGE knob: drops.healChance / drops.heal.
+              if(rand(0,1)<(EDIT.drops.healChance!==undefined?EDIT.drops.healChance:.07))
+                pickups.push({x:e.x+rand(-14,14),y:e.y+rand(-14,14),heal:1,value:EDIT.drops.heal||12});burst(e.x,e.y,e.color,12);enemies.splice(j,1)}if(b.pierce<0)removed=true}}if(removed)bullets.splice(i,1)}
 // XP orbs (owner request 2026-08-03: "no visual item collects that magnet would be for").
 // pickupRadius is the MAGNET reach: inside it the orb accelerates toward the player and is
 // visibly sucked in; it only banks once it actually touches you, so the magnet upgrade reads
 // as a longer, more dramatic pull rather than a silent instant grab.
 for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.y-p.y,d=Math.hypot(dx,dy)||1;
   p.t=(p.t||0)+dt;p.vx=p.vx||0;p.vy=p.vy||0;
-  if(d<player.pickupRadius){let pull=520*(1-d/player.pickupRadius)+180;p.vx+=dx/d*pull*dt;p.vy+=dy/d*pull*dt;p.pulled=1}
-  else{p.vx*=Math.pow(.02,dt);p.vy*=Math.pow(.02,dt);p.pulled=0}
+  if(d<player.pickupRadius){
+    // Accelerate toward the player AND bleed off the sideways (tangential) component. Pure
+    // attraction is orbital mechanics: an off-centre orb builds tangential speed, misses, and
+    // circles forever. Damping the tangent is what guarantees it actually lands.
+    let ux=dx/d,uy=dy/d,pull=520*(1-d/player.pickupRadius)+180;
+    p.vx+=ux*pull*dt;p.vy+=uy*pull*dt;
+    let tang=-p.vx*uy+p.vy*ux, damp=Math.min(1,6*dt);       // velocity component across the pull axis
+    p.vx+=uy*tang*damp;p.vy-=ux*tang*damp;
+    // Final approach: steer straight in so nothing can orbit at point-blank range.
+    if(d<player.r+42){let sp=Math.max(340,Math.hypot(p.vx,p.vy));p.vx=ux*sp;p.vy=uy*sp}
+    p.pulled=1;
+    p.trail=p.trail||[];p.trail.push(p.x,p.y);if(p.trail.length>10)p.trail.splice(0,2);
+  }
+  else{p.vx*=Math.pow(.02,dt);p.vy*=Math.pow(.02,dt);p.pulled=0;if(p.trail)p.trail.length=0}
   p.x+=p.vx*dt;p.y+=p.vy*dt;
-  if(d<player.r+10){xp+=p.value;orbsCollected++;sfx('hit',.05);burst(p.x,p.y,'#6fffe2',5);pickups.splice(i,1);
-    if(xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);state='levelup';offerCards()}}}
+  if(d<player.r+10){
+    if(p.heal){player.hp=Math.min(player.maxHp,player.hp+p.value);burst(p.x,p.y,'#ff5f7a',7)}
+    else{xp+=p.value;orbsCollected++;burst(p.x,p.y,'#6fffe2',5)}
+    sfx('hit',.05);pickups.splice(i,1);
+    if(!p.heal&&xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);state='levelup';offerCards()}}}
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0)particles.splice(i,1)}shake=Math.max(0,shake-dt*25)}
 function sx(x){return x-cam.x+VIEW.w/2}function sy(y){return y-cam.y+VIEW.h/2}
 // QA probe. Playwright's evaluate() runs in its own context and cannot see script-scoped `let`
@@ -68,10 +87,19 @@ window.__swarmDbg=()=>({state,wave,elapsed,score,level,xp,nextXp,orbsCollected,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 function draw(){ctx.fillStyle='#091014';ctx.fillRect(0,0,VIEW.w,VIEW.h);let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#142329';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
 for(const p of particles){ctx.globalAlpha=Math.min(1,p.life*3);ctx.fillStyle=p.color;ctx.fillRect(sx(p.x)-2,sy(p.y)-2,4,4)}ctx.globalAlpha=1;for(const b of bullets){ctx.fillStyle=WEAPON.color;ctx.shadowColor=WEAPON.color;ctx.shadowBlur=12;ctx.beginPath();ctx.arc(sx(b.x),sy(b.y),b.r,0,7);ctx.fill()}ctx.shadowBlur=0;
-for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,r=4+Math.min(3,(p.value||1)*.5);
-  ctx.save();ctx.shadowColor='#6fffe2';ctx.shadowBlur=p.pulled?18:10;ctx.fillStyle='#8ffff0';
+for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
+    r=p.heal?6:4+Math.min(3,(p.value||1)*.5),
+    col=p.heal?'#ff5f7a':'#8ffff0',glow=p.heal?'#ff2d55':'#6fffe2';
+  ctx.save();
+  // Motion trail while the magnet has hold of it — the pull should be legible at a glance.
+  if(p.pulled&&p.trail&&p.trail.length>3){ctx.strokeStyle=glow;ctx.lineWidth=r*.9;ctx.lineCap='round';
+    for(let k=0;k<p.trail.length-2;k+=2){ctx.globalAlpha=.06+.5*(k/p.trail.length);
+      ctx.beginPath();ctx.moveTo(sx(p.trail[k]),sy(p.trail[k+1]));ctx.lineTo(sx(p.trail[k+2]),sy(p.trail[k+3]));ctx.stroke()}
+    ctx.globalAlpha=1}
+  ctx.shadowColor=glow;ctx.shadowBlur=p.pulled?18:10;ctx.fillStyle=col;
   ctx.beginPath();ctx.arc(x,y+bob,r,0,7);ctx.fill();
-  ctx.globalAlpha=.35;ctx.strokeStyle='#6fffe2';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y+bob,r+3,0,7);ctx.stroke();ctx.restore()}
+  if(p.heal){ctx.fillStyle='#fff';ctx.fillRect(x-1.4,y+bob-4,2.8,8);ctx.fillRect(x-4,y+bob-1.4,8,2.8)}
+  ctx.globalAlpha=.35;ctx.strokeStyle=glow;ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y+bob,r+3,0,7);ctx.stroke();ctx.restore()}
 for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(e.type.sprite);if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.drawImage(img,x-s/2,y-s/2,s,s);ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
 let px=sx(player.x),py=sy(player.y);ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore();ctx.restore();
 ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('HiVE SWARM  ·  WAVE '+wave,18,32);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';ctx.fillText('SURVIVAL '+formatTime(elapsed)+'   SCORE '+score+'   HOSTILES '+enemies.length,18,55);ctx.fillStyle='#26383a';ctx.fillRect(18,70,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80);
