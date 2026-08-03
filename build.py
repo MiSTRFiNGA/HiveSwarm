@@ -60,6 +60,8 @@ def write_platform(platform: str, html: str) -> Path:
     target.mkdir(parents=True, exist_ok=True)
     (target / "index.html").write_text(html, encoding="utf-8")
     (target / "psdk_adapter.js").write_text(adapter_for(platform), encoding="utf-8")
+    shutil.copytree(ROOT / "art_src", target / "art_src", dirs_exist_ok=True)
+    shutil.copytree(ROOT / "assets", target / "assets", dirs_exist_ok=True)
     return target
 
 
@@ -74,6 +76,10 @@ def build() -> list[Path]:
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
         bundle.write(poki / "index.html", "index.html")
         bundle.write(poki / "psdk_adapter.js", "psdk_adapter.js")
+        for file in (poki / "art_src").rglob("*"):
+            if file.is_file(): bundle.write(file, file.relative_to(poki).as_posix())
+        for file in (poki / "assets").rglob("*"):
+            if file.is_file(): bundle.write(file, file.relative_to(poki).as_posix())
     outputs = [crazygames / "index.html", crazygames / "psdk_adapter.js", archive]
     for output in outputs:
         try:
