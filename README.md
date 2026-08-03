@@ -20,6 +20,17 @@ The Forge opens **only** via the ⚒ button or **F2**. The old 700 ms canvas lon
 removed — it fired during normal hold-to-move / hold-to-fire play and yanked the player into the
 editor mid-run (reported by Eric 2026-08-03, both touch and mouse).
 
+## Controls (2026-08-03)
+- **Floating thumbstick.** Movement used to be "finger offset from the SCREEN CENTRE", which forced
+  your thumb over the middle of the display — on top of the player. The stick now anchors wherever
+  the thumb lands, rests at bottom-centre when idle (`STICK.home`), has a 16% dead zone, and is
+  drawn so it reads as a real control. Keyboard WASD/arrows still work.
+- **XP orbs are visible and magnetic.** `player.pickupRadius` is now the MAGNET reach: inside it an
+  orb accelerates toward you and is visibly sucked in; it only banks on contact. HUD gained an XP
+  bar, `LVL`, `XP n/next` and a `◆` orb counter.
+- `window.__swarmDbg()` publishes state for tests — Playwright's `evaluate()` runs in its own
+  context and cannot see script-scoped `let`/`const`, so anything a test asserts must be on `window`.
+
 ## Run Forge regressions
 ```powershell
 cd D:\Dev\HiveSwarm
