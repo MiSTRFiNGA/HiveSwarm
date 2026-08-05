@@ -1,0 +1,18 @@
+from playwright.sync_api import sync_playwright
+with sync_playwright() as pw:
+    b = pw.chromium.launch(headless=True)
+    c = b.new_context(service_workers="block", viewport={"width": 1100, "height": 900})
+    p = c.new_page(); errs=[]; p.on("pageerror", lambda e: errs.append(str(e))); p.on("dialog", lambda d: d.accept())
+    p.goto("http://127.0.0.1:8796/index.html", wait_until="load", timeout=20000); p.wait_for_timeout(1500)
+    p.evaluate("document.querySelector('#forgeBtn').click()"); p.wait_for_timeout(600)
+    tabs = p.evaluate("Array.from(document.querySelectorAll('#forgeTabs button')).map(b=>b.textContent.trim())")
+    ix = tabs.index('SPRITES')
+    p.evaluate(f"document.querySelectorAll('#forgeTabs button')[{ix}].click()"); p.wait_for_timeout(800)
+    body = p.evaluate("document.querySelector('#forgeBody')?.innerText || ''")
+    print("SPRITES tab text (first 400):", body[:400].replace("\n"," | "))
+    print("canvas count:", p.evaluate("document.querySelectorAll('#forgeBody canvas').length"))
+    print("file inputs:", p.evaluate("document.querySelectorAll('#forgeBody input[type=file]').length"))
+    print("buttons:", p.evaluate("Array.from(document.querySelectorAll('#forgeBody button')).map(b=>b.textContent.trim()).slice(0,12)"))
+    p.screenshot(path=r"C:\Users\MiSTRFiNGA\Desktop\Tests\hiveswarm_verify\sprites_tab.png", full_page=True)
+    print("errors:", errs)
+    b.close()

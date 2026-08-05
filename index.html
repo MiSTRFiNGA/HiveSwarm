@@ -1,92 +1,156 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HiVE SWARM v0.0.3</title><style>
-*{box-sizing:border-box}html,body{margin:0;background:#091014;color:#dce9e7;font:14px system-ui,sans-serif;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}#hint{position:fixed;inset:auto 0 18px;text-align:center;color:#94aaa7;pointer-events:none;letter-spacing:.05em}#hint b{color:#e4fff8}#forgeBtn{position:fixed;right:14px;top:14px;border:1px solid #6fffe2;background:#102326;color:#bafff2;border-radius:50%;width:38px;height:38px;font-size:20px;z-index:5}#forge{position:fixed;inset:5%;z-index:8;overflow:auto;background:#0d1a1d;border:1px solid #62d9c7;border-radius:12px;padding:18px;box-shadow:0 16px 60px #000c}#forge[hidden]{display:none}#forge h2{margin:0 0 8px}.forgeHint{color:#9ebbb6;margin:0 0 14px}.forgeGrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(255px,1fr))}.forgeCard{background:#13262a;padding:10px;border-radius:7px}.forgeCard h3{margin:0 0 7px;color:#78efdb}.forgeCard label{display:grid;grid-template-columns:1fr 76px;gap:7px;margin:4px 0;color:#cce1dd}.forgeCard input{width:100%;background:#071215;color:#e9fffa;border:1px solid #426862;border-radius:3px;padding:3px}.forgeActions{display:flex;gap:8px;position:sticky;bottom:0;background:#0d1a1d;padding-top:12px}.forgeActions button{background:#1f5e57;color:#eff;border:0;border-radius:5px;padding:8px 10px}
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HiVE SWARM v0.0.4</title><style>
+*{box-sizing:border-box}html,body{margin:0;background:#091014;color:#dce9e7;font:14px system-ui,sans-serif;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}#hint{position:fixed;inset:auto 0 18px;text-align:center;color:#94aaa7;pointer-events:none;letter-spacing:.05em}#hint b{color:#e4fff8}
+#forgeBtn{position:fixed;right:14px;top:14px;border:1px solid #6fffe2;background:#102326;color:#bafff2;border-radius:50%;width:38px;height:38px;font-size:20px;z-index:5;cursor:pointer}
+#forge{position:fixed;left:24px;top:24px;z-index:50;width:min(720px,92vw);height:82vh;min-width:320px;min-height:280px;resize:both;overflow:hidden;display:none;flex-direction:column;background:#0d1a1d;border:1px solid #62d9c7;border-radius:12px;box-shadow:0 16px 60px #000c;color:#dce9e7;font:13px system-ui,sans-serif}
+#forge.open{display:flex}#forgeHead{cursor:move;padding:10px 14px;border-bottom:1px solid #3a6a62;display:flex;align-items:center;gap:10px;background:#102326}#forgeHead b{color:#6fffe2;font-size:16px}#forgeHead small{color:#9ebbb6;font-size:10px;letter-spacing:1px}#forgeHead .x{margin-left:auto;cursor:pointer;color:#f88;font-weight:900;font-size:16px;padding:0 6px}
+#forgeTabs{display:flex;flex-wrap:wrap;gap:2px;padding:6px 10px 0}#forgeTabs button{padding:6px 10px;cursor:pointer;border:1px solid #3a6a62;border-bottom:none;border-radius:8px 8px 0 0;background:#0a181b;color:#8ab;letter-spacing:.5px;font-size:11px;font-weight:700}#forgeTabs button.on{background:#16383a;color:#6fffe2}
+#forgeBody{overflow:auto;padding:12px 14px;flex:1}#forge .hint{color:#9ebbb6;font-size:11px;margin:4px 0 10px}#forge .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+#forge label{display:grid;grid-template-columns:1fr 76px;gap:7px;margin:4px 0;color:#cce1dd;min-width:200px}#forge input,#forge select,#forge textarea{background:#071215;color:#e9fffa;border:1px solid #426862;border-radius:3px;padding:3px 5px;font:12px monospace}#forge input[type=number]{width:76px}#forge input[type=text]{width:160px}#forge textarea{width:min(420px,70vw);height:90px}
+#forge button{background:#1f5e57;color:#eff;border:0;border-radius:5px;padding:6px 10px;cursor:pointer;font-weight:700;font-size:11px;margin:2px}#forge button.warn{background:#5e1f2a}#forge button.on{outline:1px solid #6fffe2}
+#forge table{width:100%;border-collapse:collapse;font-size:12px}#forge th{color:#78efdb;text-align:left;padding:4px;border-bottom:1px solid #3a6a62}#forge td{padding:4px;border-bottom:1px solid #1a3034;vertical-align:middle}
+#forge .kthumb{width:40px;height:40px;object-fit:contain;border:1px solid #3a6a62;border-radius:4px;background:#071215;image-rendering:pixelated}
+#forgePaint{border:1px solid #62d9c7;border-radius:6px;background:repeating-conic-gradient(#222 0 25%,#333 0 50%) 0 0/16px 16px;touch-action:none;cursor:crosshair;image-rendering:pixelated}
+#forge .frames{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0}#forge .frames canvas{border:1px solid #333;border-radius:4px;cursor:pointer;background:#111;image-rendering:pixelated}#forge .frames canvas.sel{border-color:#6fffe2}
+.overlay{position:fixed;inset:0;z-index:10;background:#061014e8;display:grid;place-content:center;gap:10px;padding:24px;text-align:center;overflow:auto}
+.overlay h2{margin:0;color:#e4fff8}.overlay .slot{width:min(420px,90vw);padding:14px;background:#13262a;border:1px solid #426862;border-radius:8px;text-align:left;cursor:pointer}.overlay .slot.on{border-color:#6fffe2}.overlay .slot button{float:right;background:#5e1f2a;color:#fcc;border:0;border-radius:4px;padding:4px 8px;cursor:pointer}
+.toast{position:fixed;left:50%;top:90px;transform:translateX(-50%);z-index:12;background:rgba(40,20,60,.9);border:1px solid #c6f;border-radius:8px;padding:10px 22px;text-align:center;pointer-events:none;color:#e8d8ff}
+.toast b{display:block;color:#c6f;font-size:12px;letter-spacing:1px}.toast span{font-weight:700;font-size:16px;color:#fff}
 </style></head><body><canvas id="game"></canvas><div id="hint"><b>WASD / ARROWS</b> or the on-screen stick to move · weapons fire automatically · survive the swarm</div>
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
+const GAME_VERSION='0.0.4';
 const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
 const VIEW={w:540,h:960}, WORLD={halfW:810,halfH:1440,maxEnemies:220}, CAMERA={deadZone:.15}; let dpr=1;
 function resize(){dpr=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);VIEW.w=innerWidth;VIEW.h=innerHeight} addEventListener('resize',resize);resize();
 const keys=new Set(), pointer={active:false,x:0,y:0};
-// Virtual thumbstick (owner request 2026-08-03: "put the virtual joystick at the bottom centre
-// so a person can use their thumb"). The old scheme steered by the finger's offset from the
-// SCREEN CENTRE, which forced you to hold your thumb over the middle of the display — right on
-// top of the player sprite — to move accurately.
-// Now the stick FLOATS: it anchors wherever the thumb lands, and when idle it rests at the
-// bottom-centre home position so it reads as a real control, not an invisible gesture.
+// Virtual thumbstick (owner request 2026-08-03): anchors where the thumb lands; idle rest bottom-centre.
 const STICK={home:{x:0,y:0},base:{x:0,y:0},knob:{x:0,y:0},radius:78,dead:0.16,active:false,dx:0,dy:0};
 function stickHome(){STICK.home.x=VIEW.w/2;STICK.home.y=VIEW.h-Math.min(150,VIEW.h*0.22);}
 function stickSet(x,y){let dx=x-STICK.base.x,dy=y-STICK.base.y,d=Math.hypot(dx,dy);
   if(d>STICK.radius){dx*=STICK.radius/d;dy*=STICK.radius/d;d=STICK.radius}
   STICK.knob.x=STICK.base.x+dx;STICK.knob.y=STICK.base.y+dy;
-  // Dead zone stops a resting thumb from creeping the player around.
   let n=d/STICK.radius;if(n<STICK.dead){STICK.dx=STICK.dy=0;return}
   STICK.dx=dx/(d||1);STICK.dy=dy/(d||1);}
 function stickRelease(){STICK.active=false;STICK.dx=STICK.dy=0;stickHome();STICK.base.x=STICK.home.x;STICK.base.y=STICK.home.y;STICK.knob.x=STICK.base.x;STICK.knob.y=STICK.base.y;}
 stickRelease();addEventListener('resize',stickRelease);
 
 addEventListener('keydown',e=>{keys.add(e.key.toLowerCase());if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key))e.preventDefault()});addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-canvas.addEventListener('pointerdown',e=>{pointer.active=true;pointer.x=e.clientX;pointer.y=e.clientY;canvas.setPointerCapture(e.pointerId);STICK.active=true;STICK.base.x=e.clientX;STICK.base.y=e.clientY;stickSet(e.clientX,e.clientY)});canvas.addEventListener('pointermove',e=>{if(pointer.active){pointer.x=e.clientX;pointer.y=e.clientY;if(STICK.active)stickSet(e.clientX,e.clientY)}});canvas.addEventListener('pointerup',()=>{pointer.active=false;stickRelease()});canvas.addEventListener('pointercancel',()=>{pointer.active=false;stickRelease()});
+canvas.addEventListener('pointerdown',e=>{if(state!=='play')return;pointer.active=true;pointer.x=e.clientX;pointer.y=e.clientY;canvas.setPointerCapture(e.pointerId);STICK.active=true;STICK.base.x=e.clientX;STICK.base.y=e.clientY;stickSet(e.clientX,e.clientY)});canvas.addEventListener('pointermove',e=>{if(pointer.active){pointer.x=e.clientX;pointer.y=e.clientY;if(STICK.active)stickSet(e.clientX,e.clientY)}});canvas.addEventListener('pointerup',()=>{pointer.active=false;stickRelease()});canvas.addEventListener('pointercancel',()=>{pointer.active=false;stickRelease()});
+
+// ---- FORGE values ----
 const FORGE_KEY='hive_swarm_forge_values_v1', copy=o=>JSON.parse(JSON.stringify(o));
-const META_KEY='hive_swarm_meta_v1';let META=(()=>{try{return Object.assign({credits:0,damage:0,hp:0,speed:0},JSON.parse(localStorage.getItem(META_KEY)||'{}'))}catch(_){return {credits:0,damage:0,hp:0,speed:0}}})();function saveMeta(){try{localStorage.setItem(META_KEY,JSON.stringify(META))}catch(_){}}
-const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034},drops:{xp:1,metaChance:.08,healChance:.07,heal:12},weapons:[{id:'weapon.pulse',name:'Pulse Carbine',damage:17,rate:.18,speed:720,shots:1,pierce:1,color:'#b7fff5',range:760}],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:28,speed:72,damage:8,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}]};
-function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object')Object.assign(next[key],saved[key])}return next}
+const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034,budgetBase:4,budgetExponent:1.11},drops:{xp:1,metaChance:.08,healChance:.07,heal:12},weapons:[{id:'weapon.pulse',name:'Pulse Carbine',damage:17,rate:.18,speed:720,shots:1,pierce:1,color:'#b7fff5',range:760}],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:28,speed:72,damage:8,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}],codexPages:null};
+function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(key==='codexPages'){if(Array.isArray(saved.codexPages))next.codexPages=saved.codexPages;continue}if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object'&&!Array.isArray(base[key]))Object.assign(next[key],saved[key])}return next}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
 Object.assign(EDIT.waves,{budgetBase:EDIT.waves.budgetBase??4,budgetExponent:EDIT.waves.budgetExponent??1.11});
 function persistForge(){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){alert('Storage full — Forge values were not saved.')}}
-const SPRITES={};function spriteFor(src){if(!src)return null;if(!SPRITES[src]){let image=new Image();image.src=src;SPRITES[src]=image}return SPRITES[src]}
-const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
+
+// ---- SAVE SLOTS (mirror HiVE WAR: 3 slots + erase; legacy single key migrates into slot 1) ----
+const SAVE_SLOTS=3, LEGACY_KEY='hive_swarm_meta_v1', SLOT_PICK_KEY='hive_swarm_slot';
+function metaDefaults(){return {credits:0,damage:0,hp:0,speed:0,bestScore:0,codexSeen:{}}}
+function slotKey(n){return LEGACY_KEY+'_s'+n}
+function currentSlot(){const n=Number(localStorage.getItem(SLOT_PICK_KEY));return Number.isFinite(n)&&n>=1&&n<=SAVE_SLOTS?n:1}
+function migrateLegacySave(){try{const legacy=localStorage.getItem(LEGACY_KEY);if(legacy&&localStorage.getItem(slotKey(1))===null)localStorage.setItem(slotKey(1),legacy)}catch(_){}}
+function slotInfo(n){let raw=null;try{raw=localStorage.getItem(slotKey(n))}catch(_){}if(!raw)return null;try{const m=JSON.parse(raw);return{credits:m.credits||0,best:m.bestScore||0,codex:m.codexSeen?Object.keys(m.codexSeen).length:0,damage:m.damage||0,hp:m.hp||0,speed:m.speed||0}}catch(_){return null}}
+function eraseSlot(n){try{localStorage.removeItem(slotKey(n))}catch(_){}if(n===currentSlot()){META=metaDefaults();saveMeta()}}
+function useSlot(n){try{localStorage.setItem(SLOT_PICK_KEY,String(n))}catch(_){}META=loadMeta()}
+function loadMeta(){migrateLegacySave();try{return Object.assign({},metaDefaults(),JSON.parse(localStorage.getItem(slotKey(currentSlot()))||'{}'))}catch(_){return metaDefaults()}}
+function saveMeta(){try{localStorage.setItem(slotKey(currentSlot()),JSON.stringify(META))}catch(_){}}
+let META=loadMeta();
+
+// ---- BEASTIARY / CODEX (unlock on first sighting; progress is per-slot via META.codexSeen) ----
+const CODEX_CATS=['enemy','boss','weapon','item','player','lore'];
+const CODEX_ICON={enemy:'👾',boss:'💀',weapon:'🔫',item:'📦',player:'🎖',lore:'📖'};
+const CODEX_IMG={}; // pageId -> dataURL (hydrated from IndexedDB under codex:)
+let newCodexTitle='', newCodexT=0;
+function codexDefaults(){
+  const pages=[]; let n=0;
+  const mk=(cat,title,subtitle,body,link)=>pages.push({id:'cx'+(++n),cat,title,subtitle,body:body||'',link:link||''});
+  (EDIT.entities||[]).forEach(e=>mk('enemy',e.name||e.id,'Hostile',`Wave ${e.unlockWave||1}+ · HP ${e.hp} · DMG ${e.damage}`,'enemy:'+e.id));
+  (EDIT.weapons||[]).forEach(w=>mk('weapon',w.name||w.id,'Weapon',`Damage ${w.damage} · rate ${w.rate}`,'weapon:'+w.id));
+  // Field items — unlock the first time the player actually collects one (not on kill alone).
+  mk('item','Biomatter Orb','XP Drop','Glowing scrap that feeds your mid-run level bar. Magnet range pulls it in.','item:xp');
+  mk('item','Stim Pack','Health Drop','Red cross vials. Rarer than XP; only worth the detour when you are hurt.','item:heal');
+  mk('player','Swarm Operative','Player','Your avatar in the open arena. Survive waves, collect biomatter, evolve loadouts.','');
+  mk('lore','The Greybox','Field note','S.3 open-arena survival. No lanes, no horizon — only the swarm.','');
+  return pages;
+}
+function codexPages(){if(!Array.isArray(EDIT.codexPages)||!EDIT.codexPages.length)EDIT.codexPages=codexDefaults();return EDIT.codexPages}
+function codexNewId(){let i=1;const used=new Set(codexPages().map(p=>p.id));while(used.has('cx'+i))i++;return 'cx'+i}
+function codexUnlocked(page){return !page.link||(META.codexSeen&&META.codexSeen[page.link]!==undefined)}
+function codexVisible(){return codexPages().filter(codexUnlocked)}
+function codexSee(link,count){
+  if(!link)return;
+  if(!META.codexSeen)META.codexSeen={};
+  const seen=META.codexSeen, had=seen[link]!==undefined;
+  seen[link]=(seen[link]||0)+(count===undefined?1:count);
+  if(!had){const page=codexPages().find(p=>p.link===link);if(page){newCodexTitle=page.title;newCodexT=3}saveMeta()}
+}
+
+// ---- sprites / media (FORGE paint + IndexedDB; game prefers override dataURL) ----
+const SPRITES={}; const SPRITE_OVR={}; // key -> dataURL
+function spriteFor(src){
+  if(!src)return null;
+  // FORGE override wins when the entity id (or path) was painted/saved
+  const ovr=SPRITE_OVR[src]||SPRITE_OVR['path:'+src];
+  if(ovr){if(!SPRITES[ovr]){const image=new Image();image.src=ovr;SPRITES[ovr]=image}return SPRITES[ovr]}
+  if(!SPRITES[src]){const image=new Image();image.src=src;SPRITES[src]=image}return SPRITES[src]
+}
+function entitySpriteKey(e){return e&&e.id?e.id:('path:'+(e&&e.sprite||''))}
+function spriteSrcForEntity(e){const k=entitySpriteKey(e);return SPRITE_OVR[k]||(e&&e.sprite)||''}
+
+const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;
+function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
+
 let player={x:0,y:0,r:16,hp:100,maxHp:100,speed:245,pickupRadius:90,inv:0,angle:0};
 let orbsCollected=0;
 let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
-let WEAPON,ENEMIES;function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius});WEAPON=EDIT.weapons[0];ENEMIES=EDIT.entities}applyForge();
-function reset(){applyForge();heldWeapons=[copy(WEAPON)];WEAPON=heldWeapons[0];player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];elapsed=score=wave=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;evolved=false;level=1;nextXp=8;state='play'}
+let WEAPON,ENEMIES;
+function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius});WEAPON=EDIT.weapons[0];ENEMIES=EDIT.entities}applyForge();
+function reset(){applyForge();heldWeapons=[copy(WEAPON)];WEAPON=heldWeapons[0];player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];elapsed=score=wave=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;evolved=false;level=1;nextXp=8;state='play';
+  // weapon page unlock when a run starts with that gun
+  if(WEAPON&&WEAPON.id)codexSee('weapon:'+WEAPON.id,0)}
 function rand(a,b){return a+Math.random()*(b-a)} function dist2(a,b){let x=a.x-b.x,y=a.y-b.y;return x*x+y*y}
-function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return}let a=Math.random()<.6?player.angle+rand(-Math.PI/3,Math.PI/3):Math.random()*Math.PI*2,distance=Math.hypot(VIEW.w,VIEW.h)*.72+rand(60,180),level=1+Math.floor(elapsed/EDIT.waves.seconds),roster=ENEMIES.filter(e=>(e.unlockWave||1)<=level),total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);let x=Math.max(-WORLD.halfW+type.r,Math.min(WORLD.halfW-type.r,player.x+Math.cos(a)*distance)),y=Math.max(-WORLD.halfH+type.r,Math.min(WORLD.halfH-type.r,player.y+Math.sin(a)*distance));enemies.push({x,y,r:type.r,hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});}
+function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return}let a=Math.random()<.6?player.angle+rand(-Math.PI/3,Math.PI/3):Math.random()*Math.PI*2,distance=Math.hypot(VIEW.w,VIEW.h)*.72+rand(60,180),level=1+Math.floor(elapsed/EDIT.waves.seconds),roster=ENEMIES.filter(e=>(e.unlockWave||1)<=level),total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);let x=Math.max(-WORLD.halfW+type.r,Math.min(WORLD.halfW-type.r,player.x+Math.cos(a)*distance)),y=Math.max(-WORLD.halfH+type.r,Math.min(WORLD.halfH-type.r,player.y+Math.sin(a)*distance));
+  // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
+  codexSee('enemy:'+type.id,0);
+  enemies.push({x,y,r:type.r,hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});}
 function fire(){let target=null,best=Infinity;for(const e of enemies){let d=dist2(player,e);if(d<best){best=d;target=e}}if(!target)return;let a=Math.atan2(target.y-player.y,target.x-player.x);player.angle=a;for(const w of heldWeapons){sfx('fire',.08);for(let i=0;i<w.shots;i++){let spread=(i-(w.shots-1)/2)*.1;bullets.push({x:player.x+Math.cos(a+spread)*20,y:player.y+Math.sin(a+spread)*20,vx:Math.cos(a+spread)*w.speed,vy:Math.sin(a+spread)*w.speed,r:4,damage:w.damage*(1+Math.min(.25,META.damage*.05)),pierce:w.pierce,life:1.05})}}}
 function burst(x,y,color,n=8){for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(25,140);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.55),color})}}
 function followCamera(){let dx=player.x-cam.x,dy=player.y-cam.y,deadX=VIEW.w*CAMERA.deadZone,deadY=VIEW.h*CAMERA.deadZone;if(Math.abs(dx)>deadX)cam.x+=dx-Math.sign(dx)*deadX;if(Math.abs(dy)>deadY)cam.y+=dy-Math.sign(dy)*deadY;cam.x=Math.max(-WORLD.halfW+VIEW.w/2,Math.min(WORLD.halfW-VIEW.w/2,cam.x));cam.y=Math.max(-WORLD.halfH+VIEW.h/2,Math.min(WORLD.halfH-VIEW.h/2,cam.y));}
-function update(dt){if(state!=='play')return;elapsed+=dt;wave=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));followCamera();
+function update(dt){if(state!=='play'){if(newCodexT>0)newCodexT=Math.max(0,newCodexT-dt);return}elapsed+=dt;if(newCodexT>0)newCodexT=Math.max(0,newCodexT-dt);wave=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));followCamera();
 spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=WEAPON.rate;fire()}
-for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1;e.x+=vx/d*e.speed*dt;e.y+=vy/d*e.speed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}e.hit=Math.max(0,e.hit-dt);if(d<e.r+player.r){if(!player.inv){player.hp-=e.damage;player.inv=.45;shake=8;burst(player.x,player.y,'#ff718a',14);if(player.hp<=0){player.hp=0;state='dead'}}e.x-=vx/d*20;e.y-=vy/d*20}}
-for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;let removed=b.life<=0;for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,WEAPON.color,3);b.pierce--;if(e.hp<=0){score+=10;sfx('kill',.18);if((e.type.dropXp||0)>=5){META.credits++;saveMeta()}pickups.push({x:e.x,y:e.y,value:(e.type.dropXp||1)*EDIT.drops.xp});
-              // Red health drop. Rarer than XP and only worth grabbing when hurt, so it reads as a
-              // real decision rather than free healing. FORGE knob: drops.healChance / drops.heal.
+for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1;e.x+=vx/d*e.speed*dt;e.y+=vy/d*e.speed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}e.hit=Math.max(0,e.hit-dt);if(d<e.r+player.r){if(!player.inv){player.hp-=e.damage;player.inv=.45;shake=8;burst(player.x,player.y,'#ff718a',14);if(player.hp<=0){player.hp=0;if(score>(META.bestScore||0)){META.bestScore=score;saveMeta()}state='dead'}}e.x-=vx/d*20;e.y-=vy/d*20}}
+for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;let removed=b.life<=0;for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,WEAPON.color,3);b.pierce--;if(e.hp<=0){score+=10;sfx('kill',.18);codexSee('enemy:'+e.type.id);if((e.type.dropXp||0)>=5){META.credits++;saveMeta()}pickups.push({x:e.x,y:e.y,value:(e.type.dropXp||1)*EDIT.drops.xp});
               if(rand(0,1)<(EDIT.drops.healChance!==undefined?EDIT.drops.healChance:.07))
                 pickups.push({x:e.x+rand(-14,14),y:e.y+rand(-14,14),heal:1,value:EDIT.drops.heal||12});burst(e.x,e.y,e.color,12);enemies.splice(j,1)}if(b.pierce<0)removed=true}}if(removed)bullets.splice(i,1)}
-// XP orbs (owner request 2026-08-03: "no visual item collects that magnet would be for").
-// pickupRadius is the MAGNET reach: inside it the orb accelerates toward the player and is
-// visibly sucked in; it only banks once it actually touches you, so the magnet upgrade reads
-// as a longer, more dramatic pull rather than a silent instant grab.
+// XP orbs — pickupRadius is magnet reach; bank only on touch.
 for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.y-p.y,d=Math.hypot(dx,dy)||1;
   p.t=(p.t||0)+dt;p.vx=p.vx||0;p.vy=p.vy||0;
   if(d<player.pickupRadius){
-    // Accelerate toward the player AND bleed off the sideways (tangential) component. Pure
-    // attraction is orbital mechanics: an off-centre orb builds tangential speed, misses, and
-    // circles forever. Damping the tangent is what guarantees it actually lands.
     let ux=dx/d,uy=dy/d,pull=520*(1-d/player.pickupRadius)+180;
     p.vx+=ux*pull*dt;p.vy+=uy*pull*dt;
-    let tang=-p.vx*uy+p.vy*ux, damp=Math.min(1,6*dt);       // velocity component across the pull axis
+    let tang=-p.vx*uy+p.vy*ux, damp=Math.min(1,6*dt);
     p.vx+=uy*tang*damp;p.vy-=ux*tang*damp;
-    // Final approach: steer straight in so nothing can orbit at point-blank range.
     if(d<player.r+42){let sp=Math.max(340,Math.hypot(p.vx,p.vy));p.vx=ux*sp;p.vy=uy*sp}
-    p.pulled=1;
-    p.trail=p.trail||[];p.trail.push(p.x,p.y);if(p.trail.length>10)p.trail.splice(0,2);
+    p.pulled=1;p.trail=p.trail||[];p.trail.push(p.x,p.y);if(p.trail.length>10)p.trail.splice(0,2);
   }
   else{p.vx*=Math.pow(.02,dt);p.vy*=Math.pow(.02,dt);p.pulled=0;if(p.trail)p.trail.length=0}
   p.x+=p.vx*dt;p.y+=p.vy*dt;
   if(d<player.r+10){
-    if(p.heal){player.hp=Math.min(player.maxHp,player.hp+p.value);burst(p.x,p.y,'#ff5f7a',7)}
-    else{xp+=p.value;orbsCollected++;burst(p.x,p.y,'#6fffe2',5)}
+    if(p.heal){player.hp=Math.min(player.maxHp,player.hp+p.value);burst(p.x,p.y,'#ff5f7a',7);codexSee('item:heal',0)}
+    else{xp+=p.value;orbsCollected++;burst(p.x,p.y,'#6fffe2',5);codexSee('item:xp',0)}
     sfx('hit',.05);pickups.splice(i,1);
     if(!p.heal&&xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);state='levelup';offerCards()}}}
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0)particles.splice(i,1)}shake=Math.max(0,shake-dt*25)}
 function sx(x){return x-cam.x+VIEW.w/2}function sy(y){return y-cam.y+VIEW.h/2}
-// QA probe. Playwright's evaluate() runs in its own context and cannot see script-scoped `let`
-// declarations, so anything a test needs to assert has to be published on `window` explicitly.
+// QA probe — Playwright cannot see script-scoped let; publish on window.
 window.__swarmDbg=()=>({state,wave,elapsed,score,level,xp,nextXp,orbsCollected,
   pickups:pickups.length,enemies:enemies.length,hp:player.hp,px:Math.round(player.x),py:Math.round(player.y),
+  slot:currentSlot(),codexUnlocked:codexVisible().length,codexTotal:codexPages().length,
+  credits:META.credits||0,bestScore:META.bestScore||0,
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 function draw(){ctx.fillStyle='#091014';ctx.fillRect(0,0,VIEW.w,VIEW.h);let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#142329';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
@@ -95,7 +159,6 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
     r=p.heal?6:4+Math.min(3,(p.value||1)*.5),
     col=p.heal?'#ff5f7a':'#8ffff0',glow=p.heal?'#ff2d55':'#6fffe2';
   ctx.save();
-  // Motion trail while the magnet has hold of it — the pull should be legible at a glance.
   if(p.pulled&&p.trail&&p.trail.length>3){ctx.strokeStyle=glow;ctx.lineWidth=r*.9;ctx.lineCap='round';
     for(let k=0;k<p.trail.length-2;k+=2){ctx.globalAlpha=.06+.5*(k/p.trail.length);
       ctx.beginPath();ctx.moveTo(sx(p.trail[k]),sy(p.trail[k+1]));ctx.lineTo(sx(p.trail[k+2]),sy(p.trail[k+3]));ctx.stroke()}
@@ -104,24 +167,288 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
   ctx.beginPath();ctx.arc(x,y+bob,r,0,7);ctx.fill();
   if(p.heal){ctx.fillStyle='#fff';ctx.fillRect(x-1.4,y+bob-4,2.8,8);ctx.fillRect(x-4,y+bob-1.4,8,2.8)}
   ctx.globalAlpha=.35;ctx.strokeStyle=glow;ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y+bob,r+3,0,7);ctx.stroke();ctx.restore()}
-for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(e.type.sprite);if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.drawImage(img,x-s/2,y-s/2,s,s);ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
+for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(entitySpriteKey(e.type))||spriteFor(e.type.sprite);if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.drawImage(img,x-s/2,y-s/2,s,s);ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
 let px=sx(player.x),py=sy(player.y);ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore();ctx.restore();
 ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('HiVE SWARM  ·  WAVE '+wave,18,32);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';ctx.fillText('SURVIVAL '+formatTime(elapsed)+'   SCORE '+score+'   HOSTILES '+enemies.length,18,55);ctx.fillStyle='#26383a';ctx.fillRect(18,70,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80);
-// XP / level readout — the orbs are now visible, so the counter they feed has to be too.
 ctx.fillStyle='#1b2f33';ctx.fillRect(18,88,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88,180*Math.max(0,Math.min(1,xp/nextXp)),8);
 ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected,205,96);
-// Thumbstick. Drawn at its resting home until a thumb grabs it, then wherever that thumb landed.
 if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active?STICK.base.y:STICK.home.y,
   kx=STICK.active?STICK.knob.x:bx,ky=STICK.active?STICK.knob.y:by;
   ctx.save();ctx.globalAlpha=STICK.active?.34:.16;ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(bx,by,STICK.radius,0,7);ctx.stroke();
   ctx.globalAlpha=STICK.active?.5:.22;ctx.fillStyle='#6fffe2';ctx.beginPath();ctx.arc(kx,ky,26,0,7);ctx.fill();ctx.restore()}
-if(state==='title'||state==='dead'){ctx.fillStyle='rgba(3,8,10,.72)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.textAlign='center';ctx.fillStyle='#e4fff8';ctx.font='700 34px system-ui';ctx.fillText(state==='dead'?'RUN ENDED':'HiVE SWARM',VIEW.w/2,VIEW.h/2-24);ctx.save();ctx.font='12px system-ui';ctx.fillStyle='rgba(150,200,190,.55)';ctx.fillText('v0.0.3',VIEW.w/2,VIEW.h/2-5);ctx.restore();ctx.font='16px system-ui';ctx.fillStyle='#b3cbc7';ctx.fillText(state==='dead'?'Score '+score+' · survived '+formatTime(elapsed):'Open arena survival greybox',VIEW.w/2,VIEW.h/2+10);ctx.fillStyle='#6fffe2';ctx.fillText('Click or press Enter to deploy',VIEW.w/2,VIEW.h/2+50);ctx.textAlign='left'}}
-function formatTime(t){return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0')} addEventListener('keydown',e=>{if(e.key==='Enter'&&(state==='title'||state==='dead'))reset()});canvas.addEventListener('click',()=>{if(state==='title'||state==='dead')reset()});
+if(state==='title'||state==='dead'){ctx.fillStyle='rgba(3,8,10,.72)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.textAlign='center';ctx.fillStyle='#e4fff8';ctx.font='700 34px system-ui';ctx.fillText(state==='dead'?'RUN ENDED':'HiVE SWARM',VIEW.w/2,VIEW.h/2-80);ctx.save();ctx.font='12px system-ui';ctx.fillStyle='rgba(150,200,190,.55)';ctx.fillText('v'+GAME_VERSION,VIEW.w/2,VIEW.h/2-58);ctx.restore();ctx.font='16px system-ui';ctx.fillStyle='#b3cbc7';ctx.fillText(state==='dead'?'Score '+score+' · survived '+formatTime(elapsed):'Open arena survival greybox',VIEW.w/2,VIEW.h/2-30);ctx.fillStyle='#8ab';ctx.font='14px system-ui';ctx.fillText('SLOT '+currentSlot()+'  ·  '+ (META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),VIEW.w/2,VIEW.h/2-6);ctx.fillStyle='#6fffe2';ctx.font='16px system-ui';ctx.fillText('Click or press Enter to deploy',VIEW.w/2,VIEW.h/2+28);ctx.textAlign='left'}
+// First-sighting toast
+if(newCodexT>0&&newCodexTitle){const a=Math.min(1,newCodexT/.5);ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';
+  ctx.fillStyle='rgba(60,20,90,.82)';ctx.fillRect(VIEW.w/2-170,96,340,52);ctx.strokeStyle='#c6f';ctx.strokeRect(VIEW.w/2-170,96,340,52);
+  ctx.fillStyle='#e8d8ff';ctx.font='bold 13px system-ui';ctx.fillText('NEW BEASTIARY ENTRY',VIEW.w/2,118);
+  ctx.fillStyle='#fff';ctx.font='bold 18px system-ui';ctx.fillText(newCodexTitle,VIEW.w/2,140);ctx.restore()}
+if(typeof ensureTitleChrome==='function')ensureTitleChrome();
+}
+function formatTime(t){return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0')}
+function tryDeploy(){if(state==='title'||state==='dead')reset()}
+addEventListener('keydown',e=>{if(e.key==='Enter')tryDeploy()});
+canvas.addEventListener('click',()=>{if(state==='title'||state==='dead')tryDeploy()});
 let last=performance.now(),accumulator=0;function frame(now){accumulator+=Math.min(.05,(now-last)/1000);last=now;while(accumulator>=1/60){update(1/60);accumulator-=1/60}draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
-window.__hiveSwarmDebug=()=>({state,elapsed,score,wave,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam});
-function offerCards(){let weapons=[{name:'Pulse Overdrive',text:'+25% Pulse damage',apply:()=>WEAPON.damage=Math.round(WEAPON.damage*1.25)},{name:'Scatter Shot',text:'New spread weapon: +2 bolts',apply:()=>WEAPON.shots=Math.min(5,WEAPON.shots+2)},{name:'Piercing Rounds',text:'+1 projectile pierce',apply:()=>WEAPON.pierce++}],stats=[{name:'Fleet Footed',text:'+12% movement speed',apply:()=>player.speed=Math.round(player.speed*1.12)},{name:'Reinforced',text:'+25 max HP and heal',apply:()=>{player.maxHp+=25;player.hp=Math.min(player.maxHp,player.hp+25)}},{name:'Magnet',text:'+45 pickup radius',apply:()=>player.pickupRadius+=45}],evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{WEAPON.damage*=2;evolved=true}};let pool=[...weapons,...stats,...(wave>=10&&!evolved?[evo]:[])],first=cardPicks<3?weapons[Math.floor(Math.random()*weapons.length)]:null;choices=[];if(first)choices.push(first);while(choices.length<3&&pool.length){let c=pool.splice(Math.floor(Math.random()*pool.length),1)[0];if(!choices.includes(c))choices.push(c)}let box=document.createElement('div');box.id='cards';box.style.cssText='position:fixed;inset:0;z-index:9;background:#061014e8;display:grid;place-content:center;gap:12px;padding:24px;text-align:center';box.innerHTML='<h2>LEVEL '+level+' — CHOOSE ONE</h2>'+choices.map((c,i)=>`<button data-card="${i}" style="width:260px;padding:18px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px"><b>${c.name}</b><br>${c.text}</button>`).join('');document.body.append(box);box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();cardPicks++;box.remove();state='play'})}
-function openMeta(){if(document.querySelector('#meta'))return;let box=document.createElement('div');box.id='meta';box.style.cssText='position:fixed;inset:0;z-index:10;background:#061014e8;display:grid;place-content:center;gap:10px;padding:24px;text-align:center';let render=()=>{box.innerHTML=`<h2>META UPGRADES</h2><p>${META.credits} biomatter · each rank = 5%, hard cap 25%</p>${['damage','hp','speed'].map(k=>`<button data-meta="${k}">${k.toUpperCase()} ${META[k]}/5 · cost ${META[k]+1}</button>`).join('')}<button id="metaClose">Close</button>`;box.querySelectorAll('[data-meta]').forEach(b=>b.onclick=()=>{let k=b.dataset.meta,cost=META[k]+1;if(META[k]<5&&META.credits>=cost){META.credits-=cost;META[k]++;saveMeta();render()}});box.querySelector('#metaClose').onclick=()=>box.remove()};render();document.body.append(box)}addEventListener('keydown',e=>{if(e.key.toLowerCase()==='m'&&(state==='title'||state==='dead'))openMeta()});
+window.__hiveSwarmDebug=()=>({state,elapsed,score,wave,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
+function offerCards(){let weapons=[{name:'Pulse Overdrive',text:'+25% Pulse damage',apply:()=>WEAPON.damage=Math.round(WEAPON.damage*1.25)},{name:'Scatter Shot',text:'New spread weapon: +2 bolts',apply:()=>WEAPON.shots=Math.min(5,WEAPON.shots+2)},{name:'Piercing Rounds',text:'+1 projectile pierce',apply:()=>WEAPON.pierce++}],stats=[{name:'Fleet Footed',text:'+12% movement speed',apply:()=>player.speed=Math.round(player.speed*1.12)},{name:'Reinforced',text:'+25 max HP and heal',apply:()=>{player.maxHp+=25;player.hp=Math.min(player.maxHp,player.hp+25)}},{name:'Magnet',text:'+45 pickup radius',apply:()=>player.pickupRadius+=45}],evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{WEAPON.damage*=2;evolved=true}};let pool=[...weapons,...stats,...(wave>=10&&!evolved?[evo]:[])],first=cardPicks<3?weapons[Math.floor(Math.random()*weapons.length)]:null;choices=[];if(first)choices.push(first);while(choices.length<3&&pool.length){let c=pool.splice(Math.floor(Math.random()*pool.length),1)[0];if(!choices.includes(c))choices.push(c)}let box=document.createElement('div');box.id='cards';box.className='overlay';box.innerHTML='<h2>LEVEL '+level+' — CHOOSE ONE</h2>'+choices.map((c,i)=>`<button data-card="${i}" style="width:260px;padding:18px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px"><b>${c.name}</b><br>${c.text}</button>`).join('');document.body.append(box);box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();cardPicks++;box.remove();state='play'})}
+function openMeta(){if(document.querySelector('#meta'))return;let box=document.createElement('div');box.id='meta';box.className='overlay';
+  let render=()=>{box.innerHTML=`<h2>META UPGRADES</h2><p>SLOT ${currentSlot()} · ${META.credits} biomatter · each rank = 5%, hard cap 25%</p>${['damage','hp','speed'].map(k=>`<button data-meta="${k}">${k.toUpperCase()} ${META[k]}/5 · cost ${META[k]+1}</button>`).join('')}<button id="metaClose">Close</button>`;box.querySelectorAll('[data-meta]').forEach(b=>b.onclick=()=>{let k=b.dataset.meta,cost=META[k]+1;if(META[k]<5&&META.credits>=cost){META.credits-=cost;META[k]++;saveMeta();render()}});box.querySelector('#metaClose').onclick=()=>box.remove()};render();document.body.append(box)}
+function openSlots(){if(document.querySelector('#slots'))return;const box=document.createElement('div');box.id='slots';box.className='overlay';
+  const render=()=>{box.innerHTML=`<h2>💾 SAVE SLOTS</h2><p>tap a slot to play it · ERASE wipes that save (campaign, credits, beastiary)</p>`+
+    [1,2,3].map(i=>{const info=slotInfo(i),on=i===currentSlot();return `<div class="slot${on?' on':''}" data-slot="${i}"><button type="button" data-erase="${i}" ${info?'':'disabled'}>ERASE</button><b>SLOT ${i}${on?' · ACTIVE':''}</b><br>${info?`${info.credits} biomatter · beastiary ${info.codex} · best ${info.best}`:'empty — tap to start fresh'}</div>`}).join('')+
+    `<button id="slotsClose">Close</button>`;
+    box.querySelectorAll('[data-slot]').forEach(el=>el.onclick=e=>{if(e.target.dataset.erase)return;useSlot(Number(el.dataset.slot));render()});
+    box.querySelectorAll('[data-erase]').forEach(b=>b.onclick=e=>{e.stopPropagation();const i=Number(b.dataset.erase);if(confirm('Erase SLOT '+i+'? Its campaign, credits and beastiary are deleted.')){eraseSlot(i);render()}});
+    box.querySelector('#slotsClose').onclick=()=>box.remove()};
+  render();document.body.append(box)}
+function openCodex(){if(document.querySelector('#codex'))return;const box=document.createElement('div');box.id='codex';box.className='overlay';let page=0;
+  const render=()=>{const pages=codexVisible(),total=codexPages().length;
+    if(!pages.length){box.innerHTML=`<h2>📖 BEASTIARY</h2><p>Nothing catalogued yet.</p><p>Pages unlock the first time you meet each beast or weapon.</p><button id="codexClose">Close</button>`;box.querySelector('#codexClose').onclick=()=>box.remove();return}
+    page=Math.min(Math.max(0,page),pages.length-1);const c=pages[page];const img=CODEX_IMG[c.id];const seen=(META.codexSeen&&c.link&&META.codexSeen[c.link])||0;
+    box.innerHTML=`<h2>📖 BEASTIARY  ${page+1}/${pages.length}  (catalogued ${pages.length} of ${total})</h2>
+      ${img?`<img src="${img}" alt="" style="max-width:220px;max-height:180px;border:1px solid #5a4a7a;background:#021">`:`<div style="font-size:48px">${CODEX_ICON[c.cat]||'•'}</div>`}
+      <h3 style="margin:6px 0;color:#eaddff">${c.title||''}</h3>
+      <p style="color:#a89ad0;font-style:italic;margin:0">${c.subtitle||''}${c.link&&c.link.indexOf('enemy:')===0?' · '+seen+' terminated':''}</p>
+      <p style="max-width:420px;margin:10px auto;color:#d8e8ff">${c.body||''}</p>
+      <div style="display:flex;gap:10px;justify-content:center"><button id="cxPrev">◄</button><button id="codexClose">Close</button><button id="cxNext">►</button></div>`;
+    box.querySelector('#codexClose').onclick=()=>box.remove();
+    box.querySelector('#cxPrev').onclick=()=>{page=(page+pages.length-1)%pages.length;render()};
+    box.querySelector('#cxNext').onclick=()=>{page=(page+1)%pages.length;render()}};
+  render();document.body.append(box)}
+// Title-screen DOM chrome (slots + beastiary + meta) — mirrors HiveWar buttons without canvas hit-tests.
+function ensureTitleChrome(){
+  // Headless harness stubs DOM — only mount chrome in a real browser.
+  if(typeof HTMLElement==='undefined')return;
+  let bar=document.getElementById&&document.getElementById('titleChrome');
+  // Hide while FORGE is open (z-index sits under the panel and steals/blocks clicks).
+  const forgeOpen=!!(document.getElementById('forge')&&document.getElementById('forge').classList.contains('open'));
+  if((state!=='title'&&state!=='dead')||forgeOpen){
+    if(bar){if(typeof bar.remove==='function')bar.remove();else if(bar.parentNode)bar.parentNode.removeChild(bar)}
+    return}
+  if(!bar){bar=document.createElement('div');if(!bar||typeof bar!=='object')return;bar.id='titleChrome';bar.style.cssText='position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
+    bar.innerHTML=`<button id="btnSlots" style="padding:10px 14px;background:#16383a;color:#dff;border:1px solid #5cf;border-radius:8px;cursor:pointer;font-weight:700">💾 SAVE SLOTS</button>
+      <button id="btnCodex" style="padding:10px 14px;background:#261638;color:#e8d8ff;border:1px solid #c6f;border-radius:8px;cursor:pointer;font-weight:700">📖 BEASTIARY</button>
+      <button id="btnMeta" style="padding:10px 14px;background:#16383a;color:#dff;border:1px solid #6fffe2;border-radius:8px;cursor:pointer;font-weight:700">META (M)</button>`;
+    try{document.body.append(bar)}catch(_){return}
+    const qs=sel=>bar.querySelector?bar.querySelector(sel):null;
+    const b1=qs('#btnSlots'),b2=qs('#btnCodex'),b3=qs('#btnMeta');
+    if(b1)b1.onclick=e=>{e.stopPropagation();openSlots()};
+    if(b2)b2.onclick=e=>{e.stopPropagation();openCodex()};
+    if(b3)b3.onclick=e=>{e.stopPropagation();openMeta()}}
+  try{const n=codexVisible().length,t=codexPages().length;const bc=bar.querySelector&&bar.querySelector('#btnCodex');if(bc)bc.textContent='📖 BEASTIARY  '+n+' / '+t}catch(_){}}
+// Title chrome is refreshed from draw() — no setInterval (keeps Node harness alive forever).
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='m'&&(state==='title'||state==='dead'))openMeta()});
 addEventListener('click',e=>{let b=e.target.closest&&e.target.closest('[data-card]');if(b&&choices[Number(b.dataset.card)]?.name==='Scatter Shot'&&heldWeapons.length<5)heldWeapons.push(Object.assign(copy(WEAPON),{name:'Scatter Shot',shots:3,damage:Math.round(WEAPON.damage*.65)}))},true);
-(function Forge(){const owner=/^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(location.hostname)||location.protocol==='file:'||location.search.includes('forge');if(!owner)return;const btn=document.createElement('button'),panel=document.createElement('section');btn.id='forgeBtn';btn.textContent='⚒';btn.title='HiVE SWARM Forge (F2)';panel.id='forge';panel.hidden=true;document.body.append(btn,panel);const fields=(obj,path)=>Object.entries(obj).filter(([,v])=>typeof v==='number'||typeof v==='string').map(([k,v])=>`<label>${k}<input data-path="${path}.${k}" value="${v}"></label>`).join('');function render(){panel.innerHTML=`<h2>⚒ HiVE SWARM FORGE</h2><p class="forgeHint">Live data only: numbers, names and colors apply immediately. Enemy behaviours remain code; this table controls every enemy, weapon, wave and drop value.</p><div class="forgeGrid"><article class="forgeCard"><h3>PLAYER</h3>${fields(EDIT.player,'player')}</article><article class="forgeCard"><h3>WORLD</h3>${fields(EDIT.world,'world')}</article><article class="forgeCard"><h3>WAVES</h3>${fields(EDIT.waves,'waves')}</article><article class="forgeCard"><h3>DROPS</h3>${fields(EDIT.drops,'drops')}</article>${EDIT.weapons.map((w,i)=>`<article class="forgeCard"><h3>WEAPON · ${w.id}</h3>${fields(w,'weapons.'+i)}</article>`).join('')}${EDIT.entities.map((e,i)=>`<article class="forgeCard"><h3>ENEMY · ${e.id}</h3>${fields(e,'entities.'+i)}<button data-delete="${i}">Delete</button></article>`).join('')}</div><div class="forgeActions"><button id="addEnemy">Add enemy row</button><button id="forgeReset">Reset shipped values</button><button id="forgeClose">Close</button></div>`;panel.querySelectorAll('input').forEach(input=>input.oninput=()=>{let target=EDIT;let bits=input.dataset.path.split('.');for(let i=0;i<bits.length-1;i++)target=target[bits[i]];let old=target[bits.at(-1)],value=typeof old==='number'?Number(input.value):input.value;if(typeof old==='number'&&!Number.isFinite(value))return;target[bits.at(-1)]=value;applyForge();persistForge()});panel.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{if(EDIT.entities.length>1){EDIT.entities.splice(Number(b.dataset.delete),1);applyForge();persistForge();render()}});panel.querySelector('#addEnemy').onclick=()=>{let n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1});applyForge();persistForge();render()};panel.querySelector('#forgeReset').onclick=()=>{if(confirm('Restore shipped Forge values?')){EDIT=copy(FORGE_BASE);applyForge();persistForge();render()}};panel.querySelector('#forgeClose').onclick=()=>panel.hidden=true}function toggle(){panel.hidden=!panel.hidden;if(!panel.hidden)render()}btn.onclick=toggle;addEventListener('keydown',e=>{if(e.key==='F2'){e.preventDefault();toggle()}});window.__hiveSwarmForge=()=>copy(EDIT)})()
+
+// ============================================================
+// ⬡ HiVE SWARM FORGE — tabbed editor (mirror HiVE WAR patterns)
+// ============================================================
+window.__forgeMediaReady=(async function FORGE(){
+try{
+const owner=/^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(location.hostname)||location.protocol==='file:'||location.protocol==='capacitor:'||location.search.includes('forge');
+if(!owner||typeof document==='undefined'||!document.body)return;
+const MEDIA_DB='hive_swarm_forge_media_v1', MEDIA_STORE='media';
+let mediaQueue=Promise.resolve();
+function queueMedia(task){const next=mediaQueue.then(task,task);mediaQueue=next.catch(()=>{});return next}
+function mediaDB(){return new Promise((resolve,reject)=>{const q=indexedDB.open(MEDIA_DB,1);q.onupgradeneeded=()=>q.result.createObjectStore(MEDIA_STORE,{keyPath:'id'});q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
+async function mediaAll(){const db=await mediaDB();return new Promise((resolve,reject)=>{const q=db.transaction(MEDIA_STORE).objectStore(MEDIA_STORE).getAll();q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)})}
+async function mediaPut(record){const db=await mediaDB();return new Promise((resolve,reject)=>{const q=db.transaction(MEDIA_STORE,'readwrite').objectStore(MEDIA_STORE).put(record);q.onsuccess=()=>resolve();q.onerror=()=>reject(q.error)})}
+async function mediaDel(id){const db=await mediaDB();return new Promise((resolve,reject)=>{const q=db.transaction(MEDIA_STORE,'readwrite').objectStore(MEDIA_STORE).delete(id);q.onsuccess=()=>resolve();q.onerror=()=>reject(q.error)})}
+async function dataBlob(data){return (await fetch(data)).blob()}
+async function blobData(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(blob)})}
+async function hydrateMedia(){
+  try{const rows=await mediaAll();
+    for(const row of rows){const data=await blobData(row.blob);
+      if(row.id.startsWith('sprite:'))SPRITE_OVR[row.key]=data;
+      else if(row.id.startsWith('codex:'))CODEX_IMG[row.key]=data}}
+  catch(_){}}
+await hydrateMedia();
+function saveSpriteMedia(key){const data=SPRITE_OVR[key];return queueMedia(async()=>data?mediaPut({id:'sprite:'+key,key,blob:await dataBlob(data),frames:1,fps:8}):mediaDel('sprite:'+key))}
+function saveCodexMedia(id){const data=CODEX_IMG[id];return queueMedia(async()=>data?mediaPut({id:'codex:'+id,key:id,blob:await dataBlob(data)}):mediaDel('codex:'+id))}
+
+const btn=document.createElement('button');btn.id='forgeBtn';btn.textContent='⚒';btn.title='HiVE SWARM Forge (F2)';document.body.appendChild(btn);
+const win=document.createElement('section');win.id='forge';
+win.innerHTML=`<div id="forgeHead"><b>⬡ HiVE SWARM FORGE</b><small>MiSTRFiNGA INTERNAL // v${GAME_VERSION}</small><span class="x">✕</span></div><div id="forgeTabs"></div><div id="forgeBody"></div>`;
+document.body.appendChild(win);
+const body=win.querySelector('#forgeBody'), tabsEl=win.querySelector('#forgeTabs');
+function openForge(){win.classList.add('open');renderTab()}
+function closeForge(){win.classList.remove('open')}
+function toggleForge(){win.classList.contains('open')?closeForge():openForge()}
+win.querySelector('.x').onclick=closeForge;btn.onclick=toggleForge;
+addEventListener('keydown',e=>{if(e.key==='F2'){e.preventDefault();toggleForge()}});
+if(/[?&]forge=1/.test(location.search))setTimeout(()=>{const m=location.search.match(/[?&]ftab=(\d+)/);if(m)tab=Math.min(TABS.length-1,+m[1]);openForge()},300);
+// drag by header
+(function(){const head=win.querySelector('#forgeHead');let sx,sy,ox,oy,drag=false;
+  head.addEventListener('pointerdown',e=>{if(e.target.classList.contains('x'))return;drag=true;sx=e.clientX;sy=e.clientY;const r=win.getBoundingClientRect();ox=r.left;oy=r.top;head.setPointerCapture(e.pointerId)});
+  head.addEventListener('pointermove',e=>{if(!drag)return;win.style.left=Math.max(0,ox+e.clientX-sx)+'px';win.style.top=Math.max(0,oy+e.clientY-sy)+'px';win.style.right='auto'});
+  head.addEventListener('pointerup',()=>drag=false)})();
+
+const TABS=['ENTITIES','PLAYER','WEAPONS','WAVES','WORLD','SPRITES','AUDIO','DATA','BEASTIARY'];
+let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false}, codexSel=0;
+TABS.forEach((t,i)=>{const d=document.createElement('button');d.type='button';d.textContent=t;d.id='forgeTab'+i;d.onclick=()=>{tab=i;spriteSel=-1;renderTab()};tabsEl.appendChild(d)});
+function getP(p){return p.split('.').reduce((o,k)=>o[k],EDIT)}
+function setP(p,v){const ks=p.split('.'),last=ks.pop();ks.reduce((o,k)=>o[k],EDIT)[last]=v}
+function fields(obj,path){return Object.entries(obj).filter(([,v])=>typeof v==='number'||typeof v==='string').map(([k,v])=>`<label>${k}<input data-p="${path}.${k}" value="${v}" ${typeof v==='number'?'type="number" step="any"':''}></label>`).join('')}
+function bindInputs(){body.querySelectorAll('input[data-p]').forEach(input=>{input.oninput=()=>{const p=input.dataset.p;const old=getP(p);let value=typeof old==='number'?Number(input.value):input.value;if(typeof old==='number'&&!Number.isFinite(value))return;setP(p,value);applyForge();persistForge()}})}
+function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+
+function renderTab(){
+  tabsEl.querySelectorAll('button').forEach((d,i)=>d.classList.toggle('on',i===tab));
+  if(tab===0){// ENTITIES
+    body.innerHTML=`<div class="hint">Enemy roster. Numbers, names, colours and sprite paths apply live. Behaviours stay in code.</div>
+      <table><tr><th></th><th>ID</th><th>NAME</th><th>HP</th><th>SPD</th><th>DMG</th><th>W</th><th>WAVE</th><th></th></tr>
+      ${EDIT.entities.map((e,i)=>`<tr>
+        <td><img class="kthumb" src="${esc(spriteSrcForEntity(e)||e.sprite||'')}" onerror="this.style.opacity=.2"></td>
+        <td><input data-p="entities.${i}.id" value="${esc(e.id)}" style="width:110px"></td>
+        <td><input data-p="entities.${i}.name" value="${esc(e.name)}" style="width:100px"></td>
+        <td><input type="number" data-p="entities.${i}.hp" value="${e.hp}" style="width:56px"></td>
+        <td><input type="number" data-p="entities.${i}.speed" value="${e.speed}" style="width:56px"></td>
+        <td><input type="number" data-p="entities.${i}.damage" value="${e.damage}" style="width:56px"></td>
+        <td><input type="number" data-p="entities.${i}.weight" value="${e.weight}" style="width:48px"></td>
+        <td><input type="number" data-p="entities.${i}.unlockWave" value="${e.unlockWave||1}" style="width:48px"></td>
+        <td><button data-del="${i}" class="warn">✕</button></td></tr>`).join('')}</table>
+      <div class="row"><button id="addEnemy">+ ADD ENEMY</button></div>`;
+    bindInputs();
+    body.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(EDIT.entities.length>1){EDIT.entities.splice(+b.dataset.del,1);applyForge();persistForge();renderTab()}});
+    body.querySelector('#addEnemy').onclick=()=>{const n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1,sprite:''});applyForge();persistForge();renderTab()};
+  }
+  else if(tab===1){// PLAYER
+    body.innerHTML=`<div class="hint">Player combat knobs. Apply to the next deploy (or immediately if mid-run via applyForge).</div>
+      <div class="row">${fields(EDIT.player,'player')}</div>
+      <div class="row">${fields(EDIT.drops,'drops')}</div>`;
+    bindInputs();
+  }
+  else if(tab===2){// WEAPONS
+    body.innerHTML=`<div class="hint">Per-weapon tuning. Weapons fire automatically at the nearest hostile.</div>
+      ${EDIT.weapons.map((w,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0"><h3 style="margin:0 0 6px;color:#78efdb">${esc(w.name||w.id)}</h3>${fields(w,'weapons.'+i)}</article>`).join('')}
+      <div class="row"><button id="addWep">+ ADD WEAPON</button></div>`;
+    bindInputs();
+    body.querySelector('#addWep').onclick=()=>{EDIT.weapons.push({id:'weapon.custom'+(EDIT.weapons.length+1),name:'Custom',damage:12,rate:.2,speed:700,shots:1,pierce:1,color:'#b7fff5',range:700});persistForge();renderTab()};
+  }
+  else if(tab===3){// WAVES
+    body.innerHTML=`<div class="hint">Wave budget drives spawn density. seconds = wave length for the WAVE counter.</div>
+      <div class="row">${fields(EDIT.waves,'waves')}</div>`;
+    bindInputs();
+  }
+  else if(tab===4){// WORLD
+    body.innerHTML=`<div class="hint">Arena bounds and camera dead-zone. halfW/halfH are world half-extents in px.</div>
+      <div class="row">${fields(EDIT.world,'world')}</div>`;
+    bindInputs();
+  }
+  else if(tab===5){// SPRITES
+    renderSprites();
+  }
+  else if(tab===6){// AUDIO
+    body.innerHTML=`<div class="hint">Global SFX toggle. Per-entity samples stay code-side in this greybox.</div>
+      <div class="row"><button id="audSfx">${audioOn?'SFX ON':'SFX OFF'}</button>
+      <span class="hint">Samples: ${Object.keys(SFX).join(', ')}</span></div>`;
+    body.querySelector('#audSfx').onclick=()=>{audioOn=!audioOn;renderTab()};
+  }
+  else if(tab===7){// DATA
+    body.innerHTML=`<div class="hint">Export / import a self-contained pack (values + optional media keys). Reset restores shipped numbers.</div>
+      <div class="row"><button id="pkSave">⬇ EXPORT JSON</button>
+        <label style="display:inline;grid-template-columns:none">⬆ IMPORT <input type="file" id="pkLoad" accept="application/json,.json" style="width:auto"></label>
+        <button id="forgeReset" class="warn">RESET SHIPPED VALUES</button></div>`;
+    body.querySelector('#pkSave').onclick=()=>{const pack={version:GAME_VERSION,values:EDIT,sprites:SPRITE_OVR,codexImages:CODEX_IMG};
+      const blob=new Blob([JSON.stringify(pack,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hiveswarm-forge-pack.json';a.click()};
+    body.querySelector('#pkLoad').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const pack=JSON.parse(await f.text());
+      if(pack.values){EDIT=forgeMerge(FORGE_BASE,pack.values);if(Array.isArray(pack.values.codexPages))EDIT.codexPages=pack.values.codexPages;persistForge();applyForge()}
+      if(pack.sprites){Object.assign(SPRITE_OVR,pack.sprites);for(const [k,d] of Object.entries(pack.sprites))await saveSpriteMedia(k)}
+      if(pack.codexImages){Object.assign(CODEX_IMG,pack.codexImages);for(const [k,d] of Object.entries(pack.codexImages))await saveCodexMedia(k)}
+      renderTab()}catch(err){alert('Bad pack: '+err.message)}};
+    body.querySelector('#forgeReset').onclick=()=>{if(confirm('Restore shipped Forge values?')){EDIT=copy(FORGE_BASE);EDIT.codexPages=codexDefaults();applyForge();persistForge();renderTab()}};
+  }
+  else{// BEASTIARY tab
+    renderCodex();
+  }
+}
+
+function renderCodex(){
+  const pages=codexPages();
+  if(codexSel>=pages.length)codexSel=Math.max(0,pages.length-1);
+  const pg=pages[codexSel];
+  const list=pages.map((p,i)=>`<button type="button" data-pick="${i}" class="${i===codexSel?'on':''}" style="display:block;width:100%;text-align:left;margin:2px 0">${CODEX_ICON[p.cat]||'•'} ${esc(p.title)||'(untitled)'}</button>`).join('');
+  const img=pg?CODEX_IMG[pg.id]:null;
+  body.innerHTML=`<div class="hint">Field guide. Pages unlock in-game on first sighting (spawn). Progress is per save slot. Word is <b>BEASTIARY</b>.</div>
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:0 0 200px;max-height:60vh;overflow:auto">${list||'<div class="hint">No pages.</div>'}
+        <button id="cxAdd" style="width:100%;margin-top:8px">+ ADD PAGE</button>
+        <button id="cxReset" class="warn" style="width:100%;margin-top:4px">RESET DEFAULT PAGES</button>
+        <button id="cxRelock" class="warn" style="width:100%;margin-top:4px">RE-LOCK ALL (this slot)</button></div>
+      <div style="flex:1">${pg?`
+        <div class="row">CATEGORY <select id="cxCat">${CODEX_CATS.map(c=>`<option value="${c}" ${c===pg.cat?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="row">TITLE <input type="text" id="cxTitle" value="${esc(pg.title)}" style="width:220px"></div>
+        <div class="row">SUBTITLE <input type="text" id="cxSub" value="${esc(pg.subtitle)}" style="width:220px"></div>
+        <div class="row">UNLOCK KEY <input type="text" id="cxLink" value="${esc(pg.link)}" placeholder="enemy:enemy.shambler" style="width:200px">
+          <span class="hint">${pg.link?(META.codexSeen&&META.codexSeen[pg.link]!==undefined?'<b style="color:#6f6">UNLOCKED</b>':'<b style="color:#f84">LOCKED</b>')+' slot '+currentSlot():'<b style="color:#6f6">ALWAYS VISIBLE</b>'}</span></div>
+        <div class="row">BODY <textarea id="cxBody">${esc(pg.body)}</textarea></div>
+        <div class="row"><button id="cxPick">🖼 UPLOAD IMAGE</button>
+          <button id="cxClr" class="warn" ${img?'':'disabled'}>REMOVE IMAGE</button>
+          <input type="file" id="cxFile" accept="image/*" style="display:none"></div>
+        <div class="row">${img?`<img src="${img}" alt="" style="max-width:220px;max-height:160px;border:1px solid #245">`:'<span class="hint">No image yet.</span>'}</div>
+        <div class="row"><button id="cxDel" class="warn">DELETE PAGE</button></div>`:'<div class="hint">Add a page.</div>'}</div></div>`;
+  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;renderCodex()});
+  body.querySelector('#cxAdd').onclick=()=>{codexPages().push({id:codexNewId(),cat:'enemy',title:'New Entry',subtitle:'',body:'',link:''});codexSel=codexPages().length-1;persistForge();renderCodex()};
+  body.querySelector('#cxRelock').onclick=()=>{if(!confirm('Re-lock every beastiary page in save slot '+currentSlot()+'?'))return;META.codexSeen={};saveMeta();renderCodex()};
+  body.querySelector('#cxReset').onclick=()=>{if(!confirm('Replace ALL beastiary pages with shipped defaults?'))return;EDIT.codexPages=codexDefaults();codexSel=0;persistForge();renderCodex()};
+  if(!pg)return;
+  const bind=(sel,key)=>{const el=body.querySelector(sel);if(!el)return;el.oninput=()=>{pg[key]=el.value;persistForge()}};
+  bind('#cxTitle','title');bind('#cxSub','subtitle');bind('#cxBody','body');bind('#cxLink','link');
+  body.querySelector('#cxCat').onchange=e=>{pg.cat=e.target.value;persistForge();renderCodex()};
+  body.querySelector('#cxPick').onclick=()=>body.querySelector('#cxFile').click();
+  body.querySelector('#cxFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{CODEX_IMG[pg.id]=rd.result;saveCodexMedia(pg.id).then(()=>renderCodex()).catch(()=>alert('Could not store image in IndexedDB.'))};rd.readAsDataURL(f)};
+  body.querySelector('#cxClr').onclick=()=>{delete CODEX_IMG[pg.id];saveCodexMedia(pg.id).then(()=>renderCodex())};
+  body.querySelector('#cxDel').onclick=()=>{if(!confirm('Delete "'+(pg.title||'untitled')+'"?'))return;delete CODEX_IMG[pg.id];saveCodexMedia(pg.id).catch(()=>{});codexPages().splice(codexSel,1);codexSel=Math.max(0,codexSel-1);persistForge();renderCodex()};
+}
+
+function renderSprites(){
+  const list=EDIT.entities.map((e,i)=>({key:entitySpriteKey(e),name:e.name||e.id,path:e.sprite||'',idx:i}));
+  if(spriteSel<0){
+    body.innerHTML=`<div class="hint">Paint or import a PNG per enemy. Overrides live in IndexedDB (<code>sprite:</code> prefix) and apply immediately in-game.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
+      ${list.map((r,i)=>`<button data-sp="${i}" style="padding:8px;background:#13262a;border:1px solid #426862;border-radius:6px;cursor:pointer;color:#dff">
+        <img class="kthumb" src="${esc(SPRITE_OVR[r.key]||r.path)}" onerror="this.style.opacity=.25" style="display:block;margin:0 auto 6px"><b>${esc(r.name)}</b></button>`).join('')}
+      </div>`;
+    body.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{spriteSel=+b.dataset.sp;renderSprites()});
+    return;
+  }
+  const r=list[spriteSel]; if(!r){spriteSel=-1;renderSprites();return}
+  const src=SPRITE_OVR[r.key]||r.path||'';
+  body.innerHTML=`<div class="row"><button id="spBack">← BACK</button><b style="color:#6fffe2">${esc(r.name)}</b><span class="hint">${esc(r.key)}</span></div>
+    <div class="row"><canvas id="forgePaint" width="128" height="128"></canvas>
+      <div><div class="row">COLOR <input type="color" id="spCol" value="${brush.col}"> SIZE <input type="number" id="spSize" value="${brush.size}" min="1" max="32" style="width:48px">
+        <button id="spErase">${brush.erase?'ERASE ON':'ERASE'}</button></div>
+        <div class="row"><button id="spSave">💾 SAVE</button><button id="spImp">⇧ IMPORT PNG</button>
+          <button id="spRev" class="warn">REVERT</button><input type="file" id="spFile" accept="image/*" style="display:none"></div>
+        <div class="hint">Paint then SAVE. REVERT clears the IndexedDB override and restores the shipped path.</div></div></div>`;
+  const cv=body.querySelector('#forgePaint'), cx=cv.getContext('2d');
+  work=document.createElement('canvas');work.width=128;work.height=128;const wg=work.getContext('2d');
+  function loadInto(){wg.clearRect(0,0,128,128);if(!src){drawPaint();return}const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{wg.drawImage(im,0,0,128,128);drawPaint()};im.onerror=()=>drawPaint();im.src=src}
+  function drawPaint(){cx.clearRect(0,0,128,128);cx.drawImage(work,0,0)}
+  loadInto();
+  let painting=false;
+  function paintAt(ev){const rect=cv.getBoundingClientRect(),x=Math.floor((ev.clientX-rect.left)/rect.width*128),y=Math.floor((ev.clientY-rect.top)/rect.height*128);
+    wg.fillStyle=brush.erase?'rgba(0,0,0,0)':brush.col;if(brush.erase){wg.clearRect(x-brush.size/2,y-brush.size/2,brush.size,brush.size)}
+    else{wg.fillRect(x-brush.size/2,y-brush.size/2,brush.size,brush.size)}drawPaint()}
+  cv.onpointerdown=e=>{painting=true;cv.setPointerCapture(e.pointerId);paintAt(e)};
+  cv.onpointermove=e=>{if(painting)paintAt(e)};
+  cv.onpointerup=()=>{painting=false};
+  body.querySelector('#spCol').oninput=e=>{brush.col=e.target.value;brush.erase=false};
+  body.querySelector('#spSize').oninput=e=>{brush.size=Math.max(1,Math.min(32,+e.target.value||4))};
+  body.querySelector('#spErase').onclick=()=>{brush.erase=!brush.erase;renderSprites()};
+  body.querySelector('#spBack').onclick=()=>{spriteSel=-1;renderSprites()};
+  body.querySelector('#spSave').onclick=()=>{const data=work.toDataURL('image/png');SPRITE_OVR[r.key]=data;delete SPRITES[data];
+    // also map path for quick lookups
+    if(r.path)SPRITE_OVR['path:'+r.path]=data;
+    saveSpriteMedia(r.key).then(()=>{if(r.path)return saveSpriteMedia('path:'+r.path)}).then(()=>alert('Sprite saved.')).catch(()=>alert('IndexedDB save failed.'))};
+  body.querySelector('#spRev').onclick=()=>{delete SPRITE_OVR[r.key];if(r.path)delete SPRITE_OVR['path:'+r.path];
+    saveSpriteMedia(r.key).then(()=>r.path?saveSpriteMedia('path:'+r.path):null).then(()=>{spriteSel=-1;renderSprites()})};
+  body.querySelector('#spImp').onclick=()=>body.querySelector('#spFile').click();
+  body.querySelector('#spFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{wg.clearRect(0,0,128,128);wg.drawImage(im,0,0,128,128);drawPaint()};im.src=rd.result};rd.readAsDataURL(f)};
+}
+
+window.__hiveSwarmForge=()=>copy(EDIT);
+}catch(err){console.error('FORGE init failed',err)}
+})();
 </script></body></html>
