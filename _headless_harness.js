@@ -224,33 +224,51 @@ if (!d0 || d0.state !== 'play') {
 }
 console.log('started. state=', d0.state, 'wave=', d0.wave, 'enemies=', d0.enemies);
 
-// Light WASD so movement/camera code is exercised
-const keySet = (() => {
-  // keys is a Set in product scope; poke via keydown listeners when present
-  return null;
-})();
-if (listeners.keydown) {
-  for (const f of listeners.keydown) {
-    try { f({ key: 'w', keyCode: 87, preventDefault() {} }); } catch (_) {}
+// G6: simulate a competent kite (circle-strafe), not a suicide walk into the facing cone.
+// Press W always; alternate A/D every ~1.5s. Also dismiss level-up cards if the DOM offers them.
+function fireKey(type, key) {
+  const list = listeners[type] || [];
+  for (const f of list) {
+    try { f({ key, keyCode: 0, preventDefault() {} }); } catch (_) {}
   }
 }
+fireKey('keydown', 'w');
+let strafe = 'd';
+fireKey('keydown', strafe);
 
 let step = 0;
 let lastWave = d0.wave;
 let maxEnemies = d0.enemies;
+let minHp = 999;
 try {
-  // ~90 s of sim at 0.1s steps (crash detector; not a balance band)
+  // ~90 s of sim at 0.1s steps — balance gate: competent kite must still be alive at end
   for (step = 0; step < 900; step++) {
+    if (step > 0 && step % 15 === 0) {
+      fireKey('keyup', strafe);
+      strafe = strafe === 'd' ? 'a' : 'd';
+      fireKey('keydown', strafe);
+    }
+    // Auto-pick first level-up card if the product opened the chooser (DOM box #cards)
+    try {
+      const box = document.querySelector && document.querySelector('#cards');
+      if (box && box.querySelector) {
+        const btn = box.querySelector('[data-card]');
+        if (btn && typeof btn.onclick === 'function') btn.onclick();
+        else if (btn && btn.click) btn.click();
+      }
+    } catch (_) {}
     H.update(0.1);
     H.draw();
     const d = H.debug ? H.debug() : {};
+    const hp = (d.player && d.player.hp != null) ? d.player.hp : (d.hp != null ? d.hp : null);
+    if (hp != null && hp < minHp) minHp = hp;
     if (d.enemies > maxEnemies) maxEnemies = d.enemies;
     if (d.wave !== lastWave) {
-      console.log(`--> wave ${d.wave} at step ${step} (t=${(step * 0.1).toFixed(0)}s) enemies=${d.enemies} hp=${d.player && d.player.hp}`);
+      console.log(`--> wave ${d.wave} at step ${step} (t=${(step * 0.1).toFixed(0)}s) enemies=${d.enemies} hp=${hp}`);
       lastWave = d.wave;
     }
     if (d.state === 'dead') {
-      console.log('reached dead at step', step, 'score', d.score, 'survived', d.elapsed);
+      console.log('reached dead at step', step, 'score', d.score, 'survived', d.elapsed, 'minHp', minHp);
       break;
     }
   }
@@ -261,7 +279,9 @@ try {
     'enemies', fin.enemies,
     'maxEnemies', maxEnemies,
     'score', fin.score,
-    'steps', step
+    'steps', step,
+    'minHp', minHp,
+    'survived', fin.elapsed != null ? fin.elapsed : (step * 0.1)
   );
   if (!H.debug) {
     console.error('WARN: __hiveSwarmDebug missing — coverage incomplete');
