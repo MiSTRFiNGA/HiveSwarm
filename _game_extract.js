@@ -1,7 +1,7 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.0.9';
+const GAME_VERSION='0.1.0';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -46,7 +46,11 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,
   {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6},
   {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:16,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:280,jumps:4},
   {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78},
-  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:8,dotTime:3}
+  // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
+  // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
+  // spreadRadius = how close that neighbour must be, spreadFactor = potency the infection is
+  // passed on at (0.7 = each generation is 30% weaker, so a plague fades instead of snowballing).
+  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:8,dotTime:3,spreadChance:.9,spreadRadius:52,spreadFactor:.7}
 ],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}],codexPages:null};
 function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(key==='codexPages'){if(Array.isArray(saved.codexPages))next.codexPages=saved.codexPages;continue}if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object'&&!Array.isArray(base[key]))Object.assign(next[key],saved[key])}return next}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
@@ -58,7 +62,7 @@ if(EDIT.waves.budgetBase===1.15&&EDIT.waves.budgetExponent===1.065){try{const ra
 
 // ---- SAVE SLOTS (mirror HiVE WAR: 3 slots + erase; legacy single key migrates into slot 1) ----
 const SAVE_SLOTS=3, LEGACY_KEY='hive_swarm_meta_v1', SLOT_PICK_KEY='hive_swarm_slot';
-function metaDefaults(){return {credits:0,damage:0,hp:0,speed:0,bestScore:0,codexSeen:{},ownedWeapons:{'weapon.pulse':true},startWeapon:'weapon.pulse'}}
+function metaDefaults(){return {credits:0,damage:0,hp:0,speed:0,venom:0,bestScore:0,codexSeen:{},ownedWeapons:{'weapon.pulse':true},startWeapon:'weapon.pulse'}}
 function slotKey(n){return LEGACY_KEY+'_s'+n}
 function currentSlot(){const n=Number(localStorage.getItem(SLOT_PICK_KEY));return Number.isFinite(n)&&n>=1&&n<=SAVE_SLOTS?n:1}
 function migrateLegacySave(){try{const legacy=localStorage.getItem(LEGACY_KEY);if(legacy&&localStorage.getItem(slotKey(1))===null)localStorage.setItem(slotKey(1),legacy)}catch(_){}}
@@ -115,6 +119,34 @@ function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')r
 
 let player={x:0,y:0,r:16,hp:100,maxHp:100,speed:245,pickupRadius:90,inv:0,angle:0};
 let orbsCollected=0;
+// ---- S.7 WEAPON MODS + ORB TRACK ----------------------------------------------------------
+// Both are keyed by WEAPON ID, never by the held weapon object. That is the whole point: picking
+// up a new gun used to replace heldWeapons outright (see pickWeapon), which threw away every card
+// the player had just earned. Mods and track progress live outside the object, so swapping to a
+// gun you modded earlier restores its mods intact, and nothing is ever lost by switching.
+const MOD_MAX=3;                       // owner spec: up to 3 stacks of the same mod on one weapon
+const MODS=[
+  {id:'scatter', name:'Scatter',  text:'+2 projectiles per shot'},
+  {id:'venom',   name:'Venom',    text:'+60% poison damage and spread'},
+  {id:'pierce',  name:'Piercing', text:'+1 pierce'},
+  {id:'rapid',   name:'Rapid',    text:'-15% time between shots'},
+];
+let weaponMods={};                     // { weaponId: { modId: stacks } }
+let weaponOrbs={};                     // { weaponId: orbs banked toward the next rank }
+function modsFor(id){return weaponMods[id]||(weaponMods[id]={})}
+function modStacks(id,mod){return (weaponMods[id]||{})[mod]||0}
+function addMod(id,mod){const m=modsFor(id);if((m[mod]||0)>=MOD_MAX)return false;m[mod]=(m[mod]||0)+1;return true}
+// Orbs are the weapon's own progress bar. Only the gun you are actually holding banks them, so
+// carrying a weapon IS the investment - which is the incentive the owner asked for.
+function orbsForRank(rank){return Math.round(12*Math.pow(1.45,(rank||1)-1))}
+function bankOrb(){for(const w of heldWeapons){const id=w.id;weaponOrbs[id]=(weaponOrbs[id]||0)+1;
+  if(weaponOrbs[id]>=orbsForRank(w.rank||1)&&(w.rank||1)<5){weaponOrbs[id]=0;upgradeWeapon(w);burst(player.x,player.y,w.color||'#6fffe2',14);sfx('hit',.18)}}}
+// Effective stats = base weapon + its mods. Nothing mutates the weapon object, so a mod can never
+// be double-applied and removing one is just arithmetic.
+function wShots(w){return Math.min(9,(w.shots||1)+2*modStacks(w.id,'scatter'))}
+function wPierce(w){return (w.pierce??0)+modStacks(w.id,'pierce')}
+function wRate(w){return Math.max(.05,(w.rate||.2)*Math.pow(.85,modStacks(w.id,'rapid')))}
+function venomMul(w){return (1+.6*modStacks(w.id,'venom'))*(1+.25*(META.venom||0))}
 let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
 let WEAPON,ENEMIES,paused=false,pauseAccum=0;
 const MAX_PARTICLES=220;
@@ -160,7 +192,7 @@ function reset(){applyForge();
   const startId=(META.startWeapon&&META.ownedWeapons[META.startWeapon])?META.startWeapon:'weapon.pulse';
   const start=weaponById(startId);
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
-  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=wave=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
+  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=wave=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;weaponMods={};weaponOrbs={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
   genObstacles();for(const o of dmgNums)o.active=0;
   if(WEAPON&&WEAPON.id)codexSee('weapon:'+WEAPON.id,0)}
 function rand(a,b){return a+Math.random()*(b-a)} function dist2(a,b){let x=a.x-b.x,y=a.y-b.y;return x*x+y*y}
@@ -172,16 +204,26 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
   enemies.push({x,y,r:type.r,hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});}
-function nearestEnemy(from,ignore){let target=null,best=Infinity;for(const e of enemies){if(ignore&&ignore.has(e))continue;let d=(from.x-e.x)**2+(from.y-e.y)**2;if(d<best){best=d;target=e}}return target}
+function nearestEnemy(from,ignore,ok){let target=null,best=Infinity;for(const e of enemies){if(ignore&&ignore.has(e))continue;if(ok&&!ok(e))continue;let d=(from.x-e.x)**2+(from.y-e.y)**2;if(d<best){best=d;target=e}}return target}
+// S.7 owner bug: "after an enemy is poisoned the weapon stops targeting them". The toxin gun kept
+// dumping shots into a target that was already dying of the DoT. It now looks for the nearest
+// CLEAN enemy first and only falls back to the plain nearest when the whole screen is infected.
+function poisonTarget(){return nearestEnemy(player,null,e=>!(e.poisonT>0))||nearestEnemy(player)}
 function fire(){
   let target=nearestEnemy(player);if(!target)return;
   let a=Math.atan2(target.y-player.y,target.x-player.x);player.angle=a;
   const dmgMul=1+Math.min(.25,META.damage*.05);
   for(const w of heldWeapons){
     const kind=w.kind||'bullet', dmg=w.damage*dmgMul;
+    // Each weapon aims for itself now - the toxin gun wants a clean target, everything else wants
+    // the closest body.
+    let wTarget=kind==='poison'?poisonTarget():target;
+    if(!wTarget)continue;
+    let wa=Math.atan2(wTarget.y-player.y,wTarget.x-player.x);
+    if(w===heldWeapons[0])player.angle=wa;
     if(kind==='beam'){
       // continuous ray — damage everything on the segment this tick
-      const len=w.range||720, x2=player.x+Math.cos(a)*len, y2=player.y+Math.sin(a)*len;
+      const len=w.range||720, x2=player.x+Math.cos(wa)*len, y2=player.y+Math.sin(wa)*len;
       beams.push({x1:player.x,y1:player.y,x2,y2,color:w.color,life:.06,w:w.width||6});
       const hitList=[];
       for(const e of enemies){
@@ -190,7 +232,7 @@ function fire(){
       for(const e of hitList)killEnemy(e);
       sfx('fire',.04);continue}
     if(kind==='chain'){
-      let cur=target, hit=new Set(), jumps=w.jumps||4, from={x:player.x,y:player.y};
+      let cur=wTarget, hit=new Set(), jumps=w.jumps||4, from={x:player.x,y:player.y};
       for(let j=0;j<jumps&&cur;j++){
         beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:.12,w:3,chain:1});
         const jd=dmg*(1-j*0.12);cur.hp-=jd;cur.hit=.12;spawnDmgNum(cur.x,cur.y-cur.r,jd);hit.add(cur);if(cur.hp<=0)killEnemy(cur);
@@ -199,14 +241,17 @@ function fire(){
       sfx('hit',.1);continue}
     // projectile kinds: bullet / homing / nova
     sfx('fire',kind==='nova'?.12:.08);
-    for(let i=0;i<w.shots;i++){
-      let spread=(i-(w.shots-1)/2)*.1;
-      const ang=a+spread;
+    const shots=wShots(w);
+    for(let i=0;i<shots;i++){
+      let spread=(i-(shots-1)/2)*.1;
+      const ang=wa+spread;
       bullets.push({
         x:player.x+Math.cos(ang)*18,y:player.y+Math.sin(ang)*18,
         vx:Math.cos(ang)*(w.speed||700),vy:Math.sin(ang)*(w.speed||700),
         r:kind==='nova'?7:kind==='homing'?5:4,
-        damage:dmg,pierce:w.pierce??0,life:kind==='homing'?2.2:kind==='nova'?1.4:1.05,
+        damage:dmg,pierce:wPierce(w),life:kind==='homing'?2.2:kind==='nova'?1.4:1.05,
+        dot:(w.dot||0)*venomMul(w),dotTime:w.dotTime||0,
+        spread:kind==='poison'?{chance:(w.spreadChance??.9)*venomMul(w),radius:w.spreadRadius??52,factor:w.spreadFactor??.7}:null,
         color:w.color,kind,turn:w.turn||0,blast:w.blast||0,trail:[]
       })}}}
 function killEnemy(e,gibs){
@@ -251,7 +296,22 @@ function update(dt){if(newCodexT>0)newCodexT=Math.max(0,newCodexT-dt);
 spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=Math.max(.05,WEAPON.rate||.16);fire()}
 for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1;e.x+=vx/d*e.speed*dt;e.y+=vy/d*e.speed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
       // S4 — poison DoT tick: keeps draining after the hit lands, independent of contact/bullet damage.
-      if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}}
+      if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}
+        // S.7 CONTAGION (owner spec): "if the infected hit another enemy, they get infected".
+        // A carrier passes it to whatever it is touching, at spreadFactor potency so each
+        // generation is weaker and a plague burns out instead of clearing the map for free.
+        const sp=e.poisonSrc;
+        if(sp&&e.poisonDps>.5){e.spreadCd=(e.spreadCd||0)-dt;
+          if(e.spreadCd<=0){e.spreadCd=.25;
+            // spreadChance is the chance PER ATTEMPT (one attempt every .25s per carrier). It was
+            // being scaled by another .25 here, which made the real rate ~22% and the plague almost
+            // never visibly chained.
+            if(Math.random()<(sp.chance??.9)){
+              const rad=sp.radius??52;
+              for(const o of enemies){if(o===e||o.poisonT>0)continue;
+                const dx=o.x-e.x,dy=o.y-e.y;if(dx*dx+dy*dy>(rad+o.r)*(rad+o.r))continue;
+                o.poisonDps=e.poisonDps*(sp.factor??.7);o.poisonT=e.poisonT;o.poisonSrc=sp;
+                burst(o.x,o.y,'#7cff4f',3);break}}}}}
       if(d<e.r+player.r){if(!player.inv){player.hp-=e.damage;player.inv=.7;shake=8;burst(player.x,player.y,'#ff718a',14);
         player.x-=vx/d*18;player.y-=vy/d*18;
         if(player.hp<=0){player.hp=0;if(score>(META.bestScore||0)){META.bestScore=score;saveMeta()}state='dead';setPaused(false)}}e.x-=vx/d*28;e.y-=vy/d*28}}
@@ -263,7 +323,14 @@ for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
   if(removed&&b.kind==='nova')explode(b.x,b.y,b.color||'#ffe066',b.blast||70);
   for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){
     if(b.kind==='nova'){explode(b.x,b.y,b.color||'#ffe066',b.blast||70);removed=true;break}
-    if(b.kind==='poison'){e.poisonDps=Math.max(e.poisonDps||0,b.dot||8);e.poisonT=Math.max(e.poisonT||0,b.dotTime||3);e.hit=.1;sfx('hit',.06);burst(b.x,b.y,b.color||'#7cff4f',3);b.pierce--;if(b.pierce<0)removed=true;continue}
+    if(b.kind==='poison'){
+      // Owner bug 2026-08-06: "it hits an enemy and continues to hit". A carrier no longer eats the
+      // dart at all - the shot flies THROUGH anything already infected without spending pierce, so
+      // it reaches a clean target instead of being wasted re-poisoning the same body.
+      if(e.poisonT>0)continue;
+      e.poisonDps=Math.max(e.poisonDps||0,b.dot||8);e.poisonT=Math.max(e.poisonT||0,b.dotTime||3);
+      e.poisonSrc=b.spread||null;e.hit=.1;sfx('hit',.06);burst(b.x,b.y,b.color||'#7cff4f',3);
+      b.pierce--;if(b.pierce<0)removed=true;continue}
     e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,b.color||WEAPON.color,4);spawnDmgNum(e.x,e.y-e.r,b.damage);b.pierce--;
     if(e.hp<=0)killEnemy(e,b.kind==='homing');if(b.pierce<0)removed=true}}
   if(removed)bullets.splice(i,1)}
@@ -286,7 +353,7 @@ for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.
   if(d<player.r+10){
     if(p.weapon){grantWeapon(p.weaponId);burst(p.x,p.y,p.color||'#ffe08a',10);sfx('kill',.12)}
     else if(p.heal){player.hp=Math.min(player.maxHp,player.hp+p.value);burst(p.x,p.y,'#ff5f7a',7);codexSee('item:heal',0)}
-    else{xp+=p.value;orbsCollected++;burst(p.x,p.y,'#6fffe2',5);codexSee('item:xp',0)}
+    else{xp+=p.value;orbsCollected++;bankOrb();burst(p.x,p.y,'#6fffe2',5);codexSee('item:xp',0)}
     sfx('hit',.05);pickups.splice(i,1);
     if(!p.heal&&!p.weapon&&xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);state='levelup';offerCards()}}}
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.gib)p.rot=(p.rot||0)+(p.rvel||0)*dt;if(p.life<=0)particles.splice(i,1)}
@@ -299,7 +366,9 @@ window.__swarmDbg=()=>({state,wave,elapsed,score,level,xp,nextXp,orbsCollected,
   pickups:pickups.length,enemies:enemies.length,hp:player.hp,px:Math.round(player.x),py:Math.round(player.y),
   slot:currentSlot(),codexUnlocked:codexVisible().length,codexTotal:codexPages().length,
   credits:META.credits||0,bestScore:META.bestScore||0,paused,version:GAME_VERSION,
-  weapons:heldWeapons.map(w=>({id:w.id,name:w.name,kind:w.kind||'bullet',rank:w.rank||1,damage:w.damage})),
+  weapons:heldWeapons.map(w=>({id:w.id,name:w.name,kind:w.kind||'bullet',rank:w.rank||1,damage:w.damage,
+    shots:wShots(w),pierce:wPierce(w),mods:Object.assign({},weaponMods[w.id]||{}),orbs:weaponOrbs[w.id]||0,nextRankAt:orbsForRank(w.rank||1)})),
+  weaponMods:Object.assign({},weaponMods),
   startWeapon:META.startWeapon||'weapon.pulse',bullets:bullets.length,beams:beams.length,particles:particles.length,
   obstacles:obstacles.length,poisoned:enemies.filter(e=>e.poisonT>0).length,dmgNumsActive:dmgNums.filter(o=>o.active).length,
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
@@ -365,7 +434,16 @@ ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   
 // S2 — current weapon name, top-centre, just below the phone icons. Updates whenever grantWeapon
 // replaces heldWeapons[0] (or upgradeWeapon renames rank-ups — name itself doesn't change on rank).
 if((state==='play'||state==='levelup')&&heldWeapons[0]){ctx.save();ctx.textAlign='center';ctx.fillStyle='#ffe066';ctx.font='700 14px system-ui';ctx.shadowColor='#000';ctx.shadowBlur=4;
-  ctx.fillText((heldWeapons[0].name||'')+(heldWeapons[0].rank>1?'  Rk.'+heldWeapons[0].rank:''),VIEW.w/2,20+SAFE_TOP);ctx.restore()}
+  ctx.fillText((heldWeapons[0].name||'')+(heldWeapons[0].rank>1?'  Rk.'+heldWeapons[0].rank:''),VIEW.w/2,20+SAFE_TOP);
+  // S.7 — the weapon's own progress bar + its mod stacks. Without this the orb track and the mods
+  // are invisible, which is exactly the "no goal to look forward to" the owner called out.
+  const hw=heldWeapons[0], need=orbsForRank(hw.rank||1), got=weaponOrbs[hw.id]||0;
+  const bw=120,bx=VIEW.w/2-bw/2,by=26+SAFE_TOP;
+  ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(bx,by,bw,5);
+  ctx.fillStyle=(hw.rank||1)>=5?'#ffe066':'#6fffe2';ctx.fillRect(bx,by,bw*Math.min(1,got/need),5);
+  const tags=MODS.filter(m=>modStacks(hw.id,m.id)>0).map(m=>m.name[0]+modStacks(hw.id,m.id)).join(' ');
+  if(tags){ctx.fillStyle='#9fded2';ctx.font='11px system-ui';ctx.fillText(tags,VIEW.w/2,by+16)}
+  ctx.restore()}
 if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active?STICK.base.y:STICK.home.y,
   kx=STICK.active?STICK.knob.x:bx,ky=STICK.active?STICK.knob.y:by;
   ctx.save();ctx.globalAlpha=STICK.active?.34:.16;ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
@@ -392,7 +470,15 @@ canvas.addEventListener('click',()=>{if(state==='title'||state==='dead')tryDeplo
 })();
 let last=performance.now(),accumulator=0;function frame(now){accumulator+=Math.min(.05,(now-last)/1000);last=now;while(accumulator>=1/60){update(1/60);accumulator-=1/60}draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
 window.__hiveSwarmDebug=()=>({state,elapsed,score,wave,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
-function offerCards(){let weapons=[{name:'Pulse Overdrive',text:'+25% Pulse damage',apply:()=>WEAPON.damage=Math.round(WEAPON.damage*1.25)},{name:'Scatter Shot',text:'New spread weapon: +2 bolts',apply:()=>WEAPON.shots=Math.min(5,WEAPON.shots+2)},{name:'Piercing Rounds',text:'+1 projectile pierce',apply:()=>WEAPON.pierce++}],stats=[{name:'Fleet Footed',text:'+12% movement speed',apply:()=>player.speed=Math.round(player.speed*1.12)},{name:'Reinforced',text:'+25 max HP and heal',apply:()=>{player.maxHp+=25;player.hp=Math.min(player.maxHp,player.hp+25)}},{name:'Magnet',text:'+45 pickup radius',apply:()=>player.pickupRadius+=45}],evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{WEAPON.damage*=2;evolved=true}};let pool=[...weapons,...stats,...(wave>=10&&!evolved?[evo]:[])],first=cardPicks<3?weapons[Math.floor(Math.random()*weapons.length)]:null;choices=[];if(first)choices.push(first);while(choices.length<3&&pool.length){let c=pool.splice(Math.floor(Math.random()*pool.length),1)[0];if(!choices.includes(c))choices.push(c)}
+function offerCards(){
+  // S.7: weapon cards now grant a MOD attached to the held weapon's ID instead of mutating the
+  // weapon object. Swapping guns no longer deletes what you just earned, and the same mod can be
+  // stacked up to MOD_MAX times on one weapon (owner spec: "up to 3 times on the same weapon").
+  const held=heldWeapons[0]||WEAPON;
+  let weapons=MODS.filter(m=>modStacks(held.id,m.id)<MOD_MAX).map(m=>({
+    name:m.name+' '+(modStacks(held.id,m.id)+1)+'/'+MOD_MAX,
+    text:m.text+' — '+held.name,
+    apply:()=>addMod(held.id,m.id)})),stats=[{name:'Fleet Footed',text:'+12% movement speed',apply:()=>player.speed=Math.round(player.speed*1.12)},{name:'Reinforced',text:'+25 max HP and heal',apply:()=>{player.maxHp+=25;player.hp=Math.min(player.maxHp,player.hp+25)}},{name:'Magnet',text:'+45 pickup radius',apply:()=>player.pickupRadius+=45}],evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{WEAPON.damage*=2;evolved=true}};let pool=[...weapons,...stats,...(wave>=10&&!evolved?[evo]:[])],first=cardPicks<3&&weapons.length?weapons[Math.floor(Math.random()*weapons.length)]:null;choices=[];if(first)choices.push(first);while(choices.length<3&&pool.length){let c=pool.splice(Math.floor(Math.random()*pool.length),1)[0];if(!choices.includes(c))choices.push(c)}
   // Headless harness has no real DOM — auto-pick so balance sims are not stuck on the chooser.
   if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();cardPicks++;state='play';return}
   let box=document.createElement('div');box.id='cards';box.className='overlay';box.innerHTML='<h2>LEVEL '+level+' — CHOOSE ONE</h2>'+choices.map((c,i)=>`<button data-card="${i}" style="width:260px;padding:18px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px"><b>${c.name}</b><br>${c.text}</button>`).join('');document.body.append(box);box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();cardPicks++;box.remove();state='play'})}
@@ -403,7 +489,7 @@ function openMeta(){if(document.querySelector('#meta'))return;let box=document.c
       const cost=have?0:(w.id==='weapon.seeker'?4:w.id==='weapon.beam'?5:w.id==='weapon.chain'?5:w.id==='weapon.nova'?6:3);
       return `<button data-arm="${w.id}" ${have&&start?'style="outline:2px solid #6fffe2"':''}>${start?'▶ ':''}${w.name}${have?' · OWNED · set start':' · BUY '+cost}</button>`}).join('');
     box.innerHTML=`<h2>META + ARMORY</h2><p>SLOT ${currentSlot()} · ${META.credits} biomatter · ranks 5% each (cap 25%)</p>
-      ${['damage','hp','speed'].map(k=>`<button data-meta="${k}">${k.toUpperCase()} ${META[k]}/5 · cost ${META[k]+1}</button>`).join('')}
+      ${['damage','hp','speed','venom'].map(k=>`<button data-meta="${k}" title="${k==='venom'?'+25% poison damage and spread per rank — stacks with the Venom mod':'+5% per rank'}">${k.toUpperCase()} ${META[k]}/5 · cost ${META[k]+1}</button>`).join('')}
       <h3 style="margin:12px 0 6px;color:#ffe08a">STARTING WEAPON</h3><p style="color:#9ebbb6;max-width:420px;margin:0 auto 8px">Buy with biomatter (from elite kills). Owned guns can be set as your deploy loadout. Field caches still drop mid-run.</p>
       ${armory}<br><button id="metaClose">Close</button>`;
     box.querySelectorAll('[data-meta]').forEach(b=>b.onclick=()=>{let k=b.dataset.meta,cost=META[k]+1;if(META[k]<5&&META.credits>=cost){META.credits-=cost;META[k]++;saveMeta();render()}});
