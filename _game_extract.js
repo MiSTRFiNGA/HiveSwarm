@@ -1,7 +1,21 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.0.8';
+const GAME_VERSION='0.0.9';
+// S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
+// safe-area inset via a probe element (env() only resolves against a real CSS property, not a
+// custom property read-back) with a sensible fallback for devices/browsers without the env().
+function safeAreaTop(){
+  try{
+    const probe=document.createElement('div');
+    probe.style.cssText='position:fixed;top:0;left:0;height:0;visibility:hidden;padding-top:env(safe-area-inset-top,24px)';
+    document.body.appendChild(probe);
+    const v=parseFloat(getComputedStyle(probe).paddingTop)||24;
+    probe.remove();
+    return v;
+  }catch(_){return 24}
+}
+const SAFE_TOP=(typeof document!=='undefined'&&document.body)?safeAreaTop():24;
 const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
 const VIEW={w:540,h:960}, WORLD={halfW:810,halfH:1440,maxEnemies:220}, CAMERA={deadZone:.15}; let dpr=1;
 function resize(){dpr=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);VIEW.w=innerWidth;VIEW.h=innerHeight} addEventListener('resize',resize);resize();
@@ -31,7 +45,8 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,
   {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5},
   {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6},
   {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:16,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:280,jumps:4},
-  {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78}
+  {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78},
+  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:8,dotTime:3}
 ],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}],codexPages:null};
 function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(key==='codexPages'){if(Array.isArray(saved.codexPages))next.codexPages=saved.codexPages;continue}if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object'&&!Array.isArray(base[key]))Object.assign(next[key],saved[key])}return next}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
@@ -100,13 +115,29 @@ function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')r
 
 let player={x:0,y:0,r:16,hp:100,maxHp:100,speed:245,pickupRadius:90,inv:0,angle:0};
 let orbsCollected=0;
-let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
+let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
 let WEAPON,ENEMIES,paused=false,pauseAccum=0;
 const MAX_PARTICLES=220;
+// S5 — pooled floating damage numbers. Fixed-size pool, no per-hit allocation at survivors-like fire rates.
+const MAX_DMGNUM=60;
+const dmgNums=(()=>{const a=[];for(let i=0;i<MAX_DMGNUM;i++)a.push({active:0,x:0,y:0,vy:0,life:0,text:''});return a})();
+function spawnDmgNum(x,y,amount){if(!amount)return;const o=dmgNums.find(o=>!o.active);if(!o)return;o.active=1;o.x=x+rand(-6,6);o.y=y-10;o.vy=-46;o.life=.6;o.text=Math.round(amount)+''}
+// S6 — static circular obstacles. Simplest version that reads as "a map": push-out collision
+// against player + enemies (no pathfinding/avoidance, no bullet blocking — see report).
+function genObstacles(){
+  obstacles=[];const n=14;let tries=0;
+  while(obstacles.length<n&&tries<n*8){
+    tries++;
+    const x=rand(-WORLD.halfW+140,WORLD.halfW-140),y=rand(-WORLD.halfH+140,WORLD.halfH-140);
+    if(Math.hypot(x,y)<240)continue; // keep the deploy point clear
+    obstacles.push({x,y,r:rand(30,58),seed:Math.random()*999});
+  }
+}
+function pushOutOfObstacles(body){for(const o of obstacles){let dx=body.x-o.x,dy=body.y-o.y,d=Math.hypot(dx,dy),gap=o.r+body.r;if(d<1e-4){dx=1;dy=0;d=1}if(d<gap){body.x=o.x+dx/d*gap;body.y=o.y+dy/d*gap}}}
 function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius});WEAPON=EDIT.weapons[0];ENEMIES=EDIT.entities;if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35}applyForge();
 // G7 — weapon caches, ranks, armory seed
 function weaponById(id){return (EDIT.weapons||[]).find(w=>w.id===id)||EDIT.weapons[0]}
-function upgradeWeapon(w){w.rank=Math.min(5,(w.rank||1)+1);w.damage=Math.round(w.damage*1.18);w.rate=Math.max(.06,+(w.rate*0.94).toFixed(3));if(w.rank%3===0)w.pierce=(w.pierce||1)+1;return w}
+function upgradeWeapon(w){w.rank=Math.min(5,(w.rank||1)+1);w.damage=Math.round(w.damage*1.18);w.rate=Math.max(.06,+(w.rate*0.94).toFixed(3));if(w.rank%3===0)w.pierce=(w.pierce||1)+1;if(w.kind==='poison')w.dot=+((w.dot||8)*1.18).toFixed(2);return w}
 function grantWeapon(id){
   const base=weaponById(id);if(!base)return;
   codexSee('weapon:'+base.id,0);
@@ -130,6 +161,7 @@ function reset(){applyForge();
   const start=weaponById(startId);
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
   player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=wave=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
+  genObstacles();for(const o of dmgNums)o.active=0;
   if(WEAPON&&WEAPON.id)codexSee('weapon:'+WEAPON.id,0)}
 function rand(a,b){return a+Math.random()*(b-a)} function dist2(a,b){let x=a.x-b.x,y=a.y-b.y;return x*x+y*y}
 function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return}
@@ -154,14 +186,14 @@ function fire(){
       const hitList=[];
       for(const e of enemies){
         const px=e.x-player.x,py=e.y-player.y,segx=x2-player.x,segy=y2-player.y,t=Math.max(0,Math.min(1,(px*segx+py*segy)/(segx*segx+segy*segy||1)));
-        const dx=player.x+segx*t-e.x,dy=player.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){e.hp-=dmg*w.rate*3;e.hit=.08;if(e.hp<=0)hitList.push(e)}}
+        const dx=player.x+segx*t-e.x,dy=player.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){const tick=dmg*w.rate*3;e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);if(e.hp<=0)hitList.push(e)}}
       for(const e of hitList)killEnemy(e);
       sfx('fire',.04);continue}
     if(kind==='chain'){
       let cur=target, hit=new Set(), jumps=w.jumps||4, from={x:player.x,y:player.y};
       for(let j=0;j<jumps&&cur;j++){
         beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:.12,w:3,chain:1});
-        cur.hp-=dmg*(1-j*0.12);cur.hit=.12;hit.add(cur);if(cur.hp<=0)killEnemy(cur);
+        const jd=dmg*(1-j*0.12);cur.hp-=jd;cur.hit=.12;spawnDmgNum(cur.x,cur.y-cur.r,jd);hit.add(cur);if(cur.hp<=0)killEnemy(cur);
         from={x:cur.x,y:cur.y};cur=nearestEnemy(from,hit);
         if(cur&&(cur.x-from.x)**2+(cur.y-from.y)**2>(w.range||280)**2)cur=null}
       sfx('hit',.1);continue}
@@ -177,7 +209,7 @@ function fire(){
         damage:dmg,pierce:w.pierce??0,life:kind==='homing'?2.2:kind==='nova'?1.4:1.05,
         color:w.color,kind,turn:w.turn||0,blast:w.blast||0,trail:[]
       })}}}
-function killEnemy(e){
+function killEnemy(e,gibs){
   const idx=enemies.indexOf(e);if(idx<0)return;
   score+=10;sfx('kill',.18);codexSee('enemy:'+e.type.id);
   const elite=(e.type.dropXp||0)>=5;if(elite){META.credits++;saveMeta()}
@@ -185,14 +217,19 @@ function killEnemy(e){
   if(rand(0,1)<(EDIT.drops.healChance!==undefined?EDIT.drops.healChance:.07))
     pickups.push({x:e.x+rand(-14,14),y:e.y+rand(-14,14),heal:1,value:EDIT.drops.heal||12});
   maybeDropWeapon(e.x+rand(-10,10),e.y+rand(-10,10),elite);
-  explode(e.x,e.y,e.color||'#ff8',42);enemies.splice(idx,1)}
+  explode(e.x,e.y,e.color||'#ff8',42,gibs);enemies.splice(idx,1)}
 function burst(x,y,color,n=8){n=Math.min(n,MAX_PARTICLES-particles.length);for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(25,160);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.6),color,r:rand(1.5,3.5)})}}
-function explode(x,y,color,r=60){// shockwave + debris + shake — budgeted particle count
+// S3 — Heat Seeker kills gib enemies into rotating debris chunks, on top of the existing puff.
+// Same particle pool/budget as burst(); a dedicated draw-time shape (rotated rect) makes them
+// read as "bits" instead of more circular spark.
+function spawnGibs(x,y,color){const n=Math.min(6,MAX_PARTICLES-particles.length);for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(60,220);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.35,.7),color,r:rand(2,4),gib:1,rot:Math.random()*6.283,rvel:rand(-8,8)})}}
+function explode(x,y,color,r=60,gibs){// shockwave + debris + shake — budgeted particle count
   /* 2026-08-05: this ran on EVERY enemy death and re-armed shake to a full 10 each time. Decay is
      only ~25/s, so at survivors-like kill rates the screen never stopped shaking and the game was
      hard to play (Eric, playtest). Now a kill adds a small amount against a low cap; only genuinely
      big events (player hit, nova blast) are allowed to jolt harder, via their own shake= lines. */
   shake=Math.min(4.5,shake+1.6);burst(x,y,color,14);burst(x,y,'#fff6c8',8);
+  if(gibs)spawnGibs(x,y,color);
   particles.push({x,y,vx:0,vy:0,life:.28,color,shock:r});
   for(const e of enemies){const d=Math.hypot(e.x-x,e.y-y);if(d<r){e.hp-=22*(1-d/r);e.hit=.15;if(d>1){e.x+=(e.x-x)/d*18;e.y+=(e.y-y)/d*18}}}}
 function setPaused(on){
@@ -210,9 +247,12 @@ function update(dt){if(newCodexT>0)newCodexT=Math.max(0,newCodexT-dt);
   if(paused){// freeze sim: no spawnBudget/fireClock/enemy advance — resume is frame-clean
     for(let i=beams.length-1;i>=0;i--){beams[i].life-=dt;if(beams[i].life<=0)beams.splice(i,1)}
     return}
-  if(state!=='play')return;elapsed+=dt;wave=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));followCamera();
+  if(state!=='play')return;elapsed+=dt;wave=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));pushOutOfObstacles(player);followCamera();
 spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=Math.max(.05,WEAPON.rate||.16);fire()}
-for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1;e.x+=vx/d*e.speed*dt;e.y+=vy/d*e.speed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}e.hit=Math.max(0,e.hit-dt);if(d<e.r+player.r){if(!player.inv){player.hp-=e.damage;player.inv=.7;shake=8;burst(player.x,player.y,'#ff718a',14);
+for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1;e.x+=vx/d*e.speed*dt;e.y+=vy/d*e.speed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
+      // S4 — poison DoT tick: keeps draining after the hit lands, independent of contact/bullet damage.
+      if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}}
+      if(d<e.r+player.r){if(!player.inv){player.hp-=e.damage;player.inv=.7;shake=8;burst(player.x,player.y,'#ff718a',14);
         player.x-=vx/d*18;player.y-=vy/d*18;
         if(player.hp<=0){player.hp=0;if(score>(META.bestScore||0)){META.bestScore=score;saveMeta()}state='dead';setPaused(false)}}e.x-=vx/d*28;e.y-=vy/d*28}}
 for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
@@ -223,8 +263,9 @@ for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
   if(removed&&b.kind==='nova')explode(b.x,b.y,b.color||'#ffe066',b.blast||70);
   for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){
     if(b.kind==='nova'){explode(b.x,b.y,b.color||'#ffe066',b.blast||70);removed=true;break}
-    e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,b.color||WEAPON.color,4);b.pierce--;
-    if(e.hp<=0)killEnemy(e);if(b.pierce<0)removed=true}}
+    if(b.kind==='poison'){e.poisonDps=Math.max(e.poisonDps||0,b.dot||8);e.poisonT=Math.max(e.poisonT||0,b.dotTime||3);e.hit=.1;sfx('hit',.06);burst(b.x,b.y,b.color||'#7cff4f',3);b.pierce--;if(b.pierce<0)removed=true;continue}
+    e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,b.color||WEAPON.color,4);spawnDmgNum(e.x,e.y-e.r,b.damage);b.pierce--;
+    if(e.hp<=0)killEnemy(e,b.kind==='homing');if(b.pierce<0)removed=true}}
   if(removed)bullets.splice(i,1)}
 for(let i=beams.length-1;i>=0;i--){beams[i].life-=dt;if(beams[i].life<=0)beams.splice(i,1)}
 // clean dead marked by beam damage mid-loop
@@ -248,7 +289,10 @@ for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.
     else{xp+=p.value;orbsCollected++;burst(p.x,p.y,'#6fffe2',5);codexSee('item:xp',0)}
     sfx('hit',.05);pickups.splice(i,1);
     if(!p.heal&&!p.weapon&&xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);state='levelup';offerCards()}}}
-for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0)particles.splice(i,1)}shake=Math.max(0,shake-dt*25)}
+for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.gib)p.rot=(p.rot||0)+(p.rvel||0)*dt;if(p.life<=0)particles.splice(i,1)}
+// S5 — advance pooled damage numbers (float up, gravity, fade); no allocation here.
+for(let i=0;i<dmgNums.length;i++){const o=dmgNums[i];if(!o.active)continue;o.y+=o.vy*dt;o.vy+=40*dt;o.life-=dt;if(o.life<=0)o.active=0}
+shake=Math.max(0,shake-dt*25)}
 function sx(x){return x-cam.x+VIEW.w/2}function sy(y){return y-cam.y+VIEW.h/2}
 // QA probe — Playwright cannot see script-scoped let; publish on window.
 window.__swarmDbg=()=>({state,wave,elapsed,score,level,xp,nextXp,orbsCollected,
@@ -257,16 +301,31 @@ window.__swarmDbg=()=>({state,wave,elapsed,score,level,xp,nextXp,orbsCollected,
   credits:META.credits||0,bestScore:META.bestScore||0,paused,version:GAME_VERSION,
   weapons:heldWeapons.map(w=>({id:w.id,name:w.name,kind:w.kind||'bullet',rank:w.rank||1,damage:w.damage})),
   startWeapon:META.startWeapon||'weapon.pulse',bullets:bullets.length,beams:beams.length,particles:particles.length,
+  obstacles:obstacles.length,poisoned:enemies.filter(e=>e.poisonT>0).length,dmgNumsActive:dmgNums.filter(o=>o.active).length,
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 window.__swarmPause=setPaused;window.__swarmTogglePause=togglePause;
 function draw(){ctx.fillStyle='#050b14';ctx.fillRect(0,0,VIEW.w,VIEW.h);let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
+// S6 — static obstacles (procedural rock-cluster shapes, deterministic per-seed so they don't
+// flicker frame to frame). Push-out collision handled in update(); drawn under everything else.
+for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-80||ox2>VIEW.w+80||oy2<-80||oy2>VIEW.h+80)continue;
+  ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.strokeStyle='#5a7d76';ctx.lineWidth=2;ctx.shadowColor='#000';ctx.shadowBlur=14;
+  ctx.beginPath();const spikes=7;
+  for(let i=0;i<=spikes;i++){const ang=i/spikes*6.283,rr=o.r*(0.75+((Math.sin((o.seed+i)*12.9898)*43758.5453)%1+1)%1*0.45),px=Math.cos(ang)*rr,py=Math.sin(ang)*rr;if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py)}
+  ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(120,239,219,.12)';ctx.beginPath();ctx.arc(-o.r*.25,-o.r*.25,o.r*.35,0,7);ctx.fill();
+  ctx.restore()}
 // beams (laser + chain) under projectiles
 for(const b of beams){ctx.save();ctx.globalAlpha=Math.min(1,b.life*10);ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=b.chain?18:28;ctx.lineWidth=b.w||4;ctx.lineCap='round';
   ctx.beginPath();ctx.moveTo(sx(b.x1),sy(b.y1));if(b.chain){const mx=(b.x1+b.x2)/2+rand(-8,8),my=(b.y1+b.y2)/2+rand(-8,8);ctx.lineTo(sx(mx),sy(my))}ctx.lineTo(sx(b.x2),sy(b.y2));ctx.stroke();ctx.restore()}
 for(const p of particles){ctx.globalAlpha=Math.min(1,p.life*3);ctx.fillStyle=p.color;
   if(p.shock){ctx.strokeStyle=p.color;ctx.lineWidth=3;ctx.shadowColor=p.color;ctx.shadowBlur=20;ctx.beginPath();ctx.arc(sx(p.x),sy(p.y),p.shock*(1-p.life/.28),0,7);ctx.stroke();ctx.shadowBlur=0}
+  else if(p.gib){const rr=p.r||2;ctx.save();ctx.translate(sx(p.x),sy(p.y));ctx.rotate(p.rot||0);ctx.shadowColor=p.color;ctx.shadowBlur=6;ctx.fillRect(-rr,-rr*.6,rr*2,rr*1.2);ctx.restore();ctx.shadowBlur=0}
   else{const rr=p.r||2;ctx.shadowColor=p.color;ctx.shadowBlur=10;ctx.beginPath();ctx.arc(sx(p.x),sy(p.y),rr,0,7);ctx.fill();ctx.shadowBlur=0}}ctx.globalAlpha=1;
+// S5 — pooled floating damage numbers, drawn in world space (camera + shake applied).
+ctx.textAlign='center';ctx.font='700 13px system-ui';
+for(const o of dmgNums){if(!o.active)continue;ctx.globalAlpha=Math.max(0,Math.min(1,o.life/.6));ctx.fillStyle='#fff';ctx.fillText(o.text,sx(o.x),sy(o.y))}
+ctx.globalAlpha=1;ctx.textAlign='left';
 for(const b of bullets){const col=b.color||WEAPON.color;
   if(b.trail&&b.trail.length>3){ctx.strokeStyle=col;ctx.lineWidth=b.kind==='homing'?3:2;ctx.lineCap='round';ctx.shadowColor=col;ctx.shadowBlur=12;
     for(let k=0;k<b.trail.length-2;k+=2){ctx.globalAlpha=.08+.45*(k/b.trail.length);ctx.beginPath();ctx.moveTo(sx(b.trail[k]),sy(b.trail[k+1]));ctx.lineTo(sx(b.trail[k+2]),sy(b.trail[k+3]));ctx.stroke()}ctx.globalAlpha=1;ctx.shadowBlur=0}
@@ -292,11 +351,21 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    new Image().src='enemy.shambler' -> a bogus URL -> a truthy Image, so the `||` fallback to the
    real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
-for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(spriteSrcForEntity(e.type));if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.drawImage(img,x-s/2,y-s/2,s,s);ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
+for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(spriteSrcForEntity(e.type));if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.drawImage(img,x-s/2,y-s/2,s,s);ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}
+  // S4 — visually distinct poison tell: pulsing green ring while a DoT stack is active.
+  if(e.poisonT>0){ctx.globalAlpha=.35;ctx.fillStyle='#7cff4f';ctx.beginPath();ctx.arc(x,y,e.r*1.15,0,7);ctx.fill();ctx.globalAlpha=1}
+  ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
 let px=sx(player.x),py=sy(player.y);ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore();ctx.restore();
-ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('HiVE SWARM  ·  WAVE '+wave,18,32);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';ctx.fillText('SURVIVAL '+formatTime(elapsed)+'   SCORE '+score+'   HOSTILES '+enemies.length,18,55);ctx.fillStyle='#26383a';ctx.fillRect(18,70,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80);
-ctx.fillStyle='#1b2f33';ctx.fillRect(18,88,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88,180*Math.max(0,Math.min(1,xp/nextXp)),8);
-ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected+'   🔫 '+heldWeapons.length,205,96);
+/* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
+   Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
+   computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
+ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('HiVE SWARM  ·  WAVE '+wave,18,32+SAFE_TOP);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';ctx.fillText('SURVIVAL '+formatTime(elapsed)+'   SCORE '+score+'   HOSTILES '+enemies.length,18,55+SAFE_TOP);ctx.fillStyle='#26383a';ctx.fillRect(18,70+SAFE_TOP,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70+SAFE_TOP,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80+SAFE_TOP);
+ctx.fillStyle='#1b2f33';ctx.fillRect(18,88+SAFE_TOP,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88+SAFE_TOP,180*Math.max(0,Math.min(1,xp/nextXp)),8);
+ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected+'   🔫 '+heldWeapons.length,205,96+SAFE_TOP);
+// S2 — current weapon name, top-centre, just below the phone icons. Updates whenever grantWeapon
+// replaces heldWeapons[0] (or upgradeWeapon renames rank-ups — name itself doesn't change on rank).
+if((state==='play'||state==='levelup')&&heldWeapons[0]){ctx.save();ctx.textAlign='center';ctx.fillStyle='#ffe066';ctx.font='700 14px system-ui';ctx.shadowColor='#000';ctx.shadowBlur=4;
+  ctx.fillText((heldWeapons[0].name||'')+(heldWeapons[0].rank>1?'  Rk.'+heldWeapons[0].rank:''),VIEW.w/2,20+SAFE_TOP);ctx.restore()}
 if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active?STICK.base.y:STICK.home.y,
   kx=STICK.active?STICK.knob.x:bx,ky=STICK.active?STICK.knob.y:by;
   ctx.save();ctx.globalAlpha=STICK.active?.34:.16;ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
