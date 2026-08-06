@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HiVE SWARM v0.0.7</title><style>
 *{box-sizing:border-box}html,body{margin:0;background:#050b14;color:#e8f7ff;font:14px system-ui,sans-serif;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}#hint{position:fixed;inset:auto 0 18px;text-align:center;color:#9ec4c0;pointer-events:none;letter-spacing:.05em}#hint b{color:#e4fff8}
-#pauseBtn{position:fixed;left:14px;top:14px;z-index:6;width:48px;height:48px;border-radius:12px;border:1px solid #7cf9ff;background:rgba(8,30,40,.88);color:#7cf9ff;font-size:22px;font-weight:900;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 0 16px rgba(0,255,255,.25)}
+/* 2026-08-05: was left:14px/top:14px, which sat on top of the HUD text (Eric, playtest).
+   Moved to the right edge and lower so it covers nothing. */
+#pauseBtn{position:fixed;right:14px;top:96px;z-index:6;width:48px;height:48px;border-radius:12px;border:1px solid #7cf9ff;background:rgba(8,30,40,.88);color:#7cf9ff;font-size:22px;font-weight:900;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 0 16px rgba(0,255,255,.25)}
 #pauseBtn:active{transform:scale(.96)}#pauseOverlay{position:fixed;inset:0;z-index:7;background:rgba(2,8,16,.72);display:none;place-content:center;text-align:center;color:#e8f7ff;font:700 28px system-ui;pointer-events:none}#pauseOverlay.on{display:grid}
 #forgeBtn{position:fixed;right:14px;top:14px;border:1px solid #6fffe2;background:#102326;color:#bafff2;border-radius:50%;width:38px;height:38px;font-size:20px;z-index:5;cursor:pointer}
 #forge{position:fixed;left:24px;top:24px;z-index:50;width:min(720px,92vw);height:82vh;min-width:320px;min-height:280px;resize:both;overflow:hidden;display:none;flex-direction:column;background:#0d1a1d;border:1px solid #62d9c7;border-radius:12px;box-shadow:0 16px 60px #000c;color:#dce9e7;font:13px system-ui,sans-serif}
@@ -22,7 +24,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.0.7';
+const GAME_VERSION='0.0.8';
 const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
 const VIEW={w:540,h:960}, WORLD={halfW:810,halfH:1440,maxEnemies:220}, CAMERA={deadZone:.15}; let dpr=1;
 function resize(){dpr=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);VIEW.w=innerWidth;VIEW.h=innerHeight} addEventListener('resize',resize);resize();
@@ -135,10 +137,10 @@ function grantWeapon(id){
   if(!META.ownedWeapons[base.id]){META.ownedWeapons[base.id]=true;saveMeta()}
   const have=heldWeapons.find(w=>w.id===base.id);
   if(have){upgradeWeapon(have);return 'rank'}
-  if(heldWeapons.length>=5){// replace weakest by damage
-    let wi=0;for(let i=1;i<heldWeapons.length;i++)if((heldWeapons[i].damage||0)<(heldWeapons[wi].damage||0))wi=i;
-    heldWeapons[wi]=Object.assign(copy(base),{rank:1});WEAPON=heldWeapons[0];return 'swap'}
-  heldWeapons.push(Object.assign(copy(base),{rank:1}));return 'new'}
+  /* 2026-08-05: picking a weapon now REPLACES the current one (Eric, playtest). It used to hold up
+     to 5 and fire ALL of them at once, so the starting pulse gun kept firing underneath every new
+     weapon — you could never actually see or feel what you just picked up. Same id still ranks up. */
+  heldWeapons=[Object.assign(copy(base),{rank:1})];WEAPON=heldWeapons[0];return 'swap'}
 function maybeDropWeapon(x,y,elite){
   const p=elite?(EDIT.drops.eliteWeaponChance??.35):(EDIT.drops.weaponChance??.04);
   if(rand(0,1)>=p)return;
@@ -209,7 +211,11 @@ function killEnemy(e){
   explode(e.x,e.y,e.color||'#ff8',42);enemies.splice(idx,1)}
 function burst(x,y,color,n=8){n=Math.min(n,MAX_PARTICLES-particles.length);for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(25,160);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.6),color,r:rand(1.5,3.5)})}}
 function explode(x,y,color,r=60){// shockwave + debris + shake — budgeted particle count
-  shake=Math.max(shake,10);burst(x,y,color,14);burst(x,y,'#fff6c8',8);
+  /* 2026-08-05: this ran on EVERY enemy death and re-armed shake to a full 10 each time. Decay is
+     only ~25/s, so at survivors-like kill rates the screen never stopped shaking and the game was
+     hard to play (Eric, playtest). Now a kill adds a small amount against a low cap; only genuinely
+     big events (player hit, nova blast) are allowed to jolt harder, via their own shake= lines. */
+  shake=Math.min(4.5,shake+1.6);burst(x,y,color,14);burst(x,y,'#fff6c8',8);
   particles.push({x,y,vx:0,vy:0,life:.28,color,shock:r});
   for(const e of enemies){const d=Math.hypot(e.x-x,e.y-y);if(d<r){e.hp-=22*(1-d/r);e.hit=.15;if(d>1){e.x+=(e.x-x)/d*18;e.y+=(e.y-y)/d*18}}}}
 function setPaused(on){
@@ -304,7 +310,12 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
   else{ctx.beginPath();ctx.arc(x,y+bob,r,0,7);ctx.fill()}
   if(p.heal){ctx.fillStyle='#fff';ctx.fillRect(x-1.4,y+bob-4,2.8,8);ctx.fillRect(x-4,y+bob-1.4,8,2.8)}
   ctx.globalAlpha=.35;ctx.strokeStyle=glow;ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y+bob,r+3,0,7);ctx.stroke();ctx.restore()}
-for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(entitySpriteKey(e.type))||spriteFor(e.type.sprite);if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.drawImage(img,x-s/2,y-s/2,s,s);ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
+/* 2026-08-05 enemy-art fix: this passed the entity KEY ('enemy.shambler') to spriteFor(), which
+   treats its argument as an image SOURCE. With no FORGE override present it did
+   new Image().src='enemy.shambler' -> a bogus URL -> a truthy Image, so the `||` fallback to the
+   real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
+   spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
+for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(spriteSrcForEntity(e.type));if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.drawImage(img,x-s/2,y-s/2,s,s);ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
 let px=sx(player.x),py=sy(player.y);ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore();ctx.restore();
 ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('HiVE SWARM  ·  WAVE '+wave,18,32);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';ctx.fillText('SURVIVAL '+formatTime(elapsed)+'   SCORE '+score+'   HOSTILES '+enemies.length,18,55);ctx.fillStyle='#26383a';ctx.fillRect(18,70,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80);
 ctx.fillStyle='#1b2f33';ctx.fillRect(18,88,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88,180*Math.max(0,Math.min(1,xp/nextXp)),8);
@@ -400,7 +411,10 @@ function ensureTitleChrome(){
   try{const n=codexVisible().length,t=codexPages().length;const bc=bar.querySelector&&bar.querySelector('#btnCodex');if(bc)bc.textContent='📖 BEASTIARY  '+n+' / '+t}catch(_){}}
 // Title chrome is refreshed from draw() — no setInterval (keeps Node harness alive forever).
 addEventListener('keydown',e=>{if(e.key.toLowerCase()==='m'&&(state==='title'||state==='dead'))openMeta()});
-addEventListener('click',e=>{let b=e.target.closest&&e.target.closest('[data-card]');if(b&&choices[Number(b.dataset.card)]?.name==='Scatter Shot'&&heldWeapons.length<5)heldWeapons.push(Object.assign(copy(WEAPON),{name:'Scatter Shot',shots:3,damage:Math.round(WEAPON.damage*.65)}))},true);
+/* 2026-08-05 removed: this was a SECOND handler for the Scatter Shot card. The card already applies
+   itself at offerCards() (`WEAPON.shots = min(5, shots+2)`), so this fired on the same click and
+   pushed an extra permanent weapon that then fired alongside the real one — part of the
+   "weapons are stacking, I still see my 1st gun" report. The card upgrades the current weapon. */
 
 // ============================================================
 // ⬡ HiVE SWARM FORGE — tabbed editor (mirror HiVE WAR patterns)
