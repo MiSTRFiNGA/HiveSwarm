@@ -52,7 +52,14 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,
   // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
   // spreadRadius = how close that neighbour must be, spreadFactor = potency the infection is
   // passed on at (0.7 = each generation is 30% weaker, so a plague fades instead of snowballing).
-  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:8,dotTime:3,spreadChance:.9,spreadRadius:52,spreadFactor:.7,dropWeight:1}
+  // 2026-08-06 feel pass (Eric: "have to run away until they die and it is slow"): dot raised
+  // 8->16 and dotTime cut 3->2.2 so the DoT is FRONT-LOADED (kills land faster instead of a slow
+  // kite-and-wait burn — Eric said he'll personally retune `dot` further, keep it FORGE-editable).
+  // poisonStackMax = re-hitting an already-infected target now STACKS extra dps (capped) instead
+  // of doing nothing, so sustained fire on a saturated field ramps up instead of idling.
+  // slowFactor = poisoned enemies move at this fraction of normal speed, so you don't have to
+  // kite/run away waiting for the DoT — the target is defanged the moment it's infected.
+  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:16,dotTime:2.2,spreadChance:.9,spreadRadius:52,spreadFactor:.7,poisonStackMax:3,slowFactor:.6,dropWeight:1}
 ],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}],codexPages:null,
 // STAGE system (owner request 2026-08-06): discrete stages replace the pure-endless timer.
 // Each stage = its own backdrop palette + a roster cap (which entities can spawn) + a duration
@@ -188,6 +195,15 @@ function pushOutOfObstacles(body){for(const o of obstacles){let dx=body.x-o.x,dy
 function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius});WEAPON=EDIT.weapons[0];ENEMIES=EDIT.entities;if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35}applyForge();
 // G7 — weapon caches, ranks, armory seed
 function weaponById(id){return (EDIT.weapons||[]).find(w=>w.id===id)||EDIT.weapons[0]}
+// 2026-08-06 fix: armory cost table listed seeker/beam/chain/nova explicitly and silently fell
+// through to the "else" price (3 biomatter) for anything else — which meant weapon.poison, the
+// only unlisted gun, was quietly the CHEAPEST non-starter weapon to buy. That made it the gun
+// most players unlocked and set as their START weapon first, so it showed up at the top of nearly
+// every run — not because field-cache RNG favored it (a 100k-trial histogram of maybeDropWeapon's
+// weighted pick came back ~16.6% per weapon, dead uniform across all 6 guns), but because it was
+// pre-equipped turn one far more often than the others. Poison now has its own explicit price,
+// priced with seeker (both are DoT/utility-leaning, mid-tier picks) instead of defaulting cheapest.
+function weaponArmoryCost(id){return id==='weapon.seeker'?4:id==='weapon.poison'?4:id==='weapon.beam'?5:id==='weapon.chain'?5:id==='weapon.nova'?6:3}
 function upgradeWeapon(w){w.rank=Math.min(5,(w.rank||1)+1);w.damage=Math.round(w.damage*1.18);w.rate=Math.max(.06,+(w.rate*0.94).toFixed(3));if(w.rank%3===0)w.pierce=(w.pierce||1)+1;if(w.kind==='poison')w.dot=+((w.dot||8)*1.18).toFixed(2);return w}
 function grantWeapon(id){
   const base=weaponById(id);if(!base)return;
@@ -297,8 +313,8 @@ function fire(){
         vx:Math.cos(ang)*(w.speed||700),vy:Math.sin(ang)*(w.speed||700),
         r:kind==='nova'?7:kind==='homing'?5:4,
         damage:dmg,pierce:wPierce(w),life:kind==='homing'?2.2:kind==='nova'?1.4:1.05,
-        dot:(w.dot||0)*venomMul(w),dotTime:w.dotTime||0,
-        spread:kind==='poison'?{chance:(w.spreadChance??.9)*venomMul(w),radius:w.spreadRadius??52,factor:w.spreadFactor??.7}:null,
+        dot:(w.dot||0)*venomMul(w),dotTime:w.dotTime||0,slow:w.slowFactor??1,stackMax:w.poisonStackMax??1,
+        spread:kind==='poison'?{chance:(w.spreadChance??.9)*venomMul(w),radius:w.spreadRadius??52,factor:w.spreadFactor??.7,slow:w.slowFactor??1}:null,
         color:w.color,kind,turn:w.turn||0,blast:w.blast||0,trail:[]
       })}}}
 function killEnemy(e,gibs){
@@ -309,6 +325,18 @@ function killEnemy(e,gibs){
   if(rand(0,1)<(EDIT.drops.healChance!==undefined?EDIT.drops.healChance:.07))
     pickups.push({x:e.x+rand(-14,14),y:e.y+rand(-14,14),heal:1,value:EDIT.drops.heal||12});
   maybeDropWeapon(e.x+rand(-10,10),e.y+rand(-10,10),elite);
+  // 2026-08-06 feel pass: a toxic "pop" on a poisoned kill — rewards landing the DoT instead of
+  // just draining it away. Bigger green burst + a guaranteed (not chance-gated) one-time spread
+  // pulse to nearby clean enemies at the carrier's last dps, so a kill made WITH poison propagates
+  // the plague outward instead of the infection just fizzling with its host.
+  if(e.poisonT>0){
+    burst(e.x,e.y,'#b8ff4f',26);
+    const sp=e.poisonSrc;
+    if(sp){const rad=(sp.radius??52)*1.4;
+      for(const o of enemies){if(o===e||o.poisonT>0)continue;
+        const dx=o.x-e.x,dy=o.y-e.y;if(dx*dx+dy*dy>(rad+o.r)*(rad+o.r))continue;
+        o.poisonDps=(e.poisonDps||0)*(sp.factor??.7);o.poisonT=Math.max(1.2,e.poisonT||1.2);o.poisonSrc=sp;o.poisonSlow=e.poisonSlow;o.poisonStacks=1;
+        burst(o.x,o.y,'#7cff4f',4)}}}
   explode(e.x,e.y,e.color||'#ff8',42,gibs);enemies.splice(idx,1);
   // STAGE clear: the boss dying ends the stage immediately — bigger blast, score bonus, then the
   // between-stage break screen (mirrors how the level-up card interrupts play at pickups line ~410).
@@ -353,7 +381,11 @@ function update(dt){
 if(!stageBoss){stageT+=dt;if(stageT>=curStageCfg().seconds)spawnBossEnemy()}
 if(!stageBoss)spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);
 while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=Math.max(.05,WEAPON.rate||.16);fire()}
-for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1;e.x+=vx/d*e.speed*dt;e.y+=vy/d*e.speed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
+for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1,
+    // S.7 feel pass: poisoned enemies are slowed (poisonSlow, from weapon.poison's slowFactor) so
+    // the player never has to kite/run away waiting the DoT out — infection defangs on contact.
+    moveSpeed=e.speed*(e.poisonT>0?(e.poisonSlow||1):1);
+  e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
       // S4 — poison DoT tick: keeps draining after the hit lands, independent of contact/bullet damage.
       if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}
         // S.7 CONTAGION (owner spec): "if the infected hit another enemy, they get infected".
@@ -369,7 +401,7 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
               const rad=sp.radius??52;
               for(const o of enemies){if(o===e||o.poisonT>0)continue;
                 const dx=o.x-e.x,dy=o.y-e.y;if(dx*dx+dy*dy>(rad+o.r)*(rad+o.r))continue;
-                o.poisonDps=e.poisonDps*(sp.factor??.7);o.poisonT=e.poisonT;o.poisonSrc=sp;
+                o.poisonDps=e.poisonDps*(sp.factor??.7);o.poisonT=e.poisonT;o.poisonSrc=sp;o.poisonSlow=e.poisonSlow;o.poisonStacks=1;
                 burst(o.x,o.y,'#7cff4f',3);break}}}}}
       if(d<e.r+player.r){if(!player.inv){player.hp-=e.damage;player.inv=.7;shake=8;burst(player.x,player.y,'#ff718a',14);
         player.x-=vx/d*18;player.y-=vy/d*18;
@@ -384,11 +416,17 @@ for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
     if(b.kind==='nova'){explode(b.x,b.y,b.color||'#ffe066',b.blast||70);removed=true;break}
     if(b.kind==='poison'){
       // Owner bug 2026-08-06: "it hits an enemy and continues to hit". A carrier no longer eats the
-      // dart at all - the shot flies THROUGH anything already infected without spending pierce, so
-      // it reaches a clean target instead of being wasted re-poisoning the same body.
-      if(e.poisonT>0)continue;
-      e.poisonDps=Math.max(e.poisonDps||0,b.dot||8);e.poisonT=Math.max(e.poisonT||0,b.dotTime||3);
-      e.poisonSrc=b.spread||null;e.hit=.1;sfx('hit',.06);burst(b.x,b.y,b.color||'#7cff4f',3);
+      // dart for nothing once already at max potency — the shot flies THROUGH a saturated target
+      // without spending pierce, so it reaches a clean/understacked target instead of being wasted.
+      // 2026-08-06 feel pass: re-hitting an infected (but not yet capped) target now STACKS extra
+      // dps (up to stackMax) instead of always being a no-op, so sustained fire on a screen that's
+      // already fully infected keeps ramping instead of idling — poisonTarget() still prefers clean
+      // targets first, so stacking mostly kicks in once the plague has saturated the field.
+      const curStacks=e.poisonT>0?(e.poisonStacks||1):0;
+      if(curStacks>=(b.stackMax||1))continue;
+      const nextStacks=curStacks+1;
+      e.poisonStacks=nextStacks;e.poisonDps=(b.dot||8)*nextStacks;e.poisonT=Math.max(e.poisonT||0,b.dotTime||3);
+      e.poisonSlow=b.slow??1;e.poisonSrc=b.spread||null;e.hit=.1;sfx('hit',.06);burst(b.x,b.y,b.color||'#7cff4f',3);
       b.pierce--;if(b.pierce<0)removed=true;continue}
     e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,b.color||WEAPON.color,4);spawnDmgNum(e.x,e.y-e.r,b.damage);b.pierce--;
     if(e.hp<=0)killEnemy(e,b.kind==='homing');if(b.pierce<0)removed=true}}
@@ -596,7 +634,7 @@ function openMeta(){if(document.querySelector('#meta'))return;let box=document.c
   if(!META.ownedWeapons)META.ownedWeapons={'weapon.pulse':true};
   let render=()=>{const owned=Object.keys(META.ownedWeapons||{}).filter(id=>META.ownedWeapons[id]);
     const armory=(EDIT.weapons||[]).map(w=>{const have=!!META.ownedWeapons[w.id];const start=META.startWeapon===w.id;
-      const cost=have?0:(w.id==='weapon.seeker'?4:w.id==='weapon.beam'?5:w.id==='weapon.chain'?5:w.id==='weapon.nova'?6:3);
+      const cost=have?0:weaponArmoryCost(w.id);
       return `<button data-arm="${w.id}" ${have&&start?'style="outline:2px solid #6fffe2"':''}>${start?'▶ ':''}${w.name}${have?' · OWNED · set start':' · BUY '+cost}</button>`}).join('');
     box.innerHTML=`<h2>META + ARMORY</h2><p>SLOT ${currentSlot()} · ${META.credits} biomatter · ranks 5% each (cap 25%)</p>
       ${['damage','hp','speed','venom'].map(k=>`<button data-meta="${k}" title="${k==='venom'?'+25% poison damage and spread per rank — stacks with the Venom mod':'+5% per rank'}">${k.toUpperCase()} ${META[k]}/5 · cost ${META[k]+1}</button>`).join('')}
@@ -605,7 +643,7 @@ function openMeta(){if(document.querySelector('#meta'))return;let box=document.c
     box.querySelectorAll('[data-meta]').forEach(b=>b.onclick=()=>{let k=b.dataset.meta,cost=META[k]+1;if(META[k]<5&&META.credits>=cost){META.credits-=cost;META[k]++;saveMeta();render()}});
     box.querySelectorAll('[data-arm]').forEach(b=>b.onclick=()=>{const id=b.dataset.arm;const w=weaponById(id);if(!w)return;
       if(META.ownedWeapons[id]){META.startWeapon=id;saveMeta();render();return}
-      const cost=id==='weapon.seeker'?4:id==='weapon.beam'?5:id==='weapon.chain'?5:id==='weapon.nova'?6:3;
+      const cost=weaponArmoryCost(id);
       if(META.credits>=cost){META.credits-=cost;META.ownedWeapons[id]=true;META.startWeapon=id;saveMeta();codexSee('weapon:'+id,0);render()}});
     box.querySelector('#metaClose').onclick=()=>box.remove()};render();document.body.append(box)}
 function openSlots(){if(document.querySelector('#slots'))return;const box=document.createElement('div');box.id='slots';box.className='overlay';
