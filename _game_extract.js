@@ -1,7 +1,7 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.1.1';
+const GAME_VERSION='0.1.4';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -125,6 +125,8 @@ function codexSee(link,count){
 
 // ---- sprites / media (FORGE paint + IndexedDB; game prefers override dataURL) ----
 const SPRITES={}; const SPRITE_OVR={}; // key -> dataURL
+const PLAYER_SPRITE='art_src/topdown_v1/player.png';
+const OBSTACLE_SPRITE='art_src/topdown_v1/obstacle_rock.png';
 function spriteFor(src){
   if(!src)return null;
   // FORGE override wins when the entity id (or path) was painted/saved
@@ -133,7 +135,31 @@ function spriteFor(src){
   if(!SPRITES[src]){const image=new Image();image.src=src;SPRITES[src]=image}return SPRITES[src]
 }
 function entitySpriteKey(e){return e&&e.id?e.id:('path:'+(e&&e.sprite||''))}
-function spriteSrcForEntity(e){const k=entitySpriteKey(e);return SPRITE_OVR[k]||(e&&e.sprite)||''}
+// 4-way facing: 0=E,1=S,2=W,3=N (N = back). W reuses E art mirrored in draw.
+function facingFromAngle(a){const t=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);if(t<Math.PI*.25||t>=Math.PI*1.75)return 0;if(t<Math.PI*.75)return 1;if(t<Math.PI*1.25)return 2;return 3}
+const FACE_SFX=['e','s','w','n'];
+function spriteSrcForEntity(e,face){
+  const k=entitySpriteKey(e);
+  if(SPRITE_OVR[k])return SPRITE_OVR[k];
+  const base=(e&&e.sprite)||'';
+  if(!base)return '';
+  if(face!=null&&base.endsWith('.png')){
+    // W mirrors E; request e for face 2
+    const dir=FACE_SFX[face===2?0:(face|0)]||'e';
+    const dsrc=base.replace(/\.png$/,'_'+dir+'.png');
+    return dsrc;
+  }
+  return base;
+}
+function spriteSrcForPlayer(face){
+  const base=PLAYER_SPRITE;
+  if(face!=null){
+    const dir=FACE_SFX[face===2?0:(face|0)]||'e';
+    const dsrc=base.replace(/\.png$/,'_'+dir+'.png');
+    return dsrc;
+  }
+  return base;
+}
 
 const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;
 function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
@@ -421,15 +447,15 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
     // S.7 feel pass: poisoned enemies are slowed (poisonSlow, from weapon.poison's slowFactor) so
     // the player never has to kite/run away waiting the DoT out — infection defangs on contact.
     moveSpeed=e.speed*(e.poisonT>0?(e.poisonSlow||1):1);
-  e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt;
+  e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;
   // Knockback offset: applied AFTER the chase step, BEFORE separation/pushOutOfObstacles so both
   // still see (and correct) the shoved position this same frame — nothing gets knocked through an
   // obstacle or another enemy. World-bound clamp here too — enemies were never clamped to the
   // arena edge before (only at spawn), which was fine for plain chase movement but a knockback can
   // shove one past the edge in a single hit, so clamp same as player. Decays via a half-life so it
   // reads as a snappy shove, not a fling.
-  if(e.kx||e.ky){e.x+=e.kx*dt;e.y+=e.ky*dt;e.x=Math.max(-WORLD.halfW+e.r,Math.min(WORLD.halfW-e.r,e.x));e.y=Math.max(-WORLD.halfH+e.r,Math.min(WORLD.halfH-e.r,e.y));const kd=Math.pow(.5,dt/KB_HALFLIFE);e.kx*=kd;e.ky*=kd;if(Math.abs(e.kx)<1)e.kx=0;if(Math.abs(e.ky)<1)e.ky=0}
-  for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
+  if(e.kx||e.ky){e.x+=e.kx*dt;e.y+=e.ky*dt;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;e.x=Math.max(-WORLD.halfW+e.r,Math.min(WORLD.halfW-e.r,e.x));e.y=Math.max(-WORLD.halfH+e.r,Math.min(WORLD.halfH-e.r,e.y));const kd=Math.pow(.5,dt/KB_HALFLIFE);e.kx*=kd;e.ky*=kd;if(Math.abs(e.kx)<1)e.kx=0;if(Math.abs(e.ky)<1)e.ky=0}
+  for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
       // S4 — poison DoT tick: keeps draining after the hit lands, independent of contact/bullet damage.
       if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}
         // S.7 CONTAGION (owner spec): "if the infected hit another enemy, they get infected".
@@ -525,12 +551,14 @@ function draw(){
 // S6 — static obstacles (procedural rock-cluster shapes, deterministic per-seed so they don't
 // flicker frame to frame). Push-out collision handled in update(); drawn under everything else.
 for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-80||ox2>VIEW.w+80||oy2<-80||oy2>VIEW.h+80)continue;
-  ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.strokeStyle='#5a7d76';ctx.lineWidth=2;ctx.shadowColor='#000';ctx.shadowBlur=14;
+  const oImg=spriteFor(OBSTACLE_SPRITE);const oS=o.r*2.6;
+  if(oImg&&oImg.complete&&oImg.naturalWidth){ctx.save();ctx.globalAlpha=.95;ctx.drawImage(oImg,ox2-oS/2,oy2-oS/2,oS,oS);ctx.globalAlpha=1;ctx.restore()}
+  else{ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.strokeStyle='#5a7d76';ctx.lineWidth=2;ctx.shadowColor='#000';ctx.shadowBlur=14;
   ctx.beginPath();const spikes=7;
   for(let i=0;i<=spikes;i++){const ang=i/spikes*6.283,rr=o.r*(0.75+((Math.sin((o.seed+i)*12.9898)*43758.5453)%1+1)%1*0.45),px=Math.cos(ang)*rr,py=Math.sin(ang)*rr;if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py)}
   ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=0;
   ctx.fillStyle='rgba(120,239,219,.12)';ctx.beginPath();ctx.arc(-o.r*.25,-o.r*.25,o.r*.35,0,7);ctx.fill();
-  ctx.restore()}
+  ctx.restore()}}
 // beams (laser + chain) under projectiles
 for(const b of beams){
   if(b.chain){ctx.save();ctx.globalAlpha=Math.min(1,b.life*10);ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=18;ctx.lineWidth=b.w||4;ctx.lineCap='round';
@@ -575,7 +603,7 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
     ctx.globalAlpha=1}
   ctx.shadowColor=glow;ctx.shadowBlur=p.pulled?18:10;ctx.fillStyle=col;
   if(p.weapon){ctx.fillRect(x-r,y+bob-r*.6,r*2,r*1.2);ctx.fillStyle='#111';ctx.fillRect(x-r*.3,y+bob-r*1.1,r*.6,r*.5)}
-  else{ctx.beginPath();ctx.arc(x,y+bob,r,0,7);ctx.fill()}
+  else{ctx.shadowColor=glow;ctx.shadowBlur=p.pulled?22:14;ctx.beginPath();ctx.arc(x,y+bob,r,0,7);ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=.55;ctx.strokeStyle=glow;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y+bob,r+2.5,0,7);ctx.stroke();ctx.globalAlpha=1}
   if(p.heal){ctx.fillStyle='#fff';ctx.fillRect(x-1.4,y+bob-4,2.8,8);ctx.fillRect(x-4,y+bob-1.4,8,2.8)}
   ctx.globalAlpha=.35;ctx.strokeStyle=glow;ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y+bob,r+3,0,7);ctx.stroke();ctx.restore()}
 /* 2026-08-05 enemy-art fix: this passed the entity KEY ('enemy.shambler') to spriteFor(), which
@@ -583,11 +611,15 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    new Image().src='enemy.shambler' -> a bogus URL -> a truthy Image, so the `||` fallback to the
    real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
-for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(spriteSrcForEntity(e.type));if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.drawImage(img,x-s/2,y-s/2,s,s);ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}
+for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle(Math.atan2(e.vy||0,e.vx||1));let img=spriteFor(spriteSrcForEntity(e.type,eFace));if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.save();ctx.translate(x,y);if(eFace===2){ctx.scale(-1,1)}ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore();ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}
   // S4 — visually distinct poison tell: pulsing green ring while a DoT stack is active.
   if(e.poisonT>0){ctx.globalAlpha=.35;ctx.fillStyle='#7cff4f';ctx.beginPath();ctx.arc(x,y,e.r*1.15,0,7);ctx.fill();ctx.globalAlpha=1}
   ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
-let px=sx(player.x),py=sy(player.y);ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore();ctx.restore();
+let px=sx(player.x),py=sy(player.y);const pFace=facingFromAngle(player.angle);ctx.save();ctx.translate(px,py);
+const pImg=spriteFor(spriteSrcForPlayer(pFace));const pS=player.r*3.4;
+if(pImg&&pImg.complete&&pImg.naturalWidth){ctx.globalAlpha=player.inv?.55:1;if(pFace===2)ctx.scale(-1,1);ctx.drawImage(pImg,-pS/2,-pS/2,pS,pS);ctx.globalAlpha=1}
+else{ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8)}
+ctx.restore();ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
    computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
@@ -613,7 +645,7 @@ if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active
   ctx.save();ctx.globalAlpha=STICK.active?.34:.16;ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(bx,by,STICK.radius,0,7);ctx.stroke();
   ctx.globalAlpha=STICK.active?.5:.22;ctx.fillStyle='#6fffe2';ctx.beginPath();ctx.arc(kx,ky,26,0,7);ctx.fill();ctx.restore()}
-if(state==='title'||state==='dead'){ctx.fillStyle='rgba(3,8,10,.72)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.textAlign='center';ctx.fillStyle='#e4fff8';ctx.font='700 34px system-ui';ctx.fillText(state==='dead'?'RUN ENDED':'HiVE SWARM',VIEW.w/2,VIEW.h/2-80);ctx.save();ctx.font='12px system-ui';ctx.fillStyle='rgba(150,200,190,.55)';ctx.fillText('v'+GAME_VERSION,VIEW.w/2,VIEW.h/2-58);ctx.restore();ctx.font='16px system-ui';ctx.fillStyle='#b3cbc7';ctx.fillText(state==='dead'?'Score '+score+' · survived '+formatTime(elapsed):'Open arena survival greybox',VIEW.w/2,VIEW.h/2-30);ctx.fillStyle='#8ab';ctx.font='14px system-ui';ctx.fillText('SLOT '+currentSlot()+'  ·  '+ (META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),VIEW.w/2,VIEW.h/2-6);ctx.fillStyle='#6fffe2';ctx.font='16px system-ui';ctx.fillText('Click or press Enter to deploy',VIEW.w/2,VIEW.h/2+28);ctx.textAlign='left'}
+if(state==='title'||state==='dead'){ctx.fillStyle='rgba(3,8,10,.72)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.textAlign='center';ctx.fillStyle='#e4fff8';ctx.font='700 34px system-ui';ctx.fillText(state==='dead'?'RUN ENDED':'HiVE SWARM',VIEW.w/2,VIEW.h/2-80);ctx.save();ctx.font='12px system-ui';ctx.fillStyle='rgba(150,200,190,.55)';ctx.fillText('v'+GAME_VERSION,VIEW.w/2,VIEW.h/2-58);ctx.restore();ctx.font='16px system-ui';ctx.fillStyle='#b3cbc7';ctx.fillText(state==='dead'?'Score '+score+' · survived '+formatTime(elapsed):'Open arena · HiVE brand art v2',VIEW.w/2,VIEW.h/2-30);ctx.fillStyle='#8ab';ctx.font='14px system-ui';ctx.fillText('SLOT '+currentSlot()+'  ·  '+ (META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),VIEW.w/2,VIEW.h/2-6);ctx.fillStyle='#6fffe2';ctx.font='16px system-ui';ctx.fillText('Click or press Enter to deploy',VIEW.w/2,VIEW.h/2+28);ctx.textAlign='left'}
 // First-sighting toast
 if(newCodexT>0&&newCodexTitle){const a=Math.min(1,newCodexT/.5);ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';
   ctx.fillStyle='rgba(60,20,90,.82)';ctx.fillRect(VIEW.w/2-170,96,340,52);ctx.strokeStyle='#c6f';ctx.strokeRect(VIEW.w/2-170,96,340,52);
