@@ -68,7 +68,7 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,
   // (maybeDropWeapon does a weighted pick over EDIT.weapons; 1 = baseline, all guns shipped equal).
   {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:760,dropWeight:1},
   {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5,dropWeight:1},
-  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1},
+  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16},
   {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:16,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:280,jumps:4,dropWeight:1},
   {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78,dropWeight:1},
   // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
@@ -293,11 +293,12 @@ function fire(){
     if(kind==='beam'){
       // continuous ray — damage everything on the segment this tick
       const len=w.range||720, x2=player.x+Math.cos(wa)*len, y2=player.y+Math.sin(wa)*len;
-      beams.push({x1:player.x,y1:player.y,x2,y2,color:w.color,life:.06,w:w.width||6});
+      const beamLife=.14;
+      beams.push({x1:player.x,y1:player.y,x2,y2,color:w.color,core:w.coreColor,life:beamLife,lifeMax:beamLife,w:w.glowWidth||24,coreW:w.coreWidth||2.4,pulseRate:w.pulseRate||16});
       const hitList=[];
       for(const e of enemies){
         const px=e.x-player.x,py=e.y-player.y,segx=x2-player.x,segy=y2-player.y,t=Math.max(0,Math.min(1,(px*segx+py*segy)/(segx*segx+segy*segy||1)));
-        const dx=player.x+segx*t-e.x,dy=player.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){const tick=dmg*w.rate*3;e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);if(e.hp<=0)hitList.push(e)}}
+        const dx=player.x+segx*t-e.x,dy=player.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){const tick=dmg*w.rate*3;e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);if(Math.random()<.5)burst(e.x,e.y,w.coreColor||'#eaffff',2);if(e.hp<=0)hitList.push(e)}}
       for(const e of hitList)killEnemy(e);
       sfx('fire',.04);continue}
     if(kind==='chain'){
@@ -471,8 +472,24 @@ for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-80||ox2>VIEW.w+8
   ctx.fillStyle='rgba(120,239,219,.12)';ctx.beginPath();ctx.arc(-o.r*.25,-o.r*.25,o.r*.35,0,7);ctx.fill();
   ctx.restore()}
 // beams (laser + chain) under projectiles
-for(const b of beams){ctx.save();ctx.globalAlpha=Math.min(1,b.life*10);ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=b.chain?18:28;ctx.lineWidth=b.w||4;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(sx(b.x1),sy(b.y1));if(b.chain){const mx=(b.x1+b.x2)/2+rand(-8,8),my=(b.y1+b.y2)/2+rand(-8,8);ctx.lineTo(sx(mx),sy(my))}ctx.lineTo(sx(b.x2),sy(b.y2));ctx.stroke();ctx.restore()}
+for(const b of beams){
+  if(b.chain){ctx.save();ctx.globalAlpha=Math.min(1,b.life*10);ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=18;ctx.lineWidth=b.w||4;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(sx(b.x1),sy(b.y1));const mx=(b.x1+b.x2)/2+rand(-8,8),my=(b.y1+b.y2)/2+rand(-8,8);ctx.lineTo(sx(mx),sy(my));ctx.lineTo(sx(b.x2),sy(b.y2));ctx.stroke();ctx.restore();continue}
+  // Breach Laser — layered beam: wide low-alpha glow, mid core, hot near-white inner core,
+  // plus a shimmering intensity and a bright muzzle flash at the emitter. One path, three
+  // strokes reusing it (cheap) instead of separate particle systems.
+  const k=Math.max(0,Math.min(1,b.life/(b.lifeMax||.14))), len=Math.hypot(b.x2-b.x1,b.y2-b.y1);
+  const shimmer=.82+.18*Math.sin(elapsed*(b.pulseRate||16)+len*.015);
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(sx(b.x1),sy(b.y1));ctx.lineTo(sx(b.x2),sy(b.y2));
+  ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';
+  ctx.globalAlpha=k*.32*shimmer;ctx.shadowBlur=26;ctx.lineWidth=b.w||24;ctx.stroke();
+  ctx.globalAlpha=k*.7*shimmer;ctx.shadowBlur=14;ctx.lineWidth=(b.w||24)*.34;ctx.stroke();
+  ctx.strokeStyle=b.core||'#eaffff';ctx.globalAlpha=k;ctx.shadowBlur=6;ctx.lineWidth=b.coreW||2.4;ctx.stroke();
+  ctx.restore();
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=k*.9;ctx.fillStyle=b.core||'#eaffff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=16;
+  ctx.beginPath();ctx.arc(sx(b.x1),sy(b.y1),7*k+2,0,7);ctx.fill();ctx.restore();
+}
 for(const p of particles){ctx.globalAlpha=Math.min(1,p.life*3);ctx.fillStyle=p.color;
   if(p.shock){ctx.strokeStyle=p.color;ctx.lineWidth=3;ctx.shadowColor=p.color;ctx.shadowBlur=20;ctx.beginPath();ctx.arc(sx(p.x),sy(p.y),p.shock*(1-p.life/.28),0,7);ctx.stroke();ctx.shadowBlur=0}
   else if(p.gib){const rr=p.r||2;ctx.save();ctx.translate(sx(p.x),sy(p.y));ctx.rotate(p.rot||0);ctx.shadowColor=p.color;ctx.shadowBlur=6;ctx.fillRect(-rr,-rr*.6,rr*2,rr*1.2);ctx.restore();ctx.shadowBlur=0}
