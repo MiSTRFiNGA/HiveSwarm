@@ -41,17 +41,31 @@ const FORGE_KEY='hive_swarm_forge_values_v1', copy=o=>JSON.parse(JSON.stringify(
 // then contact-DPS (~8 dmg / 0.45s iframe ≈ 18 HP/s) finished them by ~12–21s. Survivors-likes
 // open near 1 spawn/sec and ramp; HP was never the lever.
 const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034,budgetBase:1.15,budgetExponent:1.065},drops:{xp:1,metaChance:.08,healChance:.07,heal:12,weaponChance:.05,eliteWeaponChance:.4},weapons:[
-  {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:760},
-  {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5},
-  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6},
-  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:16,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:280,jumps:4},
-  {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78},
+  // dropWeight = relative odds this gun is picked when a field cache rolls a weapon drop
+  // (maybeDropWeapon does a weighted pick over EDIT.weapons; 1 = baseline, all guns shipped equal).
+  {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:760,dropWeight:1},
+  {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5,dropWeight:1},
+  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1},
+  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:16,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:280,jumps:4,dropWeight:1},
+  {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78,dropWeight:1},
   // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
   // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
   // spreadRadius = how close that neighbour must be, spreadFactor = potency the infection is
   // passed on at (0.7 = each generation is 30% weaker, so a plague fades instead of snowballing).
-  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:8,dotTime:3,spreadChance:.9,spreadRadius:52,spreadFactor:.7}
-],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}],codexPages:null};
+  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:8,dotTime:3,spreadChance:.9,spreadRadius:52,spreadFactor:.7,dropWeight:1}
+],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}],codexPages:null,
+// STAGE system (owner request 2026-08-06): discrete stages replace the pure-endless timer.
+// Each stage = its own backdrop palette + a roster cap (which entities can spawn) + a duration
+// before a boss (a scaled-up existing entity, no new art needed) spawns. Killing the boss opens
+// a between-stage break (upgrade card + continue), then the next stage begins. Data-driven so
+// FORGE/DATA tab JSON export can retune name/seconds/enemyCap/bg/bossMul later without code edits.
+stages:[
+  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bossMul:6},
+  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bossMul:7},
+  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bossMul:8},
+  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bossMul:9},
+  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bossMul:12}
+]};
 function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(key==='codexPages'){if(Array.isArray(saved.codexPages))next.codexPages=saved.codexPages;continue}if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object'&&!Array.isArray(base[key]))Object.assign(next[key],saved[key])}return next}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
 Object.assign(EDIT.waves,{budgetBase:EDIT.waves.budgetBase??1.15,budgetExponent:EDIT.waves.budgetExponent??1.065});
@@ -82,7 +96,7 @@ function codexDefaults(){
   const pages=[]; let n=0;
   const mk=(cat,title,subtitle,body,link)=>pages.push({id:'cx'+(++n),cat,title,subtitle,body:body||'',link:link||''});
   (EDIT.entities||[]).forEach(e=>mk('enemy',e.name||e.id,'Hostile',`Wave ${e.unlockWave||1}+ · HP ${e.hp} · DMG ${e.damage}`,'enemy:'+e.id));
-  (EDIT.weapons||[]).forEach(w=>mk('weapon',w.name||w.id,'Weapon',`Damage ${w.damage} · rate ${w.rate}`,'weapon:'+w.id));
+  (EDIT.weapons||[]).forEach(w=>mk('weapon',w.name||w.id,'Weapon',`Damage ${w.damage} · rate ${w.rate}`+(w.kind==='poison'?` · poison ${w.dot||0}/s for ${w.dotTime||0}s`:''),'weapon:'+w.id));
   // Field items — unlock the first time the player actually collects one (not on kill alone).
   mk('item','Biomatter Orb','XP Drop','Glowing scrap that feeds your mid-run level bar. Magnet range pulls it in.','item:xp');
   mk('item','Stim Pack','Health Drop','Red cross vials. Rarer than XP; only worth the detour when you are hurt.','item:heal');
@@ -148,6 +162,11 @@ function wPierce(w){return (w.pierce??0)+modStacks(w.id,'pierce')}
 function wRate(w){return Math.max(.05,(w.rate||.2)*Math.pow(.85,modStacks(w.id,'rapid')))}
 function venomMul(w){return (1+.6*modStacks(w.id,'venom'))*(1+.25*(META.venom||0))}
 let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
+// STAGE state — stage = index into EDIT.stages (loops with rising bossMul once past the end),
+// stageT = seconds elapsed in the CURRENT stage (freezes while the boss is up or on break),
+// stageBoss = live ref to the boss enemy object (null when none is up).
+let stage=0, stageT=0, stageBoss=null, pendingStageAdvance=null;
+function curStageCfg(){const arr=EDIT.stages&&EDIT.stages.length?EDIT.stages:FORGE_BASE.stages;return arr[stage%arr.length]}
 let WEAPON,ENEMIES,paused=false,pauseAccum=0;
 const MAX_PARTICLES=220;
 // S5 — pooled floating damage numbers. Fixed-size pool, no per-hit allocation at survivors-like fire rates.
@@ -185,7 +204,11 @@ function maybeDropWeapon(x,y,elite){
   const p=elite?(EDIT.drops.eliteWeaponChance??.35):(EDIT.drops.weaponChance??.04);
   if(rand(0,1)>=p)return;
   const pool=(EDIT.weapons||[]).filter(w=>w&&w.id);if(!pool.length)return;
-  const w=pool[Math.floor(Math.random()*pool.length)];
+  // Weighted pick over dropWeight (default 1 = every gun shipped equal odds; FORGE > WEAPONS lets
+  // Eric retune per-gun drop rates without touching code).
+  const total=pool.reduce((s,w)=>s+Math.max(0,w.dropWeight??1),0)||pool.length;
+  let roll=Math.random()*total,w=pool[pool.length-1];
+  for(const cand of pool){const wt=Math.max(0,cand.dropWeight??1);if(roll<wt){w=cand;break}roll-=wt}
   pickups.push({x,y,weapon:1,weaponId:w.id,color:w.color||'#ffe08a'})}
 function reset(){applyForge();
   if(!META.ownedWeapons)META.ownedWeapons={'weapon.pulse':true};
@@ -193,6 +216,7 @@ function reset(){applyForge();
   const start=weaponById(startId);
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
   player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=wave=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;weaponMods={};weaponOrbs={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
+  stage=0;stageT=0;stageBoss=null;
   genObstacles();for(const o of dmgNums)o.active=0;
   if(WEAPON&&WEAPON.id)codexSee('weapon:'+WEAPON.id,0)}
 function rand(a,b){return a+Math.random()*(b-a)} function dist2(a,b){let x=a.x-b.x,y=a.y-b.y;return x*x+y*y}
@@ -200,10 +224,32 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   // G6: early waves spawn from full ring (not the facing cone). The cone made "walk forward"
   // walk into every spawn and soft-locked wave 1 even at sane spawn rates.
   let a=elapsed<45||Math.random()<.35?Math.random()*Math.PI*2:player.angle+rand(-Math.PI/3,Math.PI/3);
-  let distance=Math.hypot(VIEW.w,VIEW.h)*.72+rand(60,180),level=1+Math.floor(elapsed/EDIT.waves.seconds),roster=ENEMIES.filter(e=>(e.unlockWave||1)<=level),total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);let x=Math.max(-WORLD.halfW+type.r,Math.min(WORLD.halfW-type.r,player.x+Math.cos(a)*distance)),y=Math.max(-WORLD.halfH+type.r,Math.min(WORLD.halfH-type.r,player.y+Math.sin(a)*distance));
+  let distance=Math.hypot(VIEW.w,VIEW.h)*.72+rand(60,180),level=1+Math.floor(elapsed/EDIT.waves.seconds),
+    // STAGE roster gate: each stage caps which entities can appear (its own enemy SET), on top of
+    // the pre-existing wave-based unlock ramp. Falls back to the full roster if the cap is somehow
+    // stricter than every entity's unlockWave (keeps spawnEnemy from ever finding an empty roster).
+    stageCap=curStageCfg().enemyCap??99,roster=ENEMIES.filter(e=>(e.unlockWave||1)<=Math.min(level,stageCap));
+  if(!roster.length)roster=ENEMIES.filter(e=>(e.unlockWave||1)<=level);
+  if(!roster.length)roster=ENEMIES;
+  let total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);let x=Math.max(-WORLD.halfW+type.r,Math.min(WORLD.halfW-type.r,player.x+Math.cos(a)*distance)),y=Math.max(-WORLD.halfH+type.r,Math.min(WORLD.halfH-type.r,player.y+Math.sin(a)*distance));
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
   enemies.push({x,y,r:type.r,hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});}
+// STAGE climax: one scaled-up copy of the strongest entity this stage's roster allows (no new art
+// needed). cycle = how many full laps through EDIT.stages we've made, so re-visiting Stage 1 after
+// looping past HiVE Core still fields a tougher guardian than the first time.
+function spawnBossEnemy(){
+  const cfg=curStageCfg(),stageCap=cfg.enemyCap??99,cycle=Math.floor(stage/((EDIT.stages&&EDIT.stages.length)||FORGE_BASE.stages.length));
+  let roster=ENEMIES.filter(e=>(e.unlockWave||1)<=stageCap);if(!roster.length)roster=ENEMIES;
+  const base=roster.reduce((best,e)=>(!best||(e.unlockWave||1)>=(best.unlockWave||1))?e:best,null);
+  const mul=(cfg.bossMul||6)*(1+cycle*.4);
+  const a=Math.random()*Math.PI*2,distance=Math.hypot(VIEW.w,VIEW.h)*.6+160;
+  let x=Math.max(-WORLD.halfW+base.r*1.6,Math.min(WORLD.halfW-base.r*1.6,player.x+Math.cos(a)*distance)),
+      y=Math.max(-WORLD.halfH+base.r*1.6,Math.min(WORLD.halfH-base.r*1.6,player.y+Math.sin(a)*distance));
+  const hp=base.hp*mul;
+  codexSee('boss:'+base.id,0);
+  const boss={x,y,r:base.r*1.6,hp,maxHp:hp,speed:base.speed*.85,damage:base.damage*1.4,type:base,color:base.color,hit:0,isBoss:true,bossName:cfg.name+' Guardian'};
+  enemies.push(boss);stageBoss=boss;}
 function nearestEnemy(from,ignore,ok){let target=null,best=Infinity;for(const e of enemies){if(ignore&&ignore.has(e))continue;if(ok&&!ok(e))continue;let d=(from.x-e.x)**2+(from.y-e.y)**2;if(d<best){best=d;target=e}}return target}
 // S.7 owner bug: "after an enemy is poisoned the weapon stops targeting them". The toxin gun kept
 // dumping shots into a target that was already dying of the DoT. It now looks for the nearest
@@ -262,7 +308,10 @@ function killEnemy(e,gibs){
   if(rand(0,1)<(EDIT.drops.healChance!==undefined?EDIT.drops.healChance:.07))
     pickups.push({x:e.x+rand(-14,14),y:e.y+rand(-14,14),heal:1,value:EDIT.drops.heal||12});
   maybeDropWeapon(e.x+rand(-10,10),e.y+rand(-10,10),elite);
-  explode(e.x,e.y,e.color||'#ff8',42,gibs);enemies.splice(idx,1)}
+  explode(e.x,e.y,e.color||'#ff8',42,gibs);enemies.splice(idx,1);
+  // STAGE clear: the boss dying ends the stage immediately — bigger blast, score bonus, then the
+  // between-stage break screen (mirrors how the level-up card interrupts play at pickups line ~410).
+  if(e.isBoss){stageBoss=null;score+=250;shake=Math.min(10,shake+6);explode(e.x,e.y,'#ffe066',110,true);state='stagebreak';offerStageBreak()}}
 function burst(x,y,color,n=8){n=Math.min(n,MAX_PARTICLES-particles.length);for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(25,160);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.6),color,r:rand(1.5,3.5)})}}
 // S3 — Heat Seeker kills gib enemies into rotating debris chunks, on top of the existing puff.
 // Same particle pool/budget as burst(); a dedicated draw-time shape (rotated rect) makes them
@@ -288,12 +337,21 @@ function setPaused(on){
 }
 function togglePause(){if(state==='play'||paused)setPaused(!paused)}
 function followCamera(){let dx=player.x-cam.x,dy=player.y-cam.y,deadX=VIEW.w*CAMERA.deadZone,deadY=VIEW.h*CAMERA.deadZone;if(Math.abs(dx)>deadX)cam.x+=dx-Math.sign(dx)*deadX;if(Math.abs(dy)>deadY)cam.y+=dy-Math.sign(dy)*deadY;cam.x=Math.max(-WORLD.halfW+VIEW.w/2,Math.min(WORLD.halfW-VIEW.w/2,cam.x));cam.y=Math.max(-WORLD.halfH+VIEW.h/2,Math.min(WORLD.halfH-VIEW.h/2,cam.y));}
-function update(dt){if(newCodexT>0)newCodexT=Math.max(0,newCodexT-dt);
+function update(dt){
+  // Run any scheduled stage-advance BEFORE this frame's simulation loops touch enemies/bullets —
+  // see the comment in offerStageBreak() for why this can't run synchronously from killEnemy.
+  if(pendingStageAdvance){const fn=pendingStageAdvance;pendingStageAdvance=null;fn()}
+  if(newCodexT>0)newCodexT=Math.max(0,newCodexT-dt);
   if(paused){// freeze sim: no spawnBudget/fireClock/enemy advance — resume is frame-clean
     for(let i=beams.length-1;i>=0;i--){beams[i].life-=dt;if(beams[i].life<=0)beams.splice(i,1)}
     return}
   if(state!=='play')return;elapsed+=dt;wave=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));pushOutOfObstacles(player);followCamera();
-spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=Math.max(.05,WEAPON.rate||.16);fire()}
+// STAGE: advance the in-stage clock only while no guardian is up; once stageT crosses the
+// stage's seconds budget, spawn the guardian and freeze normal spawn growth (existing mobs still
+// fight) until it dies (killEnemy → offerStageBreak → advance() resets stageT for the next stage).
+if(!stageBoss){stageT+=dt;if(stageT>=curStageCfg().seconds)spawnBossEnemy()}
+if(!stageBoss)spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);
+while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=Math.max(.05,WEAPON.rate||.16);fire()}
 for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1;e.x+=vx/d*e.speed*dt;e.y+=vy/d*e.speed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
       // S4 — poison DoT tick: keeps draining after the hit lands, independent of contact/bullet damage.
       if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}
@@ -362,7 +420,7 @@ for(let i=0;i<dmgNums.length;i++){const o=dmgNums[i];if(!o.active)continue;o.y+=
 shake=Math.max(0,shake-dt*25)}
 function sx(x){return x-cam.x+VIEW.w/2}function sy(y){return y-cam.y+VIEW.h/2}
 // QA probe — Playwright cannot see script-scoped let; publish on window.
-window.__swarmDbg=()=>({state,wave,elapsed,score,level,xp,nextXp,orbsCollected,
+window.__swarmDbg=()=>({state,wave,stage,stageT,stageBoss:!!stageBoss,elapsed,score,level,xp,nextXp,orbsCollected,
   pickups:pickups.length,enemies:enemies.length,hp:player.hp,px:Math.round(player.x),py:Math.round(player.y),
   slot:currentSlot(),codexUnlocked:codexVisible().length,codexTotal:codexPages().length,
   credits:META.credits||0,bestScore:META.bestScore||0,paused,version:GAME_VERSION,
@@ -374,7 +432,12 @@ window.__swarmDbg=()=>({state,wave,elapsed,score,level,xp,nextXp,orbsCollected,
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 window.__swarmPause=setPaused;window.__swarmTogglePause=togglePause;
-function draw(){ctx.fillStyle='#050b14';ctx.fillRect(0,0,VIEW.w,VIEW.h);let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
+function draw(){
+  // STAGE backdrop: each stage tints the arena via its own bg[] pair (top→bottom gradient) so a
+  // stage transition reads visually even though the grid/geometry stays the same.
+  const stageBg=(curStageCfg().bg)||['#050b14','#050b14'],bgGrad=ctx.createLinearGradient(0,0,0,VIEW.h);
+  bgGrad.addColorStop(0,stageBg[0]);bgGrad.addColorStop(1,stageBg[1]||stageBg[0]);
+  ctx.fillStyle=bgGrad;ctx.fillRect(0,0,VIEW.w,VIEW.h);let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
 // S6 — static obstacles (procedural rock-cluster shapes, deterministic per-seed so they don't
 // flicker frame to frame). Push-out collision handled in update(); drawn under everything else.
 for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-80||ox2>VIEW.w+80||oy2<-80||oy2>VIEW.h+80)continue;
@@ -428,12 +491,13 @@ let px=sx(player.x),py=sy(player.y);ctx.save();ctx.translate(px,py);ctx.rotate(p
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
    computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
-ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('HiVE SWARM  ·  WAVE '+wave,18,32+SAFE_TOP);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';ctx.fillText('SURVIVAL '+formatTime(elapsed)+'   SCORE '+score+'   HOSTILES '+enemies.length,18,55+SAFE_TOP);ctx.fillStyle='#26383a';ctx.fillRect(18,70+SAFE_TOP,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70+SAFE_TOP,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80+SAFE_TOP);
+ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('STAGE '+(stage+1)+' · '+curStageCfg().name+'  ·  WAVE '+wave,18,32+SAFE_TOP);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';
+ctx.fillText((stageBoss?'GUARDIAN '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp:'NEXT GUARDIAN '+Math.max(0,Math.ceil(curStageCfg().seconds-stageT))+'s')+'   SCORE '+score+'   HOSTILES '+enemies.length,18,55+SAFE_TOP);ctx.fillStyle='#26383a';ctx.fillRect(18,70+SAFE_TOP,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70+SAFE_TOP,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80+SAFE_TOP);
 ctx.fillStyle='#1b2f33';ctx.fillRect(18,88+SAFE_TOP,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88+SAFE_TOP,180*Math.max(0,Math.min(1,xp/nextXp)),8);
 ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected+'   🔫 '+heldWeapons.length,205,96+SAFE_TOP);
 // S2 — current weapon name, top-centre, just below the phone icons. Updates whenever grantWeapon
 // replaces heldWeapons[0] (or upgradeWeapon renames rank-ups — name itself doesn't change on rank).
-if((state==='play'||state==='levelup')&&heldWeapons[0]){ctx.save();ctx.textAlign='center';ctx.fillStyle='#ffe066';ctx.font='700 14px system-ui';ctx.shadowColor='#000';ctx.shadowBlur=4;
+if((state==='play'||state==='levelup'||state==='stagebreak')&&heldWeapons[0]){ctx.save();ctx.textAlign='center';ctx.fillStyle='#ffe066';ctx.font='700 14px system-ui';ctx.shadowColor='#000';ctx.shadowBlur=4;
   ctx.fillText((heldWeapons[0].name||'')+(heldWeapons[0].rank>1?'  Rk.'+heldWeapons[0].rank:''),VIEW.w/2,20+SAFE_TOP);
   // S.7 — the weapon's own progress bar + its mod stacks. Without this the orb track and the mods
   // are invisible, which is exactly the "no goal to look forward to" the owner called out.
@@ -469,7 +533,7 @@ canvas.addEventListener('click',()=>{if(state==='title'||state==='dead')tryDeplo
   btn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();togglePause()});
 })();
 let last=performance.now(),accumulator=0;function frame(now){accumulator+=Math.min(.05,(now-last)/1000);last=now;while(accumulator>=1/60){update(1/60);accumulator-=1/60}draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
-window.__hiveSwarmDebug=()=>({state,elapsed,score,wave,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
+window.__hiveSwarmDebug=()=>({state,elapsed,score,wave,stage,stageT,stageBoss:!!stageBoss,stageName:curStageCfg().name,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
 function offerCards(){
   // S.7: weapon cards now grant a MOD attached to the held weapon's ID instead of mutating the
   // weapon object. Swapping guns no longer deletes what you just earned, and the same mod can be
@@ -482,6 +546,35 @@ function offerCards(){
   // Headless harness has no real DOM — auto-pick so balance sims are not stuck on the chooser.
   if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();cardPicks++;state='play';return}
   let box=document.createElement('div');box.id='cards';box.className='overlay';box.innerHTML='<h2>LEVEL '+level+' — CHOOSE ONE</h2>'+choices.map((c,i)=>`<button data-card="${i}" style="width:260px;padding:18px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px"><b>${c.name}</b><br>${c.text}</button>`).join('');document.body.append(box);box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();cardPicks++;box.remove();state='play'})}
+// STAGE break screen: boss is already dead (killEnemy set state='stagebreak' and cleared
+// stageBoss before calling this). Reuses the same upgrade-card pool as offerCards() so a stage
+// clear feels like a bigger level-up, then advances stage/stageT and wipes the field for a clean
+// arrival into the next stage's backdrop + roster. Same headless-DOM fallback as offerCards() so
+// the harness/verification scripts can drive straight through without a real browser.
+function offerStageBreak(){
+  const clearedCfg=curStageCfg();
+  const held=heldWeapons[0]||WEAPON;
+  let weapons=MODS.filter(m=>modStacks(held.id,m.id)<MOD_MAX).map(m=>({
+    name:m.name+' '+(modStacks(held.id,m.id)+1)+'/'+MOD_MAX,
+    text:m.text+' — '+held.name,
+    apply:()=>addMod(held.id,m.id)})),
+    stats=[{name:'Fleet Footed',text:'+12% movement speed',apply:()=>player.speed=Math.round(player.speed*1.12)},
+      {name:'Reinforced',text:'+40 max HP and full heal',apply:()=>{player.maxHp+=40;player.hp=player.maxHp}},
+      {name:'Magnet',text:'+45 pickup radius',apply:()=>player.pickupRadius+=45}];
+  let pool=[...weapons,...stats];choices=[];
+  while(choices.length<3&&pool.length){let c=pool.splice(Math.floor(Math.random()*pool.length),1)[0];if(!choices.includes(c))choices.push(c)}
+  if(!choices.length)choices.push({name:'Press On',text:'No upgrades available — deploy anyway',apply:()=>{}});
+  // advance() mutates enemies/bullets — NEVER call it synchronously from inside killEnemy (it can
+  // fire mid-iteration over the very bullets/enemies arrays update() is looping through, which
+  // corrupts those loops). Both paths below only schedule it; update()'s top-of-frame check runs
+  // it once the current frame's simulation loops have finished.
+  const advance=()=>{stage++;stageT=0;stageBoss=null;enemies=[];bullets=[];beams=[];player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.25));state='play'};
+  if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();pendingStageAdvance=advance;return}
+  let box=document.createElement('div');box.id='stagebreak';box.className='overlay';
+  box.innerHTML='<h2>STAGE '+(stage+1)+' CLEAR — '+clearedCfg.name+'</h2><div class="hint">Guardian down · score +250 · choose a reward, then deploy to Stage '+(stage+2)+'</div>'+
+    choices.map((c,i)=>`<button data-card="${i}" style="width:260px;padding:18px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px"><b>${c.name}</b><br>${c.text}</button>`).join('');
+  document.body.append(box);
+  box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();box.remove();pendingStageAdvance=advance})}
 function openMeta(){if(document.querySelector('#meta'))return;let box=document.createElement('div');box.id='meta';box.className='overlay';
   if(!META.ownedWeapons)META.ownedWeapons={'weapon.pulse':true};
   let render=()=>{const owned=Object.keys(META.ownedWeapons||{}).filter(id=>META.ownedWeapons[id]);
