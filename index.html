@@ -707,7 +707,7 @@ if(/[?&]forge=1/.test(location.search))setTimeout(()=>{const m=location.search.m
   head.addEventListener('pointermove',e=>{if(!drag)return;win.style.left=Math.max(0,ox+e.clientX-sx)+'px';win.style.top=Math.max(0,oy+e.clientY-sy)+'px';win.style.right='auto'});
   head.addEventListener('pointerup',()=>drag=false)})();
 
-const TABS=['ENTITIES','PLAYER','WEAPONS','WAVES','WORLD','SPRITES','AUDIO','DATA','BEASTIARY'];
+const TABS=['ENTITIES','PLAYER','WEAPONS','WAVES','WORLD','STAGES','SPRITES','AUDIO','DATA','BEASTIARY'];
 let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false}, codexSel=0;
 TABS.forEach((t,i)=>{const d=document.createElement('button');d.type='button';d.textContent=t;d.id='forgeTab'+i;d.onclick=()=>{tab=i;spriteSel=-1;renderTab()};tabsEl.appendChild(d)});
 function getP(p){return p.split('.').reduce((o,k)=>o[k],EDIT)}
@@ -715,6 +715,7 @@ function setP(p,v){const ks=p.split('.'),last=ks.pop();ks.reduce((o,k)=>o[k],EDI
 function fields(obj,path){return Object.entries(obj).filter(([,v])=>typeof v==='number'||typeof v==='string').map(([k,v])=>`<label>${k}<input data-p="${path}.${k}" value="${v}" ${typeof v==='number'?'type="number" step="any"':''}></label>`).join('')}
 function bindInputs(){body.querySelectorAll('input[data-p]').forEach(input=>{input.oninput=()=>{const p=input.dataset.p;const old=getP(p);let value=typeof old==='number'?Number(input.value):input.value;if(typeof old==='number'&&!Number.isFinite(value))return;setP(p,value);applyForge();persistForge()}})}
 function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+function bgHex(v){return /^#[0-9a-fA-F]{6}$/.test(v||'')?v:'#000000'}
 
 function renderTab(){
   tabsEl.querySelectorAll('button').forEach((d,i)=>d.classList.toggle('on',i===tab));
@@ -759,16 +760,27 @@ function renderTab(){
       <div class="row">${fields(EDIT.world,'world')}</div>`;
     bindInputs();
   }
-  else if(tab===5){// SPRITES
+  else if(tab===5){// STAGES
+    body.innerHTML=`<div class="hint">Stage order (backdrop, roster cap, boss timer). What a boss DOES stays in code — only its numbers and the stage's look are editable here. Reordering/adding stages is JSON-only via the DATA tab.</div>
+      ${EDIT.stages.map((s,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0">
+        <h3 style="margin:0 0 6px;color:#78efdb">${i+1}. ${esc(s.name||s.id)}</h3>
+        <div class="row">${fields(s,'stages.'+i)}</div>
+        <label>bg top<input type="color" data-bg="${i}.0" value="${esc(bgHex(s.bg&&s.bg[0]))}"></label>
+        <label>bg bottom<input type="color" data-bg="${i}.1" value="${esc(bgHex(s.bg&&s.bg[1]))}"></label>
+      </article>`).join('')}`;
+    bindInputs();
+    body.querySelectorAll('[data-bg]').forEach(input=>{input.oninput=()=>{const [i,slot]=input.dataset.bg.split('.');const arr=EDIT.stages[+i].bg=EDIT.stages[+i].bg?EDIT.stages[+i].bg.slice():['#000','#000'];arr[+slot]=input.value;applyForge();persistForge()}});
+  }
+  else if(tab===6){// SPRITES
     renderSprites();
   }
-  else if(tab===6){// AUDIO
+  else if(tab===7){// AUDIO
     body.innerHTML=`<div class="hint">Global SFX toggle. Per-entity samples stay code-side in this greybox.</div>
       <div class="row"><button id="audSfx">${audioOn?'SFX ON':'SFX OFF'}</button>
       <span class="hint">Samples: ${Object.keys(SFX).join(', ')}</span></div>`;
     body.querySelector('#audSfx').onclick=()=>{audioOn=!audioOn;renderTab()};
   }
-  else if(tab===7){// DATA
+  else if(tab===8){// DATA
     body.innerHTML=`<div class="hint">Export / import a self-contained pack (values + optional media keys). Reset restores shipped numbers.</div>
       <div class="row"><button id="pkSave">⬇ EXPORT JSON</button>
         <label style="display:inline;grid-template-columns:none">⬆ IMPORT <input type="file" id="pkLoad" accept="application/json,.json" style="width:auto"></label>
@@ -872,6 +884,9 @@ function renderSprites(){
 }
 
 window.__hiveSwarmForge=()=>copy(EDIT);
+// Test-only hook (headless verification, no player-facing surface) so a QA harness can drive
+// the Forge UI itself — open a tab, read its rendered HTML — without a real browser/DOM parser.
+window.__hiveSwarmForgeUI={open:openForge,setTab:v=>{tab=v;renderTab()},html:()=>body.innerHTML,tabs:()=>TABS.slice()};
 }catch(err){console.error('FORGE init failed',err)}
 })();
 </script></body></html>
