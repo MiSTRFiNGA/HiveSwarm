@@ -1,7 +1,7 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.1.0';
+const GAME_VERSION='0.1.1';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -146,12 +146,19 @@ let orbsCollected=0;
 // the player had just earned. Mods and track progress live outside the object, so swapping to a
 // gun you modded earlier restores its mods intact, and nothing is ever lost by switching.
 const MOD_MAX=3;                       // owner spec: up to 3 stacks of the same mod on one weapon
+// appliesTo = the weapon `kind`s that mod's stat actually feeds. Owner spec: "do not offer upgrade
+// for weapons that can not use it" — beam/chain never read wShots/wPierce (they hit everything on
+// a ray/jump chain instead of firing discrete projectiles), and only weapon.poison reads venomMul.
+// See modApplies() below, which is the ONLY place this list is consulted — offerCards() and
+// offerStageBreak() both filter through it, so the matrix lives in exactly one place.
 const MODS=[
-  {id:'scatter', name:'Scatter',  text:'+2 projectiles per shot'},
-  {id:'venom',   name:'Venom',    text:'+60% poison damage and spread'},
-  {id:'pierce',  name:'Piercing', text:'+1 pierce'},
-  {id:'rapid',   name:'Rapid',    text:'-15% time between shots'},
+  {id:'scatter',   name:'Scatter',   text:'+2 projectiles per shot',              appliesTo:['bullet','homing','nova','poison']},
+  {id:'venom',     name:'Venom',     text:'+60% poison damage and spread',        appliesTo:['poison']},
+  {id:'pierce',    name:'Piercing',  text:'+1 pierce',                            appliesTo:['bullet','homing','nova','poison']},
+  {id:'rapid',     name:'Rapid',     text:'-15% time between shots',              appliesTo:['bullet','homing','beam','chain','nova','poison']},
+  {id:'knockback', name:'Knockback', text:'Pushes enemies back on hit',           appliesTo:['bullet','homing','beam','chain','nova','poison']},
 ];
+function modApplies(mod,w){return mod.appliesTo.includes(w.kind||'bullet')}
 let weaponMods={};                     // { weaponId: { modId: stacks } }
 let weaponOrbs={};                     // { weaponId: orbs banked toward the next rank }
 function modsFor(id){return weaponMods[id]||(weaponMods[id]={})}
@@ -168,6 +175,24 @@ function wShots(w){return Math.min(9,(w.shots||1)+2*modStacks(w.id,'scatter'))}
 function wPierce(w){return (w.pierce??0)+modStacks(w.id,'pierce')}
 function wRate(w){return Math.max(.05,(w.rate||.2)*Math.pow(.85,modStacks(w.id,'rapid')))}
 function venomMul(w){return (1+.6*modStacks(w.id,'venom'))*(1+.25*(META.venom||0))}
+// Knockback: enemies have no velocity vector (the chase loop in update() integrates position
+// directly), so the shove is a decaying position offset (e.kx/e.ky, px/s) instead of a real impulse.
+// KB_IMPULSE = px/s added per stack before resistance. KB_CAP caps the combined offset so several
+// hits landing in one frame (scatter mod, multiple bullets) can't stack into a launch. KB_HALFLIFE
+// is how long the shove takes to lose half its remaining speed — .12s reads as a snappy hit-stop
+// style bump that's mostly spent within half a second, not a floaty fling. KB_BOSS_RESIST: bosses
+// (e.isBoss, set only on stage guardians) take a flat 85% reduction so a maxed 3-stack build can
+// still be felt but can never pin the guardian fight — chosen over a continuous mass/HP curve
+// because it's simple, directly targets the one case the owner called out, and isBoss already
+// exists for exactly this kind of "the guardian is special" rule.
+const KB_IMPULSE=130, KB_CAP=420, KB_HALFLIFE=.12, KB_BOSS_RESIST=.15;
+function applyKnockback(e,dx,dy,stacks){
+  if(!stacks)return;
+  const d=Math.hypot(dx,dy)||1,resist=e.isBoss?KB_BOSS_RESIST:1,power=KB_IMPULSE*stacks*resist;
+  let kx=(e.kx||0)+dx/d*power,ky=(e.ky||0)+dy/d*power,mag=Math.hypot(kx,ky);
+  if(mag>KB_CAP){kx=kx/mag*KB_CAP;ky=ky/mag*KB_CAP}
+  e.kx=kx;e.ky=ky;
+}
 let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
 // STAGE state — stage = index into EDIT.stages (loops with rising bossMul once past the end),
 // stageT = seconds elapsed in the CURRENT stage (freezes while the boss is up or on break),
@@ -291,14 +316,19 @@ function fire(){
       const hitList=[];
       for(const e of enemies){
         const px=e.x-player.x,py=e.y-player.y,segx=x2-player.x,segy=y2-player.y,t=Math.max(0,Math.min(1,(px*segx+py*segy)/(segx*segx+segy*segy||1)));
-        const dx=player.x+segx*t-e.x,dy=player.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){const tick=dmg*w.rate*3;e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);if(Math.random()<.5)burst(e.x,e.y,w.coreColor||'#eaffff',2);if(e.hp<=0)hitList.push(e)}}
+        const dx=player.x+segx*t-e.x,dy=player.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){const tick=dmg*w.rate*3;e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);applyKnockback(e,e.x-player.x,e.y-player.y,modStacks(w.id,'knockback'));if(Math.random()<.5)burst(e.x,e.y,w.coreColor||'#eaffff',2);if(e.hp<=0)hitList.push(e)}}
       for(const e of hitList)killEnemy(e);
       sfx('fire',.04);continue}
     if(kind==='chain'){
       let cur=wTarget, hit=new Set(), jumps=w.jumps||4, from={x:player.x,y:player.y};
       for(let j=0;j<jumps&&cur;j++){
         beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:.12,w:3,chain:1});
-        const jd=dmg*(1-j*0.12);cur.hp-=jd;cur.hit=.12;spawnDmgNum(cur.x,cur.y-cur.r,jd);hit.add(cur);if(cur.hp<=0)killEnemy(cur);
+        const jd=dmg*(1-j*0.12);cur.hp-=jd;cur.hit=.12;spawnDmgNum(cur.x,cur.y-cur.r,jd);hit.add(cur);
+        // Direction = away from `from` (the arc's immediate source: the player on jump 0, the
+        // previous link after that) rather than away from the player — a chain can zig-zag several
+        // links deep, and shoving every link straight back toward the player would fight the arc's
+        // own path instead of reading as "this link just got hit FROM here".
+        applyKnockback(cur,cur.x-from.x,cur.y-from.y,modStacks(w.id,'knockback'));if(cur.hp<=0)killEnemy(cur);
         from={x:cur.x,y:cur.y};cur=nearestEnemy(from,hit);
         if(cur&&(cur.x-from.x)**2+(cur.y-from.y)**2>(w.range||280)**2)cur=null}
       sfx('hit',.1);continue}
@@ -315,6 +345,10 @@ function fire(){
         damage:dmg,pierce:wPierce(w),life:kind==='homing'?2.2:kind==='nova'?1.4:1.05,
         dot:(w.dot||0)*venomMul(w),dotTime:w.dotTime||0,slow:w.slowFactor??1,stackMax:w.poisonStackMax??1,
         spread:kind==='poison'?{chance:(w.spreadChance??.9)*venomMul(w),radius:w.spreadRadius??52,factor:w.spreadFactor??.7,slow:w.slowFactor??1}:null,
+        // kb snapshotted at fire time (not looked up at hit time) — bullets never carry a weapon
+        // reference, only kind, so modStacks(w.id,...) has to happen here while `w` is still in
+        // scope. Same immutable-snapshot pattern as dot/spread above.
+        kb:modStacks(w.id,'knockback'),
         color:w.color,kind,turn:w.turn||0,blast:w.blast||0,trail:[]
       })}}}
 function killEnemy(e,gibs){
@@ -346,7 +380,7 @@ function burst(x,y,color,n=8){n=Math.min(n,MAX_PARTICLES-particles.length);for(l
 // Same particle pool/budget as burst(); a dedicated draw-time shape (rotated rect) makes them
 // read as "bits" instead of more circular spark.
 function spawnGibs(x,y,color){const n=Math.min(6,MAX_PARTICLES-particles.length);for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(60,220);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.35,.7),color,r:rand(2,4),gib:1,rot:Math.random()*6.283,rvel:rand(-8,8)})}}
-function explode(x,y,color,r=60,gibs){// shockwave + debris + shake — budgeted particle count
+function explode(x,y,color,r=60,gibs,kb=0){// shockwave + debris + shake — budgeted particle count
   /* 2026-08-05: this ran on EVERY enemy death and re-armed shake to a full 10 each time. Decay is
      only ~25/s, so at survivors-like kill rates the screen never stopped shaking and the game was
      hard to play (Eric, playtest). Now a kill adds a small amount against a low cap; only genuinely
@@ -354,7 +388,9 @@ function explode(x,y,color,r=60,gibs){// shockwave + debris + shake — budgeted
   shake=Math.min(4.5,shake+1.6);burst(x,y,color,14);burst(x,y,'#fff6c8',8);
   if(gibs)spawnGibs(x,y,color);
   particles.push({x,y,vx:0,vy:0,life:.28,color,shock:r});
-  for(const e of enemies){const d=Math.hypot(e.x-x,e.y-y);if(d<r){e.hp-=22*(1-d/r);e.hit=.15;if(d>1){e.x+=(e.x-x)/d*18;e.y+=(e.y-y)/d*18}}}}
+  // kb = Nova Shell's knockback stacks, passed in only by the two bullet-hit call sites below (kill
+  // VFX explosions elsewhere pass none, so they keep their existing fixed 18px nudge unchanged).
+  for(const e of enemies){const dx=e.x-x,dy=e.y-y,d=Math.hypot(dx,dy);if(d<r){e.hp-=22*(1-d/r);e.hit=.15;if(d>1){e.x+=dx/d*18;e.y+=dy/d*18}applyKnockback(e,dx,dy,kb)}}}
 function setPaused(on){
   if(state!=='play'&&state!=='levelup'&&!(paused&&on===false)){if(state==='title'||state==='dead')return}
   if(on===paused)return;
@@ -380,12 +416,20 @@ function update(dt){
 // fight) until it dies (killEnemy → offerStageBreak → advance() resets stageT for the next stage).
 if(!stageBoss){stageT+=dt;if(stageT>=curStageCfg().seconds)spawnBossEnemy()}
 if(!stageBoss)spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);
-while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=Math.max(.05,WEAPON.rate||.16);fire()}
+while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=wRate(WEAPON);fire()}
 for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1,
     // S.7 feel pass: poisoned enemies are slowed (poisonSlow, from weapon.poison's slowFactor) so
     // the player never has to kite/run away waiting the DoT out — infection defangs on contact.
     moveSpeed=e.speed*(e.poisonT>0?(e.poisonSlow||1):1);
-  e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt;for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
+  e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt;
+  // Knockback offset: applied AFTER the chase step, BEFORE separation/pushOutOfObstacles so both
+  // still see (and correct) the shoved position this same frame — nothing gets knocked through an
+  // obstacle or another enemy. World-bound clamp here too — enemies were never clamped to the
+  // arena edge before (only at spawn), which was fine for plain chase movement but a knockback can
+  // shove one past the edge in a single hit, so clamp same as player. Decays via a half-life so it
+  // reads as a snappy shove, not a fling.
+  if(e.kx||e.ky){e.x+=e.kx*dt;e.y+=e.ky*dt;e.x=Math.max(-WORLD.halfW+e.r,Math.min(WORLD.halfW-e.r,e.x));e.y=Math.max(-WORLD.halfH+e.r,Math.min(WORLD.halfH-e.r,e.y));const kd=Math.pow(.5,dt/KB_HALFLIFE);e.kx*=kd;e.ky*=kd;if(Math.abs(e.kx)<1)e.kx=0;if(Math.abs(e.ky)<1)e.ky=0}
+  for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
       // S4 — poison DoT tick: keeps draining after the hit lands, independent of contact/bullet damage.
       if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}
         // S.7 CONTAGION (owner spec): "if the infected hit another enemy, they get infected".
@@ -411,9 +455,9 @@ for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
   b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
   if(b.trail){b.trail.push(b.x,b.y);if(b.trail.length>16)b.trail.splice(0,2)}
   let removed=b.life<=0;
-  if(removed&&b.kind==='nova')explode(b.x,b.y,b.color||'#ffe066',b.blast||70);
+  if(removed&&b.kind==='nova')explode(b.x,b.y,b.color||'#ffe066',b.blast||70,false,b.kb);
   for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){
-    if(b.kind==='nova'){explode(b.x,b.y,b.color||'#ffe066',b.blast||70);removed=true;break}
+    if(b.kind==='nova'){explode(b.x,b.y,b.color||'#ffe066',b.blast||70,false,b.kb);removed=true;break}
     if(b.kind==='poison'){
       // Owner bug 2026-08-06: "it hits an enemy and continues to hit". A carrier no longer eats the
       // dart for nothing once already at max potency — the shot flies THROUGH a saturated target
@@ -427,8 +471,9 @@ for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
       const nextStacks=curStacks+1;
       e.poisonStacks=nextStacks;e.poisonDps=(b.dot||8)*nextStacks;e.poisonT=Math.max(e.poisonT||0,b.dotTime||3);
       e.poisonSlow=b.slow??1;e.poisonSrc=b.spread||null;e.hit=.1;sfx('hit',.06);burst(b.x,b.y,b.color||'#7cff4f',3);
+      applyKnockback(e,b.vx,b.vy,b.kb);
       b.pierce--;if(b.pierce<0)removed=true;continue}
-    e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,b.color||WEAPON.color,4);spawnDmgNum(e.x,e.y-e.r,b.damage);b.pierce--;
+    e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,b.color||WEAPON.color,4);spawnDmgNum(e.x,e.y-e.r,b.damage);applyKnockback(e,b.vx,b.vy,b.kb);b.pierce--;
     if(e.hp<=0)killEnemy(e,b.kind==='homing');if(b.pierce<0)removed=true}}
   if(removed)bullets.splice(i,1)}
 for(let i=beams.length-1;i>=0;i--){beams[i].life-=dt;if(beams[i].life<=0)beams.splice(i,1)}
@@ -594,7 +639,7 @@ function offerCards(){
   // weapon object. Swapping guns no longer deletes what you just earned, and the same mod can be
   // stacked up to MOD_MAX times on one weapon (owner spec: "up to 3 times on the same weapon").
   const held=heldWeapons[0]||WEAPON;
-  let weapons=MODS.filter(m=>modStacks(held.id,m.id)<MOD_MAX).map(m=>({
+  let weapons=MODS.filter(m=>modApplies(m,held)&&modStacks(held.id,m.id)<MOD_MAX).map(m=>({
     name:m.name+' '+(modStacks(held.id,m.id)+1)+'/'+MOD_MAX,
     text:m.text+' — '+held.name,
     apply:()=>addMod(held.id,m.id)})),stats=[{name:'Fleet Footed',text:'+12% movement speed',apply:()=>player.speed=Math.round(player.speed*1.12)},{name:'Reinforced',text:'+25 max HP and heal',apply:()=>{player.maxHp+=25;player.hp=Math.min(player.maxHp,player.hp+25)}},{name:'Magnet',text:'+45 pickup radius',apply:()=>player.pickupRadius+=45}],evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{WEAPON.damage*=2;evolved=true}};let pool=[...weapons,...stats,...(wave>=10&&!evolved?[evo]:[])],first=cardPicks<3&&weapons.length?weapons[Math.floor(Math.random()*weapons.length)]:null;choices=[];if(first)choices.push(first);while(choices.length<3&&pool.length){let c=pool.splice(Math.floor(Math.random()*pool.length),1)[0];if(!choices.includes(c))choices.push(c)}
@@ -609,7 +654,7 @@ function offerCards(){
 function offerStageBreak(){
   const clearedCfg=curStageCfg();
   const held=heldWeapons[0]||WEAPON;
-  let weapons=MODS.filter(m=>modStacks(held.id,m.id)<MOD_MAX).map(m=>({
+  let weapons=MODS.filter(m=>modApplies(m,held)&&modStacks(held.id,m.id)<MOD_MAX).map(m=>({
     name:m.name+' '+(modStacks(held.id,m.id)+1)+'/'+MOD_MAX,
     text:m.text+' — '+held.name,
     apply:()=>addMod(held.id,m.id)})),

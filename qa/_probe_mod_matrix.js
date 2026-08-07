@@ -1,26 +1,9 @@
-// One-off verification for the STAGE system (2026-08-06). Not part of the shipped harness —
-// reuses its stub environment inline, drives update() with large dt to fast-forward through
-// Stage 1's 60s budget, auto-picks the stagebreak card via #stagebreak (mirrors how
-// _headless_harness.js auto-picks #cards), and asserts stage advances 0 -> 1 -> 2.
-//
-// 2026-08-07 determinism fix: this test was flaky BEFORE f721995 too, not because of it. The game
-// drives 100% of its randomness through unseeded Math.random() (enemy-type rolls, weighted weapon
-// drops, spawn angle/distance, poison-spread chance, particle scatter, level-up card shuffling —
-// 15 call sites, no PRNG of its own) and the "bot" here is just a fixed w+strafe pattern with zero
-// evasion, so whether it survives to stage 2 was a coin flip every run. Proof: bisected to the
-// commit BEFORE f721995 (72b8154) and ran this harness against it 6x — 2/6 passed, same rate as
-// HEAD. A 14-seed scan (see commit message / report) put both versions at ~20-35% pass regardless
-// of the poison retune, so the "balance regression" suspected in f721995's own commit message was
-// a misdiagnosis of ordinary RNG variance, not something the poison numbers caused. The honest fix
-// is to make the harness reproducible, not to retune weapon/enemy stats to force a pass — so this
-// seeds Math.random() before the game code loads. SEED=1337 is a plain arbitrary pick that reaches
-// stage 2; it does not mean the bot reliably survives in general (most seeds still die around
-// stage 1 with this bot's no-evasion movement) — only that THIS run is now reproducible so a real
-// future regression shows up as a real failure instead of getting lost in the noise.
+// Throwaway probe (per task instructions) — proves the mod-compatibility matrix built into MODS /
+// modApplies() by loading the real game code headlessly, forcing heldWeapons to each of the 6
+// weapon kinds in turn, and reading back exactly which mods offerCards() is willing to offer.
+// Deleted after use; not part of the shipped harness.
 'use strict';
 const fs = require('fs');
-function mulberry32(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const STAGE_VERIFY_SEED=1337;
 function makeCtx() {
   const grad = { addColorStop() {} };
   return new Proxy({
@@ -86,46 +69,44 @@ global.window = global; global.addEventListener = (t, f) => doc.addEventListener
 global.PSDK = null; global.devicePixelRatio = 1; global.innerWidth = 540; global.innerHeight = 960;
 global.alert = () => {}; global.confirm = () => true;
 
-Math.random = mulberry32(STAGE_VERIFY_SEED); // must be set before the game code below is eval'd
-
-let code = fs.readFileSync(__dirname + '/_game_extract.js', 'utf8');
+let code = fs.readFileSync(__dirname + '/../_game_extract.js', 'utf8');
 code += `
-;globalThis.__H = {
+;globalThis.__PROBE = {
   reset: typeof reset === 'function' ? reset : null,
-  update: typeof update === 'function' ? update : null,
-  draw: typeof draw === 'function' ? draw : null,
-  debug: typeof globalThis.__hiveSwarmDebug === 'function' ? globalThis.__hiveSwarmDebug : null,
+  offerCards: typeof offerCards === 'function' ? offerCards : null,
+  weaponById: typeof weaponById === 'function' ? weaponById : null,
+  getChoices: () => choices,
+  setHeld: (w) => { heldWeapons = [Object.assign({}, w, { rank: 1 })]; WEAPON = heldWeapons[0]; },
+  getWeapons: () => EDIT.weapons,
 };
 `;
-try { (0, eval)(code); } catch (e) { console.error('LOAD ERROR:', e && e.stack ? e.stack : e); process.exit(1); }
-const H = globalThis.__H;
-H.reset();
-let d = H.debug();
-if (d.state !== 'play' || d.stage !== 0) { console.error('START ERROR', d); process.exit(1); }
-console.log('start ok. stage', d.stage, d.stageName, 'state', d.state);
+(0, eval)(code);
+const P = globalThis.__PROBE;
+P.reset();
 
-// Drive time forward in 0.5s steps (real dt, not artificially teleporting elapsed) until we
-// observe stage 0 -> 1 -> 2, auto-clicking the stagebreak card each time it appears (real
-// player flow: kill the boss via the sim's own combat, then pick a reward to deploy).
-function fireKey(type, key) { const list = listeners[type] || []; for (const f of list) { try { f({ key, keyCode: 0, preventDefault() {} }); } catch (_) {} } }
-fireKey('keydown', 'w');
-let strafe = 'd'; fireKey('keydown', strafe);
-
-let seenStage1 = false, seenStage2 = false;
-for (let step = 0; step < 20000; step++) {
-  if (step > 0 && step % 15 === 0) { fireKey('keyup', strafe); strafe = strafe === 'd' ? 'a' : 'd'; fireKey('keydown', strafe); }
-  try {
-    const box = document.querySelector('#stagebreak');
-    if (box && box.querySelectorAll) {
-      const btn = box.querySelectorAll('[data-card]')[0];
-      if (btn && typeof btn.onclick === 'function') btn.onclick();
-    }
-  } catch (_) {}
-  H.update(0.1);
-  d = H.debug();
-  if (d.state === 'dead') { console.error('PLAYER DIED at step', step, d); process.exit(1); }
-  if (d.stage === 1 && !seenStage1) { seenStage1 = true; console.log('--> reached stage 1 (', d.stageName, ') at t=', (step*0.1).toFixed(1), 's state=', d.state); }
-  if (d.stage === 2 && !seenStage2) { seenStage2 = true; console.log('--> reached stage 2 (', d.stageName, ') at t=', (step*0.1).toFixed(1), 's state=', d.state); break; }
+console.log('kind'.padEnd(8), '| name'.padEnd(18), '| mods offered by offerCards()');
+console.log('-'.repeat(70));
+for (const w of P.getWeapons()) {
+  P.setHeld(w);
+  P.offerCards();
+  const modChoices = P.getChoices().filter(c => c.name.match(/\d\/3$/)).map(c => c.name.replace(/ \d\/3$/, ''));
+  console.log((w.kind || 'bullet').padEnd(8), '|', w.name.padEnd(16), '|', modChoices.length ? modChoices.join(', ') : '(none this draw)');
 }
-if (!seenStage1 || !seenStage2) { console.error('FAIL: did not reach stage 1 -> 2. final debug:', d); process.exit(1); }
-console.log('PASS: stage system verified. final debug:', d);
+
+// offerCards() only samples 3 of the eligible pool per call (plus stat cards), so run it many times
+// per weapon and union everything that ever appears — that's the TRUE eligible set, matching what
+// modApplies() computes.
+console.log('\nFull eligible set per weapon kind (union over 200 draws, mod cards only):');
+console.log('-'.repeat(70));
+for (const w of P.getWeapons()) {
+  const seen = new Set();
+  for (let i = 0; i < 200; i++) {
+    P.setHeld(w);
+    P.offerCards();
+    for (const c of P.getChoices()) {
+      const m = c.name.match(/^(.*) \d\/3$/);
+      if (m) seen.add(m[1]);
+    }
+  }
+  console.log((w.kind || 'bullet').padEnd(8), '|', w.name.padEnd(16), '|', [...seen].sort().join(', ') || '(none)');
+}
