@@ -24,7 +24,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.1.1';
+const GAME_VERSION='0.1.2';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -148,6 +148,8 @@ function codexSee(link,count){
 
 // ---- sprites / media (FORGE paint + IndexedDB; game prefers override dataURL) ----
 const SPRITES={}; const SPRITE_OVR={}; // key -> dataURL
+const PLAYER_SPRITE='art_src/topdown_v1/player.png';
+const OBSTACLE_SPRITE='art_src/topdown_v1/obstacle_rock.png';
 function spriteFor(src){
   if(!src)return null;
   // FORGE override wins when the entity id (or path) was painted/saved
@@ -548,12 +550,14 @@ function draw(){
 // S6 — static obstacles (procedural rock-cluster shapes, deterministic per-seed so they don't
 // flicker frame to frame). Push-out collision handled in update(); drawn under everything else.
 for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-80||ox2>VIEW.w+80||oy2<-80||oy2>VIEW.h+80)continue;
-  ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.strokeStyle='#5a7d76';ctx.lineWidth=2;ctx.shadowColor='#000';ctx.shadowBlur=14;
+  const oImg=spriteFor(OBSTACLE_SPRITE);const oS=o.r*2.6;
+  if(oImg&&oImg.complete&&oImg.naturalWidth){ctx.save();ctx.globalAlpha=.95;ctx.drawImage(oImg,ox2-oS/2,oy2-oS/2,oS,oS);ctx.globalAlpha=1;ctx.restore()}
+  else{ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.strokeStyle='#5a7d76';ctx.lineWidth=2;ctx.shadowColor='#000';ctx.shadowBlur=14;
   ctx.beginPath();const spikes=7;
   for(let i=0;i<=spikes;i++){const ang=i/spikes*6.283,rr=o.r*(0.75+((Math.sin((o.seed+i)*12.9898)*43758.5453)%1+1)%1*0.45),px=Math.cos(ang)*rr,py=Math.sin(ang)*rr;if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py)}
   ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=0;
   ctx.fillStyle='rgba(120,239,219,.12)';ctx.beginPath();ctx.arc(-o.r*.25,-o.r*.25,o.r*.35,0,7);ctx.fill();
-  ctx.restore()}
+  ctx.restore()}}
 // beams (laser + chain) under projectiles
 for(const b of beams){
   if(b.chain){ctx.save();ctx.globalAlpha=Math.min(1,b.life*10);ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=18;ctx.lineWidth=b.w||4;ctx.lineCap='round';
@@ -610,7 +614,11 @@ for(const e of enemies){let x=sx(e.x),y=sy(e.y),img=spriteFor(spriteSrcForEntity
   // S4 — visually distinct poison tell: pulsing green ring while a DoT stack is active.
   if(e.poisonT>0){ctx.globalAlpha=.35;ctx.fillStyle='#7cff4f';ctx.beginPath();ctx.arc(x,y,e.r*1.15,0,7);ctx.fill();ctx.globalAlpha=1}
   ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
-let px=sx(player.x),py=sy(player.y);ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore();ctx.restore();
+let px=sx(player.x),py=sy(player.y);ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);
+const pImg=spriteFor(PLAYER_SPRITE);const pS=player.r*3.4;
+if(pImg&&pImg.complete&&pImg.naturalWidth){ctx.globalAlpha=player.inv?.55:1;ctx.drawImage(pImg,-pS/2,-pS/2,pS,pS);ctx.globalAlpha=1}
+else{ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8)}
+ctx.restore();ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
    computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
@@ -636,7 +644,7 @@ if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active
   ctx.save();ctx.globalAlpha=STICK.active?.34:.16;ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(bx,by,STICK.radius,0,7);ctx.stroke();
   ctx.globalAlpha=STICK.active?.5:.22;ctx.fillStyle='#6fffe2';ctx.beginPath();ctx.arc(kx,ky,26,0,7);ctx.fill();ctx.restore()}
-if(state==='title'||state==='dead'){ctx.fillStyle='rgba(3,8,10,.72)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.textAlign='center';ctx.fillStyle='#e4fff8';ctx.font='700 34px system-ui';ctx.fillText(state==='dead'?'RUN ENDED':'HiVE SWARM',VIEW.w/2,VIEW.h/2-80);ctx.save();ctx.font='12px system-ui';ctx.fillStyle='rgba(150,200,190,.55)';ctx.fillText('v'+GAME_VERSION,VIEW.w/2,VIEW.h/2-58);ctx.restore();ctx.font='16px system-ui';ctx.fillStyle='#b3cbc7';ctx.fillText(state==='dead'?'Score '+score+' · survived '+formatTime(elapsed):'Open arena survival greybox',VIEW.w/2,VIEW.h/2-30);ctx.fillStyle='#8ab';ctx.font='14px system-ui';ctx.fillText('SLOT '+currentSlot()+'  ·  '+ (META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),VIEW.w/2,VIEW.h/2-6);ctx.fillStyle='#6fffe2';ctx.font='16px system-ui';ctx.fillText('Click or press Enter to deploy',VIEW.w/2,VIEW.h/2+28);ctx.textAlign='left'}
+if(state==='title'||state==='dead'){ctx.fillStyle='rgba(3,8,10,.72)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.textAlign='center';ctx.fillStyle='#e4fff8';ctx.font='700 34px system-ui';ctx.fillText(state==='dead'?'RUN ENDED':'HiVE SWARM',VIEW.w/2,VIEW.h/2-80);ctx.save();ctx.font='12px system-ui';ctx.fillStyle='rgba(150,200,190,.55)';ctx.fillText('v'+GAME_VERSION,VIEW.w/2,VIEW.h/2-58);ctx.restore();ctx.font='16px system-ui';ctx.fillStyle='#b3cbc7';ctx.fillText(state==='dead'?'Score '+score+' · survived '+formatTime(elapsed):'Open arena · HiVE brand art v2',VIEW.w/2,VIEW.h/2-30);ctx.fillStyle='#8ab';ctx.font='14px system-ui';ctx.fillText('SLOT '+currentSlot()+'  ·  '+ (META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),VIEW.w/2,VIEW.h/2-6);ctx.fillStyle='#6fffe2';ctx.font='16px system-ui';ctx.fillText('Click or press Enter to deploy',VIEW.w/2,VIEW.h/2+28);ctx.textAlign='left'}
 // First-sighting toast
 if(newCodexT>0&&newCodexTitle){const a=Math.min(1,newCodexT/.5);ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';
   ctx.fillStyle='rgba(60,20,90,.82)';ctx.fillRect(VIEW.w/2-170,96,340,52);ctx.strokeStyle='#c6f';ctx.strokeRect(VIEW.w/2-170,96,340,52);
