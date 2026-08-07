@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HiVE SWARM v0.0.9</title><style>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HiVE SWARM</title><style>
 *{box-sizing:border-box}html,body{margin:0;background:#050b14;color:#e8f7ff;font:14px system-ui,sans-serif;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}#hint{position:fixed;inset:auto 0 18px;text-align:center;color:#9ec4c0;pointer-events:none;letter-spacing:.05em}#hint b{color:#e4fff8}
 /* 2026-08-05: was left:14px/top:14px, which sat on top of the HUD text (Eric, playtest).
    Moved to the right edge and lower so it covers nothing. */
@@ -24,7 +24,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.1.5';
+const GAME_VERSION='0.1.8';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -147,25 +147,118 @@ function codexSee(link,count){
 }
 
 // ---- sprites / media (FORGE paint + IndexedDB; game prefers override dataURL) ----
-const SPRITES={}; const SPRITE_OVR={}; // key -> dataURL
+const SPRITES={}; const SPRITE_OVR={}; // key -> dataURL OR {data,frames,fps}
+const MEDIA_LIB={}; // uploaded library images: id -> {name,data} for stage/bg dropdowns
 const PLAYER_SPRITE='art_src/topdown_v1/player.png';
 const OBSTACLE_SPRITE='art_src/topdown_v1/obstacle_rock.png';
+function ovrDataURL(ovr){return ovr&&typeof ovr==='object'?ovr.data:ovr}
 function spriteFor(src){
   if(!src)return null;
   // FORGE override wins when the entity id (or path) was painted/saved
   const ovr=SPRITE_OVR[src]||SPRITE_OVR['path:'+src];
-  if(ovr){if(!SPRITES[ovr]){const image=new Image();image.src=ovr;SPRITES[ovr]=image}return SPRITES[ovr]}
-  if(!SPRITES[src]){const image=new Image();image.src=src;SPRITES[src]=image}return SPRITES[src]
+  const ovrUrl=ovrDataURL(ovr);
+  if(ovrUrl){if(!SPRITES[ovrUrl]){const image=new Image();image.src=ovrUrl;SPRITES[ovrUrl]=image}return SPRITES[ovrUrl]}
+  // MEDIA_LIB paths (lib:id)
+  if(String(src).startsWith('lib:')&&MEDIA_LIB[src.slice(4)]){
+    const u=MEDIA_LIB[src.slice(4)].data;
+    if(!SPRITES[u]){const image=new Image();image.src=u;SPRITES[u]=image}return SPRITES[u];
+  }
+  if(!SPRITES[src]){
+    const image=new Image();
+    image.onerror=()=>{image._fail=1};
+    image.src=src;
+    SPRITES[src]=image;
+  }
+  return SPRITES[src]
+}
+function _escAttr(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+function mediaLibraryOptions(selected){
+  const opts=[];
+  opts.push(`<option value="">(none / default)</option>`);
+  const stock=['art_src/stages/outskirts.jpg','art_src/stages/sewers.jpg','art_src/stages/downtown.jpg','art_src/stages/highway.jpg','art_src/stages/hivecore.jpg',
+    'art_src/obstacles/outskirts.png','art_src/obstacles/sewers.png','art_src/obstacles/downtown.png','art_src/obstacles/highway.png','art_src/obstacles/hivecore.png',
+    OBSTACLE_SPRITE];
+  stock.forEach(p=>opts.push(`<option value="${_escAttr(p)}" ${selected===p?'selected':''}>${_escAttr(p.replace(/^art_src\//,''))}</option>`));
+  Object.entries(MEDIA_LIB).forEach(([id,m])=>{
+    const v='lib:'+id;
+    opts.push(`<option value="${_escAttr(v)}" ${selected===v?'selected':''}>⬆ ${_escAttr(m.name||id)}</option>`);
+  });
+  return opts.join('');
 }
 function entitySpriteKey(e){return e&&e.id?e.id:('path:'+(e&&e.sprite||''))}
-// 4-way + multi-frame walk sheets (_walk_e/s/w/n.png = horizontal frame strips)
+// 8-way facing for player + enemies — e,se,s,sw,w,nw,n,ne (full 360, Eric 2026-08-07)
+// 4-dir helpers kept as art fallback when diagonal sheets are missing.
 function facingFromAngle(a){const t=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);if(t<Math.PI*.25||t>=Math.PI*1.75)return 0;if(t<Math.PI*.75)return 1;if(t<Math.PI*1.25)return 2;return 3}
-const FACE_SFX=['e','s','w','n'], WALK_FPS=8;
+/** 8-dir index in atan2 space: 0=e,1=se,2=s,3=sw,4=w,5=nw,6=n,7=ne */
+function facingFromAngle8(a){const t=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);return Math.round(t/(Math.PI/4))%8}
+const FACE_SFX=['e','s','w','n'], FACE_SFX8=['e','se','s','sw','w','nw','n','ne'], WALK_FPS=8;
+/** Map 8-dir → nearest 4-dir index (fallback when diagonal art is missing). */
+function face8to4(f){return [0,1,1,1,2,3,3,0][f|0]} // se→s, sw→s, nw→n, ne→e
 function walkSheetSrc(base,face){if(!base||!String(base).endsWith('.png'))return '';const stem=String(base).replace(/\.png$/,'');return stem+'_walk_'+(FACE_SFX[face|0]||'e')+'.png'}
-function spriteSrcForEntity(e,face){const k=entitySpriteKey(e);if(SPRITE_OVR[k])return SPRITE_OVR[k];const base=(e&&e.sprite)||'';if(!base)return '';if(face!=null){const w=walkSheetSrc(base,face);if(w)return w;const dir=FACE_SFX[face===2?0:(face|0)]||'e';return base.replace(/\.png$/,'_'+dir+'.png')}return base}
-function spriteSrcForPlayer(face){const base=PLAYER_SPRITE;if(face!=null){const w=walkSheetSrc(base,face);if(w)return w;const dir=FACE_SFX[face===2?0:(face|0)]||'e';return base.replace(/\.png$/,'_'+dir+'.png')}return base}
-function drawSpriteAnim(img,x,y,size,moving){if(!img||!img.complete||!img.naturalWidth)return false;const frames=(img.naturalWidth>=img.naturalHeight*1.8)?Math.max(1,Math.round(img.naturalWidth/img.naturalHeight)):1;const fw=img.naturalWidth/frames,fh=img.naturalHeight;const fr=moving?(Math.floor(elapsed*WALK_FPS)%frames):0;ctx.drawImage(img,fr*fw,0,fw,fh,x-size/2,y-size/2,size,size);return true}
+function walkSheetSrc8(base,face8){if(!base||!String(base).endsWith('.png'))return '';const stem=String(base).replace(/\.png$/,'');return stem+'_walk_'+(FACE_SFX8[face8|0]||'e')+'.png'}
+/** Shared 8-dir path resolve for any base sprite path (player or enemy). */
+function spriteSrc8(base,face8){
+  if(!base)return '';
+  if(face8==null)return base;
+  const stem=String(base).replace(/\.png$/,'');
+  const sfx=FACE_SFX8[face8|0]||'e', s4=FACE_SFX[face8to4(face8)]||'e';
+  const prefer=[stem+'_walk_'+sfx+'.png', stem+'_'+sfx+'.png'];
+  const fallback=[stem+'_walk_'+s4+'.png', stem+'_'+s4+'.png', base];
+  for(const t of prefer){const im=spriteFor(t);if(im&&im.complete&&im.naturalWidth>0&&!im._fail)return t}
+  for(const t of fallback){
+    const im=spriteFor(t);
+    if(im&&im.complete&&im.naturalWidth>0&&!im._fail)return t;
+    if(im&&!im.complete&&!im._fail)return t;
+  }
+  return base;
+}
+function spriteSrcForEntity(e,face8){
+  const k=entitySpriteKey(e);if(SPRITE_OVR[k])return SPRITE_OVR[k];
+  const base=(e&&e.sprite)||'';if(!base)return '';
+  return spriteSrc8(base, face8);
+}
+function spriteSrcForPlayer(face8){return spriteSrc8(PLAYER_SPRITE, face8)}
+// Per-image frame meta: content alpha bounds so side-views (wide gun) don't look "bigger" than front/back.
+const SPRITE_META=new WeakMap();
+function spriteFrameMeta(img){
+  let m=SPRITE_META.get(img); if(m)return m;
+  const frames=(img.naturalWidth>=img.naturalHeight*1.8)?Math.max(1,Math.round(img.naturalWidth/img.naturalHeight)):1;
+  const fw=img.naturalWidth/frames|0, fh=img.naturalHeight|0;
+  const c=document.createElement('canvas'); c.width=fw; c.height=fh;
+  const g=c.getContext('2d',{willReadFrequently:true});
+  const bounds=[];
+  for(let i=0;i<frames;i++){
+    g.clearRect(0,0,fw,fh);
+    g.drawImage(img,i*fw,0,fw,fh,0,0,fw,fh);
+    const d=g.getImageData(0,0,fw,fh).data;
+    let minX=fw,minY=fh,maxX=0,maxY=0,hit=0;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){
+      if(d[(y*fw+x)*4+3]>12){hit=1;if(x<minX)minX=x;if(y<minY)minY=y;if(x>maxX)maxX=x;if(y>maxY)maxY=y}
+    }
+    bounds.push(hit?{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1}:{x:0,y:0,w:fw,h:fh});
+  }
+  m={frames,fw,fh,bounds}; SPRITE_META.set(img,m); return m;
+}
+/** Draw anim strip height-normalized: content height → size (fixes side-view size pop). */
+function drawSpriteAnim(img,x,y,size,moving){
+  if(!img||!img.complete||!img.naturalWidth)return false;
+  const m=spriteFrameMeta(img);
+  const fr=moving?(Math.floor(elapsed*WALK_FPS)%m.frames):0;
+  const b=m.bounds[fr]||m.bounds[0];
+  const sc=size/Math.max(1,b.h);
+  const dw=b.w*sc, dh=b.h*sc;
+  ctx.drawImage(img, fr*m.fw+b.x, b.y, b.w, b.h, x-dw/2, y-dh/2, dw, dh);
+  return true;
+}
 function playerScale(){const s=Number(EDIT.player&&EDIT.player.scale);return Number.isFinite(s)&&s>0?s:1}
+// Preload 8-dir sheets for player + cast so first facing switch isn't a missing-frame flash
+const PRELOAD_STEMS=['player','shambler','runner','crawler','necro_node','brute','armored_dead','mutant_enforcer','zombie_colossus'];
+PRELOAD_STEMS.forEach(stem=>{
+  FACE_SFX8.forEach(s=>{
+    spriteFor('art_src/topdown_v1/'+stem+'_walk_'+s+'.png');
+    spriteFor('art_src/topdown_v1/'+stem+'_'+s+'.png');
+  });
+});
 
 const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;
 function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
@@ -254,7 +347,17 @@ function genObstacles(){
   }
 }
 function pushOutOfObstacles(body){for(const o of obstacles){let dx=body.x-o.x,dy=body.y-o.y,d=Math.hypot(dx,dy),gap=o.r+body.r;if(d<1e-4){dx=1;dy=0;d=1}if(d<gap){body.x=o.x+dx/d*gap;body.y=o.y+dy/d*gap}}}
-function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;const psc=EDIT.player.scale??1;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius,scale:psc,r:16*psc});WEAPON=EDIT.weapons[0];ENEMIES=(EDIT.entities||[]).map(e=>{if(e.scale==null)e.scale=1;return e});if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35}applyForge();
+function applyForge(){
+  Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;
+  // Scale once: hit radius = 16 * scale. Visual uses player.r only (no second multiply).
+  // Eric 2026-08-07: scale 2 looked like ~10 because draw did r*3.4*scale again after r=16*scale.
+  const psc=Math.max(0.35,Math.min(3,Number(EDIT.player.scale)||1));
+  Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius,scale:psc,r:16*psc});
+  WEAPON=EDIT.weapons[0];
+  ENEMIES=(EDIT.entities||[]).map(e=>{if(e.scale==null)e.scale=1;return e});
+  if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;
+  if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35;
+}applyForge();
 // G7 — weapon caches, ranks, armory seed
 function weaponById(id){return (EDIT.weapons||[]).find(w=>w.id===id)||EDIT.weapons[0]}
 // 2026-08-06 fix: armory cost table listed seeker/beam/chain/nova explicitly and silently fell
@@ -559,7 +662,12 @@ function draw(){
   const st=curStageCfg(), stageBg=(st.bg)||['#050b14','#050b14'],bgGrad=ctx.createLinearGradient(0,0,0,VIEW.h);
   bgGrad.addColorStop(0,stageBg[0]);bgGrad.addColorStop(1,stageBg[1]||stageBg[0]);
   ctx.fillStyle=bgGrad;ctx.fillRect(0,0,VIEW.w,VIEW.h);
-  if(st.bgArt){const bgImg=spriteFor(st.bgArt);if(bgImg&&bgImg.complete&&bgImg.naturalWidth){const zoom=1.12,bw=VIEW.w*zoom,bh=VIEW.h*zoom,bxo=-(cam.x*0.08)%bw,byo=-(cam.y*0.08)%bh;ctx.globalAlpha=0.52;for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++)ctx.drawImage(bgImg,bxo+ix*bw,byo+iy*bh,bw,bh);ctx.globalAlpha=1}}let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
+  let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);
+  // Arena plane = grid again (Eric 2026-08-07: photo floors looked horrible). Stage bgArt is
+  // still pickable in FORGE for optional later use, but gameplay draws the grid.
+  ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;const grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;
+  for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}
+  for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
 // S6 — static obstacles (procedural rock-cluster shapes, deterministic per-seed so they don't
 // flicker frame to frame). Push-out collision handled in update(); drawn under everything else.
 for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-100||ox2>VIEW.w+100||oy2<-100||oy2>VIEW.h+100)continue;const oImg=spriteFor(o.art||OBSTACLE_SPRITE);const oS=o.r*2.8*(o.scale||1);ctx.save();ctx.globalAlpha=.28;ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(ox2,oy2+oS*0.28,oS*0.42,oS*0.16,0,0,7);ctx.fill();ctx.restore();if(oImg&&oImg.complete&&oImg.naturalWidth){ctx.globalAlpha=.98;ctx.drawImage(oImg,ox2-oS/2,oy2-oS/2,oS,oS);ctx.globalAlpha=1}else{ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.beginPath();ctx.arc(0,0,o.r,0,7);ctx.fill();ctx.restore()}}
@@ -615,11 +723,18 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    new Image().src='enemy.shambler' -> a bogus URL -> a truthy Image, so the `||` fallback to the
    real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
-for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;let img=spriteFor(spriteSrcForEntity(e.type,eFace));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;if(!drawSpriteAnim(img,x,y,s,moving)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);if(eFace===2)ctx.scale(-1,1);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
+for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;let img=spriteFor(spriteSrcForEntity(e.type,eFace));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;if(!drawSpriteAnim(img,x,y,s,moving)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
   // S4 — visually distinct poison tell: pulsing green ring while a DoT stack is active.
   if(e.poisonT>0){ctx.globalAlpha=.35;ctx.fillStyle='#7cff4f';ctx.beginPath();ctx.arc(x,y,e.r*1.15,0,7);ctx.fill();ctx.globalAlpha=1}
   ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
-let px=sx(player.x),py=sy(player.y);const pFace=facingFromAngle(player.angle);const pImg=spriteFor(spriteSrcForPlayer(pFace));const pS=player.r*3.4*playerScale();const pMoving=!!(STICK.active&&(STICK.dx||STICK.dy))||['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].some(k=>keys.has(k));ctx.globalAlpha=player.inv?.55:1;if(!drawSpriteAnim(pImg,px,py,pS,pMoving)){ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore()}ctx.globalAlpha=1;ctx.restore();
+// Player = teal sphere + barrel again (Eric 2026-08-07). FORGE paint overrides still apply to
+// enemies/weapons via BEASTIARY; player ship reads clearest as the greybox sphere.
+let px=sx(player.x),py=sy(player.y);ctx.globalAlpha=player.inv?.55:1;
+ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);
+ctx.shadowColor='#6fffe2';ctx.shadowBlur=12;
+ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();
+ctx.shadowBlur=0;ctx.fillStyle='#dff';ctx.fillRect(player.r*0.45,-player.r*0.28,player.r*1.35,player.r*0.55);
+ctx.restore();ctx.globalAlpha=1;ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
    computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
@@ -792,12 +907,18 @@ async function blobData(blob){return new Promise((resolve,reject)=>{const r=new 
 async function hydrateMedia(){
   try{const rows=await mediaAll();
     for(const row of rows){const data=await blobData(row.blob);
-      if(row.id.startsWith('sprite:'))SPRITE_OVR[row.key]=data;
-      else if(row.id.startsWith('codex:'))CODEX_IMG[row.key]=data}}
-  catch(_){}}
+      if(row.id.startsWith('sprite:'))SPRITE_OVR[row.key]={data,frames:row.frames||1,fps:row.fps||8};
+      else if(row.id.startsWith('codex:'))CODEX_IMG[row.key]=data;
+      else if(row.id.startsWith('lib:'))MEDIA_LIB[row.key]={name:row.name||row.key,data}}
+  }catch(_){}}
 await hydrateMedia();
-function saveSpriteMedia(key){const data=SPRITE_OVR[key];return queueMedia(async()=>data?mediaPut({id:'sprite:'+key,key,blob:await dataBlob(data),frames:1,fps:8}):mediaDel('sprite:'+key))}
+function saveSpriteMedia(key){
+  const o=SPRITE_OVR[key];const data=ovrDataURL(o);
+  const frames=(o&&typeof o==='object'&&o.frames)||1, fps=(o&&typeof o==='object'&&o.fps)||8;
+  return queueMedia(async()=>data?mediaPut({id:'sprite:'+key,key,blob:await dataBlob(data),frames,fps}):mediaDel('sprite:'+key));
+}
 function saveCodexMedia(id){const data=CODEX_IMG[id];return queueMedia(async()=>data?mediaPut({id:'codex:'+id,key:id,blob:await dataBlob(data)}):mediaDel('codex:'+id))}
+function saveLibMedia(id){const m=MEDIA_LIB[id];return queueMedia(async()=>m&&m.data?mediaPut({id:'lib:'+id,key:id,name:m.name||id,blob:await dataBlob(m.data)}):mediaDel('lib:'+id))}
 
 const btn=document.createElement('button');btn.id='forgeBtn';btn.textContent='⚒';btn.title='HiVE SWARM Forge (F2)';document.body.appendChild(btn);
 const win=document.createElement('section');win.id='forge';
@@ -816,8 +937,8 @@ if(/[?&]forge=1/.test(location.search))setTimeout(()=>{const m=location.search.m
   head.addEventListener('pointermove',e=>{if(!drag)return;win.style.left=Math.max(0,ox+e.clientX-sx)+'px';win.style.top=Math.max(0,oy+e.clientY-sy)+'px';win.style.right='auto'});
   head.addEventListener('pointerup',()=>drag=false)})();
 
-const TABS=['ENTITIES','PLAYER','WEAPONS','WAVES','WORLD','STAGES','SPRITES','AUDIO','DATA','BEASTIARY'];
-let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false}, codexSel=0;
+const TABS=['ENTITIES','PLAYER','WEAPONS','WAVES','WORLD','STAGES','AUDIO','DATA','BEASTIARY'];
+let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false}, codexSel=0, beastFrame=0;
 TABS.forEach((t,i)=>{const d=document.createElement('button');d.type='button';d.textContent=t;d.id='forgeTab'+i;d.onclick=()=>{tab=i;spriteSel=-1;renderTab()};tabsEl.appendChild(d)});
 function getP(p){return p.split('.').reduce((o,k)=>o[k],EDIT)}
 function setP(p,v){const ks=p.split('.'),last=ks.pop();ks.reduce((o,k)=>o[k],EDIT)[last]=v}
@@ -852,13 +973,13 @@ function renderTab(){
     const imp=body.querySelector('#importForgeFile');if(imp)imp.onchange=async ev=>{const f=ev.target.files&&ev.target.files[0];if(!f)return;try{EDIT=forgeMerge(FORGE_BASE,JSON.parse(await f.text()));applyForge();persistForge();genObstacles();renderTab()}catch(err){alert('Bad forge file: '+err.message)}};
   }
   else if(tab===1){// PLAYER
-    body.innerHTML=`<div class="hint">Player combat knobs. <b>scale</b> resizes sprite + hit radius (1=default). Saved with Forge / SAVE FORGE JSON.</div>
+    body.innerHTML=`<div class="hint">Player combat knobs. <b>scale</b> multiplies the base hit radius once (1=default, max 3). Visual size matches hit radius — no double scale. Player draws as a teal sphere.</div>
       <div class="row">${fields(EDIT.player,'player')}</div>
       <div class="row">${fields(EDIT.drops,'drops')}</div>`;
     bindInputs();
   }
   else if(tab===2){// WEAPONS
-    body.innerHTML=`<div class="hint">Per-weapon tuning. Weapons fire automatically at the nearest hostile.</div>
+    body.innerHTML=`<div class="hint">Per-weapon tuning. The <b>name</b> field is what the HUD shows mid-run. Weapons fire automatically at the nearest hostile.</div>
       ${EDIT.weapons.map((w,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0"><h3 style="margin:0 0 6px;color:#78efdb">${esc(w.name||w.id)}</h3>${fields(w,'weapons.'+i)}</article>`).join('')}
       <div class="row"><button id="addWep">+ ADD WEAPON</button></div>`;
     bindInputs();
@@ -874,127 +995,201 @@ function renderTab(){
       <div class="row">${fields(EDIT.world,'world')}</div>`;
     bindInputs();
   }
-  else if(tab===5){// STAGES
-    body.innerHTML=`<div class="hint">Stage order (backdrop, roster cap, boss timer). What a boss DOES stays in code — only its numbers and the stage's look are editable here. Reordering/adding stages is JSON-only via the DATA tab.</div>
+  else if(tab===5){// STAGES — dropdown + upload for bgArt / obstacleArt (mirror HiVE WAR)
+    body.innerHTML=`<div class="hint">Stage roster + look. <b>bgArt / obstacleArt</b> pick any shipped or uploaded image (⬆ upload adds to the shared media library). Gameplay arena is the <b>grid</b>; art is for obstacles/future floors.</div>
       ${EDIT.stages.map((s,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0">
         <h3 style="margin:0 0 6px;color:#78efdb">${i+1}. ${esc(s.name||s.id)}</h3>
-        <div class="row">${fields(s,'stages.'+i)}</div>
+        <div class="row">${fields({id:s.id,name:s.name,seconds:s.seconds,enemyCap:s.enemyCap,bossMul:s.bossMul},'stages.'+i)}</div>
         <label>bg top<input type="color" data-bg="${i}.0" value="${esc(bgHex(s.bg&&s.bg[0]))}"></label>
         <label>bg bottom<input type="color" data-bg="${i}.1" value="${esc(bgHex(s.bg&&s.bg[1]))}"></label>
-      </article>`).join('')}`;
+        <div class="row">BG ART <select data-stage-art="${i}.bgArt" style="width:min(280px,60vw)">${mediaLibraryOptions(s.bgArt||'')}</select>
+          <button type="button" data-up-stage="${i}.bgArt">⬆ UPLOAD</button></div>
+        <div class="row">OBSTACLE ART <select data-stage-art="${i}.obstacleArt" style="width:min(280px,60vw)">${mediaLibraryOptions(s.obstacleArt||'')}</select>
+          <button type="button" data-up-stage="${i}.obstacleArt">⬆ UPLOAD</button></div>
+      </article>`).join('')}
+      <input type="file" id="stageUploadFile" accept="image/*" style="display:none">`;
     bindInputs();
     body.querySelectorAll('[data-bg]').forEach(input=>{input.oninput=()=>{const [i,slot]=input.dataset.bg.split('.');const arr=EDIT.stages[+i].bg=EDIT.stages[+i].bg?EDIT.stages[+i].bg.slice():['#000','#000'];arr[+slot]=input.value;applyForge();persistForge()}});
+    body.querySelectorAll('[data-stage-art]').forEach(sel=>{sel.onchange=()=>{const [i,field]=sel.dataset.stageArt.split('.');EDIT.stages[+i][field]=sel.value;persistForge();if(field==='obstacleArt')genObstacles()}});
+    let pendingStageField=null;
+    body.querySelectorAll('[data-up-stage]').forEach(b=>b.onclick=()=>{pendingStageField=b.dataset.upStage;body.querySelector('#stageUploadFile').click()});
+    body.querySelector('#stageUploadFile').onchange=e=>{
+      const f=e.target.files&&e.target.files[0];e.target.value='';if(!f||!pendingStageField)return;
+      const [i,field]=pendingStageField.split('.');const id='up_'+Date.now().toString(36);
+      const rd=new FileReader();rd.onload=()=>{MEDIA_LIB[id]={name:f.name,data:rd.result};saveLibMedia(id).then(()=>{EDIT.stages[+i][field]='lib:'+id;persistForge();if(field==='obstacleArt')genObstacles();renderTab()}).catch(()=>alert('Upload store failed'))};rd.readAsDataURL(f);
+    };
   }
-  else if(tab===6){// SPRITES
-    renderSprites();
-  }
-  else if(tab===7){// AUDIO
+  else if(tab===6){// AUDIO
     body.innerHTML=`<div class="hint">Global SFX toggle. Per-entity samples stay code-side in this greybox.</div>
       <div class="row"><button id="audSfx">${audioOn?'SFX ON':'SFX OFF'}</button>
       <span class="hint">Samples: ${Object.keys(SFX).join(', ')}</span></div>`;
     body.querySelector('#audSfx').onclick=()=>{audioOn=!audioOn;renderTab()};
   }
-  else if(tab===8){// DATA
+  else if(tab===7){// DATA
     body.innerHTML=`<div class="hint">Export / import a self-contained pack (values + optional media keys). Reset restores shipped numbers.</div>
       <div class="row"><button id="pkSave">⬇ EXPORT JSON</button>
         <label style="display:inline;grid-template-columns:none">⬆ IMPORT <input type="file" id="pkLoad" accept="application/json,.json" style="width:auto"></label>
         <button id="forgeReset" class="warn">RESET SHIPPED VALUES</button></div>`;
-    body.querySelector('#pkSave').onclick=()=>{const pack={version:GAME_VERSION,values:EDIT,sprites:SPRITE_OVR,codexImages:CODEX_IMG};
+    body.querySelector('#pkSave').onclick=()=>{const pack={version:GAME_VERSION,values:EDIT,sprites:SPRITE_OVR,codexImages:CODEX_IMG,mediaLib:MEDIA_LIB};
       const blob=new Blob([JSON.stringify(pack,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hiveswarm-forge-pack.json';a.click()};
     body.querySelector('#pkLoad').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const pack=JSON.parse(await f.text());
       if(pack.values){EDIT=forgeMerge(FORGE_BASE,pack.values);if(Array.isArray(pack.values.codexPages))EDIT.codexPages=pack.values.codexPages;persistForge();applyForge()}
-      if(pack.sprites){Object.assign(SPRITE_OVR,pack.sprites);for(const [k,d] of Object.entries(pack.sprites))await saveSpriteMedia(k)}
-      if(pack.codexImages){Object.assign(CODEX_IMG,pack.codexImages);for(const [k,d] of Object.entries(pack.codexImages))await saveCodexMedia(k)}
+      if(pack.sprites){Object.assign(SPRITE_OVR,pack.sprites);for(const k of Object.keys(pack.sprites))await saveSpriteMedia(k)}
+      if(pack.codexImages){Object.assign(CODEX_IMG,pack.codexImages);for(const k of Object.keys(pack.codexImages))await saveCodexMedia(k)}
+      if(pack.mediaLib){Object.assign(MEDIA_LIB,pack.mediaLib);for(const k of Object.keys(pack.mediaLib))await saveLibMedia(k)}
       renderTab()}catch(err){alert('Bad pack: '+err.message)}};
     body.querySelector('#forgeReset').onclick=()=>{if(confirm('Restore shipped Forge values?')){EDIT=copy(FORGE_BASE);EDIT.codexPages=codexDefaults();applyForge();persistForge();renderTab()}};
   }
-  else{// BEASTIARY tab
-    renderCodex();
+  else{// BEASTIARY — left list (all assets by category) + right edit/paint (HiVE WAR style)
+    renderBeastiary();
   }
 }
 
-function renderCodex(){
-  const pages=codexPages();
-  if(codexSel>=pages.length)codexSel=Math.max(0,pages.length-1);
-  const pg=pages[codexSel];
-  const list=pages.map((p,i)=>`<button type="button" data-pick="${i}" class="${i===codexSel?'on':''}" style="display:block;width:100%;text-align:left;margin:2px 0">${CODEX_ICON[p.cat]||'•'} ${esc(p.title)||'(untitled)'}</button>`).join('');
-  const img=pg?CODEX_IMG[pg.id]:null;
-  body.innerHTML=`<div class="hint">Field guide. Pages unlock in-game on first sighting (spawn). Progress is per save slot. Word is <b>BEASTIARY</b>.</div>
+/** Unified left-rail asset list for BEASTIARY: player, enemies, weapons, items (color-coded). */
+function beastiaryAssets(){
+  const list=[];
+  list.push({cat:'player',color:'#6fffe2',title:'Swarm Operative',key:'player',path:PLAYER_SPRITE,kind:'player',
+    stats:()=>EDIT.player, statPath:'player'});
+  (EDIT.entities||[]).forEach((e,i)=>list.push({cat:'enemy',color:e.color||'#9ab0b4',title:e.name||e.id,key:entitySpriteKey(e),path:e.sprite||'',kind:'entity',idx:i,
+    stats:()=>EDIT.entities[i], statPath:'entities.'+i}));
+  (EDIT.weapons||[]).forEach((w,i)=>list.push({cat:'weapon',color:w.color||'#ffe066',title:w.name||w.id,key:'weapon:'+w.id,path:'',kind:'weapon',idx:i,
+    stats:()=>EDIT.weapons[i], statPath:'weapons.'+i}));
+  list.push({cat:'item',color:'#8ffff0',title:'Biomatter Orb',key:'item:xp',path:'',kind:'item'});
+  list.push({cat:'item',color:'#ff5f7a',title:'Stim Pack',key:'item:heal',path:'',kind:'item'});
+  return list;
+}
+const BEAST_CAT_COL={player:'#6fffe2',enemy:'#f88',weapon:'#ffe066',item:'#8aff9b',boss:'#c6f',lore:'#9ab'};
+function renderBeastiary(){
+  const assets=beastiaryAssets();
+  if(codexSel>=assets.length)codexSel=Math.max(0,assets.length-1);
+  const a=assets[codexSel];
+  // Group headers by category
+  let lastCat='', left='';
+  assets.forEach((x,i)=>{
+    if(x.cat!==lastCat){lastCat=x.cat;left+=`<div style="color:${BEAST_CAT_COL[x.cat]||'#8ab'};font:700 10px system-ui;letter-spacing:1px;margin:8px 0 2px;opacity:.9">${x.cat.toUpperCase()}</div>`}
+    left+=`<button type="button" data-pick="${i}" class="${i===codexSel?'on':''}" style="display:block;width:100%;text-align:left;margin:2px 0;border-left:3px solid ${x.color||'#426'}">${CODEX_ICON[x.cat]||'•'} ${esc(x.title)}</button>`;
+  });
+  const ovr=a?SPRITE_OVR[a.key]:null;
+  const ovrUrl=ovrDataURL(ovr);
+  const frames=(ovr&&typeof ovr==='object'&&ovr.frames)||1;
+  const fps=(ovr&&typeof ovr==='object'&&ovr.fps)||8;
+  const thumb=ovrUrl||a.path||'';
+  const statsHtml=a&&a.stats?`<div class="row" style="flex-wrap:wrap">${fields(a.stats(),a.statPath)}</div>`:'<div class="hint">No numeric fields for this entry.</div>';
+  body.innerHTML=`<div class="hint"><b>BEASTIARY</b> — all game assets. Click left to edit stats + paint frames (erase / paint / add frames / import), same spirit as HiVE WAR sprites. Overrides live in IndexedDB.</div>
     <div style="display:flex;gap:12px;align-items:flex-start">
-      <div style="flex:0 0 200px;max-height:60vh;overflow:auto">${list||'<div class="hint">No pages.</div>'}
-        <button id="cxAdd" style="width:100%;margin-top:8px">+ ADD PAGE</button>
-        <button id="cxReset" class="warn" style="width:100%;margin-top:4px">RESET DEFAULT PAGES</button>
-        <button id="cxRelock" class="warn" style="width:100%;margin-top:4px">RE-LOCK ALL (this slot)</button></div>
-      <div style="flex:1">${pg?`
-        <div class="row">CATEGORY <select id="cxCat">${CODEX_CATS.map(c=>`<option value="${c}" ${c===pg.cat?'selected':''}>${c}</option>`).join('')}</select></div>
-        <div class="row">TITLE <input type="text" id="cxTitle" value="${esc(pg.title)}" style="width:220px"></div>
-        <div class="row">SUBTITLE <input type="text" id="cxSub" value="${esc(pg.subtitle)}" style="width:220px"></div>
-        <div class="row">UNLOCK KEY <input type="text" id="cxLink" value="${esc(pg.link)}" placeholder="enemy:enemy.shambler" style="width:200px">
-          <span class="hint">${pg.link?(META.codexSeen&&META.codexSeen[pg.link]!==undefined?'<b style="color:#6f6">UNLOCKED</b>':'<b style="color:#f84">LOCKED</b>')+' slot '+currentSlot():'<b style="color:#6f6">ALWAYS VISIBLE</b>'}</span></div>
-        <div class="row">BODY <textarea id="cxBody">${esc(pg.body)}</textarea></div>
-        <div class="row"><button id="cxPick">🖼 UPLOAD IMAGE</button>
-          <button id="cxClr" class="warn" ${img?'':'disabled'}>REMOVE IMAGE</button>
-          <input type="file" id="cxFile" accept="image/*" style="display:none"></div>
-        <div class="row">${img?`<img src="${img}" alt="" style="max-width:220px;max-height:160px;border:1px solid #245">`:'<span class="hint">No image yet.</span>'}</div>
-        <div class="row"><button id="cxDel" class="warn">DELETE PAGE</button></div>`:'<div class="hint">Add a page.</div>'}</div></div>`;
-  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;renderCodex()});
-  body.querySelector('#cxAdd').onclick=()=>{codexPages().push({id:codexNewId(),cat:'enemy',title:'New Entry',subtitle:'',body:'',link:''});codexSel=codexPages().length-1;persistForge();renderCodex()};
-  body.querySelector('#cxRelock').onclick=()=>{if(!confirm('Re-lock every beastiary page in save slot '+currentSlot()+'?'))return;META.codexSeen={};saveMeta();renderCodex()};
-  body.querySelector('#cxReset').onclick=()=>{if(!confirm('Replace ALL beastiary pages with shipped defaults?'))return;EDIT.codexPages=codexDefaults();codexSel=0;persistForge();renderCodex()};
-  if(!pg)return;
-  const bind=(sel,key)=>{const el=body.querySelector(sel);if(!el)return;el.oninput=()=>{pg[key]=el.value;persistForge()}};
-  bind('#cxTitle','title');bind('#cxSub','subtitle');bind('#cxBody','body');bind('#cxLink','link');
-  body.querySelector('#cxCat').onchange=e=>{pg.cat=e.target.value;persistForge();renderCodex()};
-  body.querySelector('#cxPick').onclick=()=>body.querySelector('#cxFile').click();
-  body.querySelector('#cxFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{CODEX_IMG[pg.id]=rd.result;saveCodexMedia(pg.id).then(()=>renderCodex()).catch(()=>alert('Could not store image in IndexedDB.'))};rd.readAsDataURL(f)};
-  body.querySelector('#cxClr').onclick=()=>{delete CODEX_IMG[pg.id];saveCodexMedia(pg.id).then(()=>renderCodex())};
-  body.querySelector('#cxDel').onclick=()=>{if(!confirm('Delete "'+(pg.title||'untitled')+'"?'))return;delete CODEX_IMG[pg.id];saveCodexMedia(pg.id).catch(()=>{});codexPages().splice(codexSel,1);codexSel=Math.max(0,codexSel-1);persistForge();renderCodex()};
-}
-
-function renderSprites(){
-  const list=EDIT.entities.map((e,i)=>({key:entitySpriteKey(e),name:e.name||e.id,path:e.sprite||'',idx:i}));
-  if(spriteSel<0){
-    body.innerHTML=`<div class="hint">Paint or import a PNG per enemy. Overrides live in IndexedDB (<code>sprite:</code> prefix) and apply immediately in-game.</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
-      ${list.map((r,i)=>`<button data-sp="${i}" style="padding:8px;background:#13262a;border:1px solid #426862;border-radius:6px;cursor:pointer;color:#dff">
-        <img class="kthumb" src="${esc(SPRITE_OVR[r.key]||r.path)}" onerror="this.style.opacity=.25" style="display:block;margin:0 auto 6px"><b>${esc(r.name)}</b></button>`).join('')}
-      </div>`;
-    body.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{spriteSel=+b.dataset.sp;renderSprites()});
-    return;
+      <div style="flex:0 0 200px;max-height:62vh;overflow:auto">${left}</div>
+      <div style="flex:1">${a?`
+        <div class="row"><b style="color:${a.color}">${esc(a.title)}</b><span class="hint">${esc(a.key)}</span>
+          <span class="hint" style="color:${BEAST_CAT_COL[a.cat]}">${a.cat}</span></div>
+        ${statsHtml}
+        <div class="row"><canvas id="forgePaint" width="128" height="128"></canvas>
+          <div>
+            <div class="row">COLOR <input type="color" id="spCol" value="${brush.col}">
+              SIZE <input type="number" id="spSize" value="${brush.size}" min="1" max="32" style="width:48px">
+              <button id="spErase" class="${brush.erase?'on':''}">${brush.erase?'ERASE ON':'ERASE'}</button></div>
+            <div class="row">FRAME <button id="spPrev">◀</button>
+              <b id="spFrameLab">${beastFrame+1}/${frames}</b>
+              <button id="spNext">▶</button>
+              <button id="spAddFrame">+ FRAME</button>
+              <button id="spDelFrame" class="warn">− FRAME</button>
+              FPS <input type="number" id="spFps" value="${fps}" min="1" max="30" style="width:48px"></div>
+            <div class="frames" id="spThumbs"></div>
+            <div class="row"><button id="spSave">💾 SAVE</button>
+              <button id="spImp">⇧ IMPORT PNG/STRIP</button>
+              <button id="spRev" class="warn">REVERT</button>
+              <input type="file" id="spFile" accept="image/*" style="display:none"></div>
+            <div class="hint">Paint on the active frame. Multi-frame strips save as a horizontal sheet (War-style). REVERT drops the override.</div>
+            ${thumb?`<img src="${esc(thumb)}" alt="" style="max-width:120px;max-height:80px;border:1px solid #245;margin-top:6px">`:''}
+          </div>
+        </div>`:'<div class="hint">Select an entry.</div>'}</div></div>`;
+  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;beastFrame=0;renderBeastiary()});
+  if(!a)return;
+  bindInputs();
+  // ---- multi-frame paint canvas (HiVE WAR–style) ----
+  const cv=body.querySelector('#forgePaint'); if(!cv)return;
+  const pctx=cv.getContext('2d');
+  work=document.createElement('canvas'); // full strip
+  const CELL=128;
+  function ensureStrip(n){
+    const fr=Math.max(1,n|0);
+    const nw=document.createElement('canvas');nw.width=CELL*fr;nw.height=CELL;
+    const g=nw.getContext('2d');
+    if(work&&work.width){g.drawImage(work,0,0)}
+    work=nw;
   }
-  const r=list[spriteSel]; if(!r){spriteSel=-1;renderSprites();return}
-  const src=SPRITE_OVR[r.key]||r.path||'';
-  body.innerHTML=`<div class="row"><button id="spBack">← BACK</button><b style="color:#6fffe2">${esc(r.name)}</b><span class="hint">${esc(r.key)}</span></div>
-    <div class="row"><canvas id="forgePaint" width="128" height="128"></canvas>
-      <div><div class="row">COLOR <input type="color" id="spCol" value="${brush.col}"> SIZE <input type="number" id="spSize" value="${brush.size}" min="1" max="32" style="width:48px">
-        <button id="spErase">${brush.erase?'ERASE ON':'ERASE'}</button></div>
-        <div class="row"><button id="spSave">💾 SAVE</button><button id="spImp">⇧ IMPORT PNG</button>
-          <button id="spRev" class="warn">REVERT</button><input type="file" id="spFile" accept="image/*" style="display:none"></div>
-        <div class="hint">Paint then SAVE. REVERT clears the IndexedDB override and restores the shipped path.</div></div></div>`;
-  const cv=body.querySelector('#forgePaint'), cx=cv.getContext('2d');
-  work=document.createElement('canvas');work.width=128;work.height=128;const wg=work.getContext('2d');
-  function loadInto(){wg.clearRect(0,0,128,128);if(!src){drawPaint();return}const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{wg.drawImage(im,0,0,128,128);drawPaint()};im.onerror=()=>drawPaint();im.src=src}
-  function drawPaint(){cx.clearRect(0,0,128,128);cx.drawImage(work,0,0)}
-  loadInto();
+  function loadStrip(src,nFrames){
+    ensureStrip(nFrames||1);
+    const g=work.getContext('2d');g.clearRect(0,0,work.width,work.height);
+    if(!src){drawFrame();return}
+    const im=new Image();im.crossOrigin='anonymous';
+    im.onload=()=>{
+      const nf=nFrames||(im.naturalWidth>=im.naturalHeight*1.6?Math.max(1,Math.round(im.naturalWidth/im.naturalHeight)):1);
+      ensureStrip(nf);
+      const gg=work.getContext('2d');gg.clearRect(0,0,work.width,work.height);
+      const fw=im.naturalWidth/nf;
+      for(let i=0;i<nf;i++)gg.drawImage(im,i*fw,0,fw,im.naturalHeight,i*CELL,0,CELL,CELL);
+      beastFrame=Math.min(beastFrame,nf-1);drawFrame();renderThumbs();
+    };
+    im.onerror=()=>drawFrame();im.src=src;
+  }
+  function frameCount(){return Math.max(1,Math.round(work.width/CELL))}
+  function drawFrame(){
+    pctx.clearRect(0,0,CELL,CELL);
+    if(work)pctx.drawImage(work,beastFrame*CELL,0,CELL,CELL,0,0,CELL,CELL);
+    const lab=body.querySelector('#spFrameLab');if(lab)lab.textContent=(beastFrame+1)+'/'+frameCount();
+  }
+  function renderThumbs(){
+    const el=body.querySelector('#spThumbs');if(!el||!work)return;
+    el.innerHTML='';
+    for(let i=0;i<frameCount();i++){
+      const t=document.createElement('canvas');t.width=40;t.height=40;t.className=i===beastFrame?'sel':'';
+      t.getContext('2d').drawImage(work,i*CELL,0,CELL,CELL,0,0,40,40);
+      t.onclick=()=>{beastFrame=i;drawFrame();renderThumbs()};
+      el.appendChild(t);
+    }
+  }
+  loadStrip(ovrUrl||a.path,frames);
   let painting=false;
-  function paintAt(ev){const rect=cv.getBoundingClientRect(),x=Math.floor((ev.clientX-rect.left)/rect.width*128),y=Math.floor((ev.clientY-rect.top)/rect.height*128);
-    wg.fillStyle=brush.erase?'rgba(0,0,0,0)':brush.col;if(brush.erase){wg.clearRect(x-brush.size/2,y-brush.size/2,brush.size,brush.size)}
-    else{wg.fillRect(x-brush.size/2,y-brush.size/2,brush.size,brush.size)}drawPaint()}
+  function paintAt(ev){
+    const rect=cv.getBoundingClientRect(),x=Math.floor((ev.clientX-rect.left)/rect.width*CELL),y=Math.floor((ev.clientY-rect.top)/rect.height*CELL);
+    const g=work.getContext('2d');const ox=beastFrame*CELL;
+    if(brush.erase)g.clearRect(ox+x-brush.size/2,y-brush.size/2,brush.size,brush.size);
+    else{g.fillStyle=brush.col;g.fillRect(ox+x-brush.size/2,y-brush.size/2,brush.size,brush.size)}
+    drawFrame();
+  }
   cv.onpointerdown=e=>{painting=true;cv.setPointerCapture(e.pointerId);paintAt(e)};
   cv.onpointermove=e=>{if(painting)paintAt(e)};
-  cv.onpointerup=()=>{painting=false};
+  cv.onpointerup=()=>{painting=false;renderThumbs()};
   body.querySelector('#spCol').oninput=e=>{brush.col=e.target.value;brush.erase=false};
   body.querySelector('#spSize').oninput=e=>{brush.size=Math.max(1,Math.min(32,+e.target.value||4))};
-  body.querySelector('#spErase').onclick=()=>{brush.erase=!brush.erase;renderSprites()};
-  body.querySelector('#spBack').onclick=()=>{spriteSel=-1;renderSprites()};
-  body.querySelector('#spSave').onclick=()=>{const data=work.toDataURL('image/png');SPRITE_OVR[r.key]=data;delete SPRITES[data];
-    // also map path for quick lookups
-    if(r.path)SPRITE_OVR['path:'+r.path]=data;
-    saveSpriteMedia(r.key).then(()=>{if(r.path)return saveSpriteMedia('path:'+r.path)}).then(()=>alert('Sprite saved.')).catch(()=>alert('IndexedDB save failed.'))};
-  body.querySelector('#spRev').onclick=()=>{delete SPRITE_OVR[r.key];if(r.path)delete SPRITE_OVR['path:'+r.path];
-    saveSpriteMedia(r.key).then(()=>r.path?saveSpriteMedia('path:'+r.path):null).then(()=>{spriteSel=-1;renderSprites()})};
+  body.querySelector('#spErase').onclick=()=>{brush.erase=!brush.erase;renderBeastiary()};
+  body.querySelector('#spPrev').onclick=()=>{beastFrame=(beastFrame-1+frameCount())%frameCount();drawFrame();renderThumbs()};
+  body.querySelector('#spNext').onclick=()=>{beastFrame=(beastFrame+1)%frameCount();drawFrame();renderThumbs()};
+  body.querySelector('#spAddFrame').onclick=()=>{
+    const n=frameCount();const nw=document.createElement('canvas');nw.width=CELL*(n+1);nw.height=CELL;
+    const g=nw.getContext('2d');g.drawImage(work,0,0);work=nw;beastFrame=n;drawFrame();renderThumbs();
+  };
+  body.querySelector('#spDelFrame').onclick=()=>{
+    const n=frameCount();if(n<=1)return;
+    const nw=document.createElement('canvas');nw.width=CELL*(n-1);nw.height=CELL;const g=nw.getContext('2d');
+    let di=0;for(let i=0;i<n;i++){if(i===beastFrame)continue;g.drawImage(work,i*CELL,0,CELL,CELL,di*CELL,0,CELL,CELL);di++}
+    work=nw;beastFrame=Math.min(beastFrame,n-2);drawFrame();renderThumbs();
+  };
+  body.querySelector('#spSave').onclick=()=>{
+    const data=work.toDataURL('image/png');
+    const nf=frameCount(), fp=Math.max(1,Math.min(30,+(body.querySelector('#spFps').value)||8));
+    SPRITE_OVR[a.key]={data,frames:nf,fps:fp};
+    if(a.path)SPRITE_OVR['path:'+a.path]={data,frames:nf,fps:fp};
+    delete SPRITES[data];
+    saveSpriteMedia(a.key).then(()=>a.path?saveSpriteMedia('path:'+a.path):null)
+      .then(()=>alert('Saved '+nf+' frame(s).')).catch(()=>alert('IndexedDB save failed.'));
+  };
+  body.querySelector('#spRev').onclick=()=>{
+    delete SPRITE_OVR[a.key];if(a.path)delete SPRITE_OVR['path:'+a.path];
+    saveSpriteMedia(a.key).then(()=>a.path?saveSpriteMedia('path:'+a.path):null).then(()=>{beastFrame=0;renderBeastiary()});
+  };
   body.querySelector('#spImp').onclick=()=>body.querySelector('#spFile').click();
-  body.querySelector('#spFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{wg.clearRect(0,0,128,128);wg.drawImage(im,0,0,128,128);drawPaint()};im.src=rd.result};rd.readAsDataURL(f)};
+  body.querySelector('#spFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>loadStrip(rd.result,0);rd.readAsDataURL(f)};
 }
 
 window.__hiveSwarmForge=()=>copy(EDIT);
