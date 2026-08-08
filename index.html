@@ -92,8 +92,14 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{ha
   // (maybeDropWeapon does a weighted pick over EDIT.weapons; 1 = baseline, all guns shipped equal).
   {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:760,dropWeight:1,sfx:'m41a-pulse-rifle.mp3',icon:0},
   {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5,dropWeight:1,sfx:'magic-spell.mp3',icon:1},
-  // Rocket Launcher: unguided multi-shot friendly shell. Scatter/pierce/ricochet apply via kind 'rocket'.
-  {id:'weapon.rocket',name:'Rocket Launcher',kind:'rocket',damage:40,rate:.62,speed:380,shots:1,pierce:0,color:'#ff9a3d',range:700,blast:56,dropWeight:1,sfx:'grenade.mp3',icon:5},
+  // Flamethrower replaces the old unguided multi-shot launcher weapon (owner 2026-08-08): Heat
+  // Seeker ('homing') already covered the "explosive projectile" niche, making that weapon
+  // redundant, and this game had no cone weapon (HiVE WAR's flamethrower). kind:'flame' is a CONTINUOUS cone, not a discrete
+  // projectile — see the kind==='flame' branch in fire() — so it is excluded from
+  // scatter/pierce/ricochet (same treatment as beam/chain) but keeps rapid/knockback/overcharge.
+  // No dedicated flame SFX ships in assets/SFX, so it reuses light-machine-gun.mp3 (closest
+  // existing continuous-fire sample) rather than a one-shot cue like grenade.mp3.
+  {id:'weapon.flame',name:'Flamethrower',kind:'flame',damage:9,rate:.06,speed:0,shots:1,pierce:99,color:'#ff9a3d',range:260,flameWidth:38,flameLength:260,burnDps:40,burnTime:2.2,dropWeight:1,sfx:'light-machine-gun.mp3',icon:5},
   {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'electric-explosive.mp3',icon:2},
   {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:150,jumps:4,dropWeight:1,coreWidth:1.8,glowWidth:12,glowIntensity:1,sfx:'lightning01.mp3',icon:3},
   {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78,dropWeight:1,shards:3,sfx:'grenade.mp3',icon:4},
@@ -116,11 +122,24 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{ha
 // a between-stage break (upgrade card + continue), then the next stage begins. Data-driven so
 // FORGE/DATA tab JSON export can retune name/seconds/enemyCap/bg/bossMul later without code edits.
 stages:[
-  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bgArt:'art_src/stages/outskirts.jpg',obstacleArt:'art_src/obstacles/outskirts.png',bossMul:6},
-  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bgArt:'art_src/stages/sewers.jpg',obstacleArt:'art_src/obstacles/sewers.png',bossMul:7},
-  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bgArt:'art_src/stages/downtown.jpg',obstacleArt:'art_src/obstacles/downtown.png',bossMul:8},
-  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bgArt:'art_src/stages/highway.jpg',obstacleArt:'art_src/obstacles/highway.png',bossMul:9},
-  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bgArt:'art_src/stages/hivecore.jpg',obstacleArt:'art_src/obstacles/hivecore.png',bossMul:12}
+  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bgArt:'art_src/stages/outskirts.jpg',obstacleArt:'art_src/obstacles/outskirts.png',bossMul:6,bossId:'boss.outskirts'},
+  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bgArt:'art_src/stages/sewers.jpg',obstacleArt:'art_src/obstacles/sewers.png',bossMul:7,bossId:'boss.sewers'},
+  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bgArt:'art_src/stages/downtown.jpg',obstacleArt:'art_src/obstacles/downtown.png',bossMul:8,bossId:'boss.downtown'},
+  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bgArt:'art_src/stages/highway.jpg',obstacleArt:'art_src/obstacles/highway.png',bossMul:9,bossId:'boss.highway'},
+  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bgArt:'art_src/stages/hivecore.jpg',obstacleArt:'art_src/obstacles/hivecore.png',bossMul:12,bossId:'boss.hivecore'}
+],
+// PER-STAGE BOSS SLOTS (owner 2026-08-08, "each boss has its own slot in bosses"): first-class,
+// FORGE-editable guardians. `baseEntityId` picks which shipped entity's sprite/anim the boss borrows
+// (no new art needed, same as the old derive-from-roster behaviour); everything else is the boss's
+// own stat block. hp/speed/damage/scale/color are absolute (NOT multipliers off the base entity) so
+// a designer can tune a guardian without doing the old roster-derive math in their head.
+// addTotal/addPerSec = optional minion trickle during the fight; addTotal:0 = no adds at all.
+bosses:[
+  {id:'boss.outskirts',name:'Outskirts Guardian',baseEntityId:'enemy.brute',hp:520,speed:36,damage:22,scale:1.6,color:'#e5a66e',xp:8,score:250,addTotal:0,addPerSec:0,roar:'praetorian01.mp3'},
+  {id:'boss.sewers',name:'Sewers Guardian',baseEntityId:'enemy.armored',hp:820,speed:40,damage:26,scale:1.65,color:'#71889b',xp:10,score:300,addTotal:4,addPerSec:.4,roar:'praetorian02.mp3'},
+  {id:'boss.downtown',name:'Downtown Guardian',baseEntityId:'enemy.mutant',hp:1180,speed:44,damage:30,scale:1.7,color:'#d86c67',xp:12,score:350,addTotal:6,addPerSec:.5,roar:'xeno attack.mp3'},
+  {id:'boss.highway',name:'Highway Guardian',baseEntityId:'enemy.colossus',hp:1600,speed:34,damage:36,scale:1.5,color:'#8b765f',xp:16,score:420,addTotal:8,addPerSec:.6,roar:'eldritch sponge attack.mp3'},
+  {id:'boss.hivecore',name:'HiVE Core Guardian',baseEntityId:'enemy.colossus',hp:2400,speed:38,damage:42,scale:1.8,color:'#a46fca',xp:22,score:520,addTotal:10,addPerSec:.75,roar:'xenotera hit.mp3'}
 ]};
 function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(key==='codexPages'){if(Array.isArray(saved.codexPages))next.codexPages=saved.codexPages;continue}if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object'&&!Array.isArray(base[key]))Object.assign(next[key],saved[key])}return next}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
@@ -154,7 +173,7 @@ function codexDefaults(){
   const pages=[]; let n=0;
   const mk=(cat,title,subtitle,body,link)=>pages.push({id:'cx'+(++n),cat,title,subtitle,body:body||'',link:link||''});
   (EDIT.entities||[]).forEach(e=>mk('enemy',e.name||e.id,'Hostile',`Wave ${e.unlockWave||1}+ · HP ${e.hp} · DMG ${e.damage}`,'enemy:'+e.id));
-  (EDIT.weapons||[]).forEach(w=>mk('weapon',w.name||w.id,'Weapon',`Damage ${w.damage} · rate ${w.rate}`+(w.kind==='poison'?` · poison ${w.dot||0}/s for ${w.dotTime||0}s`:''),'weapon:'+w.id));
+  (EDIT.weapons||[]).forEach(w=>mk('weapon',w.name||w.id,'Weapon',`Damage ${w.damage} · rate ${w.rate}`+(w.kind==='poison'?` · poison ${w.dot||0}/s for ${w.dotTime||0}s`:'')+(w.kind==='flame'?` · burn ${w.burnDps||0}/s for ${w.burnTime||0}s`:''),'weapon:'+w.id));
   // Field items — unlock the first time the player actually collects one (not on kill alone).
   mk('item','Biomatter Orb','XP Drop','Glowing scrap that feeds your mid-run level bar. Magnet range pulls it in.','item:xp');
   mk('item','Stim Pack','Health Drop','Red cross vials. Rarer than XP; only worth the detour when you are hurt.','item:heal');
@@ -310,22 +329,30 @@ const MOD_MAX=3;                       // owner spec: up to 3 stacks of the same
 // offerStageBreak() both filter through it, so the matrix lives in exactly one place.
 const MODS=[
   // Scatter = multi-shot for discrete projectiles ONLY. Beam/chain never fire discrete shots —
-  // offering Scatter for them is a dead card (owner 2026-08-08). rocket/nova/homing/poison/bullet all fire projectiles.
-  {id:'scatter',   name:'Scatter',   text:'+2 projectiles per shot',              appliesTo:['bullet','homing','nova','poison','rocket']},
+  // offering Scatter for them is a dead card (owner 2026-08-08). nova/homing/poison/bullet all fire
+  // projectiles. Flame (2026-08-08) is a continuous cone like beam/chain, not a projectile, so it's
+  // excluded here too — see kind==='flame' in fire().
+  {id:'scatter',   name:'Scatter',   text:'+2 projectiles per shot',              appliesTo:['bullet','homing','nova','poison']},
   {id:'venom',     name:'Venom',     text:'+60% poison damage and spread',        appliesTo:['poison']},
-  {id:'pierce',    name:'Piercing',  text:'+1 pierce',                            appliesTo:['bullet','homing','nova','poison','rocket']},
-  {id:'rapid',     name:'Rapid',     text:'-15% time between shots',              appliesTo:['bullet','homing','beam','chain','nova','poison','rocket']},
-  {id:'knockback', name:'Knockback', text:'Pushes enemies back on hit',           appliesTo:['bullet','homing','beam','chain','nova','poison','rocket']},
+  {id:'pierce',    name:'Piercing',  text:'+1 pierce',                            appliesTo:['bullet','homing','nova','poison']},
+  {id:'rapid',     name:'Rapid',     text:'-15% time between shots',              appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
+  {id:'knockback', name:'Knockback', text:'Pushes enemies back on hit',           appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
   // Ricochet: bounce off enemies and arena walls (owner 2026-08-08).
-  {id:'ricochet',  name:'Ricochet',  text:'Bullets bounce off enemies & walls',   appliesTo:['bullet','homing','poison','rocket']},
+  {id:'ricochet',  name:'Ricochet',  text:'Bullets bounce off enemies & walls',   appliesTo:['bullet','homing','poison']},
   // Damage amp — Zombie Waves Overclock cousin for raw DPS.
-  {id:'overcharge',name:'Overcharge',text:'+22% weapon damage',                   appliesTo:['bullet','homing','beam','chain','nova','poison','rocket']},
-  // Bigger projectiles / thicker beam.
-  {id:'giant',     name:'Giant Rounds',text:'+35% projectile / beam size',        appliesTo:['bullet','homing','nova','poison','rocket','beam']},
+  {id:'overcharge',name:'Overcharge',text:'+22% weapon damage',                   appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
+  // Bigger projectiles / thicker beam. Flame deliberately excluded (owner 2026-08-08): it already
+  // has two dedicated size mods (flamelength/flamespread below) — folding 'giant' in too would let
+  // one card double-dip on the same stat, so 'giant' stays projectile/beam-only.
+  {id:'giant',     name:'Giant Rounds',text:'+35% projectile / beam size',        appliesTo:['bullet','homing','nova','poison','beam']},
   // Nova Shell unique: kill explosions spit mini reactor-stars. Base shards (3) + 2 per stack.
   {id:'novastar',  name:'Nova Star', text:'+2 mini nova stars on kill explosion', appliesTo:['nova']},
   // Storm Arc unique: adds jumps on top of the weapon's current jump count (owner 2026-08-08).
   {id:'arcjump',   name:'Forked Arc',text:'+2 Storm Arc jumps',                   appliesTo:['chain']},
+  // Flamethrower unique mods (owner 2026-08-08).
+  {id:'flamelength',name:'Pressure Tank',text:'+25% flame length',                appliesTo:['flame']},
+  {id:'flamespread',name:'Wide Nozzle',  text:'+25% flame width',                 appliesTo:['flame']},
+  {id:'flameburn',   name:'Napalm',      text:'+40% burn damage-over-time',       appliesTo:['flame']},
 ];
 // Passive skills (not weapon-bound). Cap at MOD_MAX stacks; never offer a 3/3 skill again.
 const SKILLS=[
@@ -342,12 +369,17 @@ function wJumps(w){return Math.max(1,(w.jumps||4)+2*modStacks(w.id,'arcjump'))}
 function wDamage(w){return (w.damage||10)*(1+.22*modStacks(w.id,'overcharge'))}
 function wSizeMul(w){return 1+.35*modStacks(w.id,'giant')}
 function wBounces(w){return modStacks(w.id,'ricochet')}
+// Flamethrower unique stats (owner 2026-08-08). 'giant' deliberately does NOT feed these — see the
+// comment on the giant MODS entry — so only the dedicated flame mods scale length/width/burn.
+function wFlameLen(w){return (w.flameLength||260)*(1+.25*modStacks(w.id,'flamelength'))}
+function wFlameWidth(w){return (w.flameWidth||38)*(1+.25*modStacks(w.id,'flamespread'))}
+function wBurnDps(w){return (w.burnDps||0)*(1+.4*modStacks(w.id,'flameburn'))}
 let weaponMods={};                     // { weaponId: { modId: stacks } }
 let weaponOrbs={};                     // { weaponId: orbs banked toward the next rank }
 let skillStacks={};                    // { skillId: stacks } — run-scoped, max MOD_MAX
 // Stage run stats for HiveWar-style debrief
-let runStats={killsBy:{},totalKills:0,orbs:0,weaponsSeen:{},round:0};
-function resetRunStats(){runStats={killsBy:{},totalKills:0,orbs:0,weaponsSeen:{},round:0}}
+let runStats={killsBy:{},totalKills:0,orbs:0,weaponsSeen:{},wave:0};
+function resetRunStats(){runStats={killsBy:{},totalKills:0,orbs:0,weaponsSeen:{},wave:0}}
 function noteKill(e){
   const id=(e&&e.type&&e.type.id)||'unknown', nm=(e&&e.type&&e.type.name)||id;
   if(!runStats.killsBy[id])runStats.killsBy[id]={name:nm,n:0,color:(e.type&&e.type.color)||'#8ab',sprite:(e.type&&e.type.sprite)||''};
@@ -367,7 +399,7 @@ function bankOrb(){for(const w of heldWeapons){const id=w.id;weaponOrbs[id]=(wea
   if(weaponOrbs[id]>=orbsForRank(w.rank||1)&&(w.rank||1)<5){weaponOrbs[id]=0;upgradeWeapon(w);burst(player.x,player.y,w.color||'#6fffe2',14);sfx('hit',.18)}}}
 // Effective stats = base weapon + its mods. Nothing mutates the weapon object, so a mod can never
 // be double-applied and removing one is just arithmetic.
-// Scatter works for every projectile kind (including rocket/nova). Beam/chain excluded via appliesTo.
+// Scatter works for every projectile kind (including nova). Beam/chain/flame excluded via appliesTo.
 function wShots(w){const k=w.kind||'bullet';if(k==='beam'||k==='chain')return 1;return Math.min(9,(w.shots||1)+2*modStacks(w.id,'scatter'))}
 function wPierce(w){return (w.pierce??0)+modStacks(w.id,'pierce')}
 function wRate(w){return Math.max(.05,(w.rate||.2)*Math.pow(.85,modStacks(w.id,'rapid')))}
@@ -400,17 +432,50 @@ function applyKnockback(e,dx,dy,stacks){
   if(mag>KB_CAP){kx=kx/mag*KB_CAP;ky=ky/mag*KB_CAP}
   e.kx=kx;e.ky=ky;
 }
-let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
+// 2026-08-08 (owner): renamed the legacy elapsed-time power-level counter to threatTier so it can't
+// collide with the new WAVE terminology below ("wave" now means "kill-quota wave", never the old
+// timer). threatTier still drives unlockWave gating exactly as `wave` used to.
+let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, threatTier=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
 // STAGE state — stage = index into EDIT.stages (loops with rising bossMul once past the end),
 // stageT = seconds elapsed in the CURRENT stage (freezes while the boss is up or on break),
 // stageBoss = live ref to the boss enemy object (null when none is up).
 let stage=0, stageT=0, stageBoss=null, pendingStageAdvance=null;
-// Owner 2026-08-08: each stage = 3 rounds of rising density, THEN the guardian, THEN debrief → next stage.
-const ROUNDS_PER_STAGE=3;
-let stageRound=0, roundT=0; // stageRound 0..2 during combat rounds; boss after last round
+// Owner 2026-08-08: each stage = 3 WAVES of rising density, THEN the guardian, THEN debrief → next
+// stage. Waves are KILL-BASED, not timed ("a round should be defeating all enemies on screen not a
+// time limit" — Eric). Each wave has a finite spawn ROSTER (waveQuota) trickled in over time via the
+// existing spawnBudget pacing; the wave only ends once every enemy it spawned is dead.
+const WAVES_PER_STAGE=3;
+let stageWave=0; // 0..2 during combat waves; boss once wave 2 (3rd) is cleared
+let waveSpawned=0; // spawned-so-far vs this wave's total quota (spawned, not budget-consumed)
+// SOFTLOCK GUARDS (owner 2026-08-08 — see update() for full reasoning):
+// waveNoKillT = seconds since the last kill while a wave/boss-fight is live; reset on every kill.
+// If it climbs past WAVE_STALL_T with only a few bodies left, the stragglers get teleported to the
+// player instead of leaving them to hunt an unreachable enemy forever.
+let waveNoKillT=0;
+const WAVE_STALL_T=11, WAVE_STALL_MAX_LEFT=3;
+// Boss-fight equivalent (review fix 2026-08-08): bossStallT = seconds since the guardian last TOOK
+// DAMAGE (not since a kill — a legit boss fight goes a long time between deaths). bossStallHp is the
+// low-water mark used to detect that damage. BOSS_STALL_T is deliberately longer than WAVE_STALL_T:
+// a player kiting a tanky guardian while their DoT ticks is normal, so the valve must not yank the
+// boss on top of someone who is legitimately mid-fight.
+let bossStallT=0, bossStallHp=Infinity;
+const BOSS_STALL_T=15;
+// Boss entrance telegraph: bossPendingT counts down from BOSS_TELEGRAPH_T once wave 3 is fully
+// cleared; the guardian itself doesn't spawn until it hits 0, so the player gets a beat of warning
+// (shake + banner + roar) instead of the boss just appearing.
+let bossPendingT=0, bossPendingCfg=null;
+const BOSS_TELEGRAPH_T=1.6;
+// Boss-fight adds: budget accumulator + spawned counter, reset whenever a boss spawns.
+let bossAddBudget=0, bossAddSpawned=0;
 function curStageCfg(){const arr=EDIT.stages&&EDIT.stages.length?EDIT.stages:FORGE_BASE.stages;return arr[stage%arr.length]}
-function roundDuration(){const s=curStageCfg().seconds||60;return Math.max(12,s/ROUNDS_PER_STAGE)}
-function roundBudgetMul(){return 1+stageRound*0.55} // round 1 = 1x, round 2 ≈1.55x, round 3 ≈2.1x
+function curBossCfg(){
+  const cfg=curStageCfg(), list=EDIT.bosses&&EDIT.bosses.length?EDIT.bosses:FORGE_BASE.bosses||[];
+  return list.find(b=>b.id===cfg.bossId)||null;
+}
+function waveBudgetMul(w){return 1+(w??stageWave)*0.55} // wave 1 = 1x, wave 2 ≈1.55x, wave 3 ≈2.1x
+// Total enemies this wave will ever spawn. Ramps with waveBudgetMul so wave 1 is smallest, wave 3
+// biggest, and scales up gently with stage index so later stages still feel denser.
+function waveQuota(w){return Math.max(4,Math.round((10+stage*3)*waveBudgetMul(w)))}
 let shieldCharges=0,shieldCd=0; // Shield Matrix runtime
 let WEAPON,ENEMIES,paused=false,pauseAccum=0;
 const MAX_PARTICLES=220;
@@ -456,7 +521,7 @@ function weaponById(id){return (EDIT.weapons||[]).find(w=>w.id===id)||EDIT.weapo
 // weighted pick came back ~16.6% per weapon, dead uniform across all 6 guns), but because it was
 // pre-equipped turn one far more often than the others. Poison now has its own explicit price,
 // priced with seeker (both are DoT/utility-leaning, mid-tier picks) instead of defaulting cheapest.
-function weaponArmoryCost(id){return id==='weapon.seeker'?4:id==='weapon.rocket'?5:id==='weapon.poison'?4:id==='weapon.beam'?5:id==='weapon.chain'?5:id==='weapon.nova'?6:3}
+function weaponArmoryCost(id){return id==='weapon.seeker'?4:id==='weapon.flame'?5:id==='weapon.poison'?4:id==='weapon.beam'?5:id==='weapon.chain'?5:id==='weapon.nova'?6:3}
 function upgradeWeapon(w){w.rank=Math.min(5,(w.rank||1)+1);w.damage=Math.round(w.damage*1.18);w.rate=Math.max(.06,+(w.rate*0.94).toFixed(3));if(w.rank%3===0)w.pierce=(w.pierce||1)+1;if(w.kind==='poison')w.dot=+((w.dot||8)*1.18).toFixed(2);noteWeapon(w);return w}
 function grantWeapon(id){
   const base=weaponById(id);if(!base)return;
@@ -484,12 +549,12 @@ function reset(){applyForge();
   const startId=(META.startWeapon&&META.ownedWeapons[META.startWeapon])?META.startWeapon:'weapon.pulse';
   const start=weaponById(startId);
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
-  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=wave=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;weaponMods={};weaponOrbs={};skillStacks={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
-  stage=0;stageT=0;stageBoss=null;stageRound=0;roundT=0;shieldCharges=0;shieldCd=0;resetRunStats();
+  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=threatTier=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;weaponMods={};weaponOrbs={};skillStacks={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
+  stage=0;stageT=0;stageBoss=null;stageWave=0;waveSpawned=0;waveNoKillT=0;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;shieldCharges=0;shieldCd=0;resetRunStats();
   genObstacles();for(const o of dmgNums)o.active=0;
   if(WEAPON&&WEAPON.id){codexSee('weapon:'+WEAPON.id,0);noteWeapon(WEAPON)}}
 function rand(a,b){return a+Math.random()*(b-a)} function dist2(a,b){let x=a.x-b.x,y=a.y-b.y;return x*x+y*y}
-function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return}
+function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return false}
   // G6: early waves spawn from full ring (not the facing cone). The cone made "walk forward"
   // walk into every spawn and soft-locked wave 1 even at sane spawn rates.
   let a=elapsed<45||Math.random()<.35?Math.random()*Math.PI*2:player.angle+rand(-Math.PI/3,Math.PI/3);
@@ -503,22 +568,60 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   let total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);let x=Math.max(-WORLD.halfW+type.r,Math.min(WORLD.halfW-type.r,player.x+Math.cos(a)*distance)),y=Math.max(-WORLD.halfH+type.r,Math.min(WORLD.halfH-type.r,player.y+Math.sin(a)*distance));
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
-  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});}
+  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});return true}
 // STAGE climax: one scaled-up copy of the strongest entity this stage's roster allows (no new art
 // needed). cycle = how many full laps through EDIT.stages we've made, so re-visiting Stage 1 after
 // looping past HiVE Core still fields a tougher guardian than the first time.
 function spawnBossEnemy(){
   const cfg=curStageCfg(),stageCap=cfg.enemyCap??99,cycle=Math.floor(stage/((EDIT.stages&&EDIT.stages.length)||FORGE_BASE.stages.length));
-  let roster=ENEMIES.filter(e=>(e.unlockWave||1)<=stageCap);if(!roster.length)roster=ENEMIES;
-  const base=roster.reduce((best,e)=>(!best||(e.unlockWave||1)>=(best.unlockWave||1))?e:best,null);
   const mul=(cfg.bossMul||6)*(1+cycle*.4);
+  // PER-BOSS FORGE SLOT (owner 2026-08-08, "each boss has its own slot in bosses"): prefer a
+  // first-class entry from EDIT.bosses keyed by the stage's bossId. Falls back to the old
+  // derive-from-strongest-roster-entity behaviour when the stage has no bossId, the id doesn't
+  // resolve (stale/hand-edited FORGE JSON), or bosses is missing entirely — this is what keeps an
+  // OLD localStorage FORGE payload (saved before this feature existed, no `bosses` array at all)
+  // from breaking the guardian fight after this update ships.
+  const bcfg=curBossCfg();
+  let roster=ENEMIES.filter(e=>(e.unlockWave||1)<=stageCap);if(!roster.length)roster=ENEMIES;
+  const fallbackBase=roster.reduce((best,e)=>(!best||(e.unlockWave||1)>=(best.unlockWave||1))?e:best,null);
+  const base=(bcfg&&ENEMIES.find(e=>e.id===bcfg.baseEntityId))||fallbackBase;
+  const scale=bcfg?(bcfg.scale||1.6):1.6;
   const a=Math.random()*Math.PI*2,distance=Math.hypot(VIEW.w,VIEW.h)*.6+160;
-  let x=Math.max(-WORLD.halfW+base.r*1.6,Math.min(WORLD.halfW-base.r*1.6,player.x+Math.cos(a)*distance)),
-      y=Math.max(-WORLD.halfH+base.r*1.6,Math.min(WORLD.halfH-base.r*1.6,player.y+Math.sin(a)*distance));
-  const hp=base.hp*mul;
-  codexSee('boss:'+base.id,0);
-  const boss={x,y,r:base.r*1.6,hp,maxHp:hp,speed:base.speed*.85,damage:base.damage*1.4,type:base,color:base.color,hit:0,isBoss:true,bossName:cfg.name+' Guardian'};
-  enemies.push(boss);stageBoss=boss;}
+  const r=base.r*scale;
+  let x=Math.max(-WORLD.halfW+r,Math.min(WORLD.halfW-r,player.x+Math.cos(a)*distance)),
+      y=Math.max(-WORLD.halfH+r,Math.min(WORLD.halfH-r,player.y+Math.sin(a)*distance));
+  const hp=bcfg?(bcfg.hp||base.hp*mul):base.hp*mul;
+  const bossId=bcfg?bcfg.id:'boss:'+base.id;
+  codexSee(bossId,0);
+  const boss={x,y,r,hp,maxHp:hp,
+    speed:bcfg?(bcfg.speed??base.speed*.85):base.speed*.85,
+    damage:bcfg?(bcfg.damage??base.damage*1.4):base.damage*1.4,
+    type:base,color:(bcfg&&bcfg.color)||base.color,hit:0,isBoss:true,
+    bossName:(bcfg&&bcfg.name)||(cfg.name+' Guardian'),
+    rewardScore:(bcfg&&bcfg.score)||250,rewardXp:(bcfg&&bcfg.xp)||0};
+  enemies.push(boss);stageBoss=boss;
+  // Reset the boss-fight add-spawn budget/counter every time a NEW guardian spawns.
+  bossAddBudget=0;bossAddSpawned=0;
+  // Arm the boss stall watchdog against THIS guardian's starting HP (review fix 2026-08-08).
+  bossStallT=0;bossStallHp=boss.hp;
+  waveNoKillT=0;
+}
+// Boss-fight adds (owner 2026-08-08, "amount of spawns total and per second are options to add for
+// spawns during boss fight"). addTotal:0 means no adds at all — the while-guard below never spawns
+// if addTotal is falsy, so a boss with no configured adds behaves exactly like before this feature.
+// Adds are ordinary roster spawns (spawnEnemy()); they do NOT gate the fight ending — the boss dying
+// ends it regardless of how many adds are still alive (see killEnemy's wasBoss branch), and they are
+// never counted against waveSpawned/waveQuota so they can't keep a "wave" (which is already cleared
+// by the time the boss is up) artificially alive.
+function updateBossAdds(dt){
+  const bcfg=curBossCfg();
+  const addTotal=bcfg?Math.max(0,bcfg.addTotal|0):0;
+  if(!addTotal||bossAddSpawned>=addTotal)return;
+  const addPerSec=Math.max(0,bcfg.addPerSec||0);
+  if(!addPerSec)return;
+  bossAddBudget+=dt*addPerSec;
+  while(bossAddBudget>=1&&bossAddSpawned<addTotal){bossAddBudget-=1;if(spawnEnemy())bossAddSpawned++}
+}
 function nearestEnemy(from,ignore,ok){let target=null,best=Infinity;for(const e of enemies){if(ignore&&ignore.has(e))continue;if(ok&&!ok(e))continue;let d=(from.x-e.x)**2+(from.y-e.y)**2;if(d<best){best=d;target=e}}return target}
 // S.7 owner bug: "after an enemy is poisoned the weapon stops targeting them". The toxin gun kept
 // dumping shots into a target that was already dying of the DoT. It now looks for the nearest
@@ -549,7 +652,22 @@ function fire(){
       for(const e of hitList)killEnemy(e);
       if(w.sfx)sfxFile(w.sfx,.04);else sfx('fire',.04);continue}
     if(kind==='chain'){
-      let cur=wTarget, hit=new Set(), jumps=wJumps(w), from={x:player.x,y:player.y};
+      // Range-consistency (owner 2026-08-08, "storm arc range... it don't seem to stay consistent"):
+      // wTarget is the SAME globally-nearest `target` used to aim every other weapon, with NO range
+      // bound, so the first zap could reach arbitrarily far while every later jump was correctly
+      // capped to w.range (see the jump-distance check below).
+      //
+      // REVIEW FIX 2026-08-08: the first attempt at this bounded the first link by RANGE-TESTING
+      // wTarget and `continue`-ing on failure. That `continue` is on the OUTER `for(const w of
+      // heldWeapons)` loop, so whenever the globally-nearest enemy happened to be out of range the
+      // gun skipped its turn entirely — even with other enemies well inside range. That's a dead
+      // zone, not a range cap. Correct behaviour: pick the first link as the nearest enemy WITHIN
+      // range (same rule links 2..N already get via nearestEnemy(from,hit) + the distance check),
+      // and only decline to fire when NO enemy at all is in range.
+      const chainRangeSq=(w.range||150)**2;
+      let cur=nearestEnemy(player,null,e=>(e.x-player.x)**2+(e.y-player.y)**2<=chainRangeSq);
+      if(!cur)continue; // genuinely nothing in range — the only case Storm Arc holds fire
+      let hit=new Set(), jumps=wJumps(w), from={x:player.x,y:player.y};
       const chainGlow=Math.max(4,(w.glowWidth||12)*(w.glowIntensity??1));
       const chainCore=Math.max(0.6,w.coreWidth||1.8);
       for(let j=0;j<jumps&&cur;j++){
@@ -563,22 +681,70 @@ function fire(){
         from={x:cur.x,y:cur.y};cur=nearestEnemy(from,hit);
         if(cur&&(cur.x-from.x)**2+(cur.y-from.y)**2>(w.range||150)**2)cur=null}
       if(w.sfx)sfxFile(w.sfx,.12);else sfx('hit',.1);continue}
-    // projectile kinds: bullet / homing / nova / poison / rocket
-    if(w.sfx)sfxFile(w.sfx,(kind==='nova'||kind==='rocket')?.14:.08);else sfx('fire',(kind==='nova'||kind==='rocket')?.12:.08);
+    if(kind==='flame'){
+      // Flamethrower (owner 2026-08-08): continuous cone, not a projectile — same family as
+      // beam/chain (no wShots/wPierce/scatter/ricochet). Every tick it damages every enemy inside
+      // a cone from the player aimed at wa, reach wFlameLen(w), half-angle derived from
+      // wFlameWidth(w) (treated as the cone's width in px AT full reach). It also applies a burn
+      // DoT via its OWN e.burnDps/e.burnT fields.
+      //
+      // BURN vs POISON FIELD SEPARATION (owner 2026-08-08, review fix): burn originally reused
+      // e.poisonT/poisonDps/poisonStacks. That was a real bug — poison writes those fields with an
+      // INCREMENTAL multiplicative model (`e.poisonDps=(b.dot||8)*nextStacks`, gated on
+      // `e.poisonT>0?(e.poisonStacks||1):0`) while flame wrote them with a take-the-max model, so
+      // poison read flame-authored stacks as its own prior stacks and flame's max() swallowed
+      // poison's DPS (probe: poisonDps=33.6 stacks=1, impossible under either formula). Burn now
+      // owns e.burnDps/e.burnT exclusively and ticks in its own block in update().
+      //
+      // DPS TUNING (owner 2026-08-08, review fix). Both flame and beam are continuous per-tick
+      // weapons, so the tick rate cancels out: DPS = tickDamage * (1/rate).
+      //   Breach Laser: tick = dmg*rate*3, ticks/s = 1/rate  ->  DPS = dmg*3 = 28*3 = 84
+      //   Flamethrower direct: tick = dmg*rate*2.2           ->  DPS = dmg*2.2 = 9*2.2 = 19.8
+      //   Flamethrower burn (burnDps 40, refreshed every tick while in cone) ->  40
+      //   Flame sustained single-target total = 19.8 + 40 = 59.8 DPS
+      // 59.8 vs the laser's 84 keeps the laser the precision/single-target king, while flame wins
+      // hard on a packed crowd (a 38px-wide cone catches far more bodies than a 1-px-wide ray) and
+      // leans ~67% of its damage on the burn DoT, which also keeps ticking after the target leaves
+      // the cone. Short range (260 vs 720) is the cost of that area. Overcharge scales the direct
+      // tick only; Napalm scales burnDps only — neither double-dips.
+      const len=wFlameLen(w), halfAng=Math.atan2(wFlameWidth(w)/2,len);
+      beams.push({flame:1,x:player.x,y:player.y,ang:wa,len,halfAng,color:w.color,life:.1});
+      const tick=dmg*w.rate*2.2;
+      const burn=wBurnDps(w);
+      // Collect-then-kill, same as the beam branch above: killEnemy() -> explode() can kill more
+      // enemies and splice the array, which is unsafe to do while iterating it.
+      const flameKills=[];
+      for(const e of enemies){
+        const dx=e.x-player.x,dy=e.y-player.y,d=Math.hypot(dx,dy);if(d>len+e.r)continue;
+        let diff=Math.atan2(dy,dx)-wa;diff=((diff+Math.PI*3)%(Math.PI*2))-Math.PI;
+        if(Math.abs(diff)>halfAng+Math.atan2(e.r,Math.max(1,d)))continue;
+        e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);
+        applyKnockback(e,dx,dy,modStacks(w.id,'knockback'));
+        if(Math.random()<.4)burst(e.x,e.y,'#ff9a3d',2);
+        // Refresh only — this writes no damage, so the ~16 refreshes/sec at rate .06 can never
+        // double-apply. All burn damage is dealt once per frame by the burn tick in update(),
+        // and fire() itself runs at most once per frame (`if(fireClock<=0)`, not `while`).
+        e.burnDps=Math.max(e.burnDps||0,burn);e.burnT=Math.max(e.burnT||0,w.burnTime||2.2);
+        if(e.hp<=0)flameKills.push(e);
+      }
+      for(const e of flameKills)killEnemy(e);
+      if(w.sfx)sfxFile(w.sfx,.05);else sfx('fire',.05);continue}
+    // projectile kinds: bullet / homing / nova / poison
+    if(w.sfx)sfxFile(w.sfx,kind==='nova'?.14:.08);else sfx('fire',kind==='nova'?.12:.08);
     const shots=wShots(w);
     const shards=kind==='nova'?wNovaShards(w):0;
     const sm=wSizeMul(w), bounces=wBounces(w);
-    // Wider fan when Scatter stacks so multi-shot reads clearly (esp. rocket launcher).
+    // Wider fan when Scatter stacks so multi-shot reads clearly.
     const fan=.12+.04*Math.max(0,shots-1);
     for(let i=0;i<shots;i++){
       let spread=(i-(shots-1)/2)*fan;
       const ang=wa+spread;
-      const baseR=kind==='nova'?7:kind==='rocket'?6:kind==='homing'?5:4;
+      const baseR=kind==='nova'?7:kind==='homing'?5:4;
       bullets.push({
         x:player.x+Math.cos(ang)*18,y:player.y+Math.sin(ang)*18,
         vx:Math.cos(ang)*(w.speed||700),vy:Math.sin(ang)*(w.speed||700),
         r:baseR*sm,
-        damage:dmg,pierce:wPierce(w),life:kind==='homing'?2.2:kind==='nova'?1.4:kind==='rocket'?1.5:1.05,
+        damage:dmg,pierce:wPierce(w),life:kind==='homing'?2.2:kind==='nova'?1.4:1.05,
         dot:(w.dot||0)*venomMul(w),dotTime:w.dotTime||0,slow:w.slowFactor??1,stackMax:w.poisonStackMax??1,
         spread:kind==='poison'?{chance:(w.spreadChance??.9)*venomMul(w),radius:w.spreadRadius??52,factor:w.spreadFactor??.7,slow:w.slowFactor??1}:null,
         kb:modStacks(w.id,'knockback'),
@@ -599,6 +765,7 @@ function spawnNovaShards(x,y,count,opts){
 }
 function killEnemy(e,gibs,killOpts){
   const idx=enemies.indexOf(e);if(idx<0)return;
+  waveNoKillT=0; // any kill (wave enemy, boss, or add) proves progress — feeds the softlock valve
   score+=10;noteKill(e);
   // Prefer per-entity die SFX from FORGE, fall back to global kill.
   const dieSfx=(e.type&&e.type.sfxDie)||'';
@@ -631,7 +798,15 @@ function killEnemy(e,gibs,killOpts){
   explode(ex,ey,ecol,42,gibs);
   // STAGE clear: the boss dying ends the stage immediately — bigger blast, score bonus, then the
   // between-stage break screen (mirrors how the level-up card interrupts play at pickups line ~410).
-  if(wasBoss){stageBoss=null;score+=250;shake=Math.min(10,shake+6);explode(ex,ey,'#ffe066',110,true);state='debrief';startDebrief()}}
+  if(wasBoss){
+    score+=e.rewardScore||250;
+    if(e.rewardXp)pickups.push({x:ex,y:ey,value:e.rewardXp});
+    stageBoss=null;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;
+    // Leftover adds are allowed to persist into the debrief (owner spec: "any leftover adds should
+    // be cleared or allowed to persist into the debrief without breaking the wave-clear logic") —
+    // they were never counted toward waveSpawned/waveQuota so the next stage's wave-clear check
+    // starts clean regardless (offerStageBreak() also hard-clears enemies=[] on advance()).
+    shake=Math.min(10,shake+6);explode(ex,ey,'#ffe066',110,true);state='debrief';startDebrief()}}
 function burst(x,y,color,n=8){n=Math.min(n,MAX_PARTICLES-particles.length);for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(25,160);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.6),color,r:rand(1.5,3.5)})}}
 // S3 — Heat Seeker kills gib enemies into rotating debris chunks, on top of the existing puff.
 // Same particle pool/budget as burst(); a dedicated draw-time shape (rotated rect) makes them
@@ -674,27 +849,89 @@ function update(dt){
   if(paused){// freeze sim: no spawnBudget/fireClock/enemy advance — resume is frame-clean
     for(let i=beams.length-1;i>=0;i--){beams[i].life-=dt;if(beams[i].life<=0)beams.splice(i,1)}
     return}
-  if(state!=='play')return;elapsed+=dt;wave=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));pushOutOfObstacles(player);followCamera();
-// STAGE: advance the in-stage clock only while no guardian is up; once stageT crosses the
-// stage's seconds budget, spawn the guardian and freeze normal spawn growth (existing mobs still
-// fight) until it dies (killEnemy → offerStageBreak → advance() resets stageT for the next stage).
-// 3 rounds per stage then boss (owner 2026-08-08). stageT still tracks total stage time for HUD.
-if(!stageBoss){
-  stageT+=dt;roundT+=dt;
-  const rd=roundDuration();
-  if(roundT>=rd){
-    if(stageRound<ROUNDS_PER_STAGE-1){
-      stageRound++;roundT=0;wave=Math.max(wave,1+stageRound*2);
-      // brief visual cue
-      burst(player.x,player.y,'#6fffe2',18);sfx('kill',.12);
-    }else if(!stageBoss){
-      // final round expired → guardian
-      spawnBossEnemy();
+  if(state!=='play')return;elapsed+=dt;threatTier=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));pushOutOfObstacles(player);followCamera();
+// STAGE / WAVE (owner 2026-08-08, rewritten from a timer to KILL-BASED waves): each stage is
+// WAVES_PER_STAGE (3) waves, each with a finite spawn quota (waveQuota()) trickled in at the usual
+// spawnBudget pace. A wave only ends when every enemy it spawned is dead — enemies.length===0 is a
+// safe proxy for "every wave enemy is dead" here because during waves 1-3 stageBoss is always null
+// (nothing else is pushing to `enemies`), and once the boss IS up this whole branch is skipped, so
+// adds spawned during the boss fight (see updateBossAdds) can never be mistaken for wave enemies or
+// block a wave from clearing.
+if(bossPendingT>0){
+  // Boss entrance telegraph — brief shake/banner window between "wave 3 cleared" and the guardian
+  // actually appearing. See draw() for the banner text.
+  stageT+=dt;bossPendingT=Math.max(0,bossPendingT-dt);shake=Math.min(10,shake+dt*6);
+  if(bossPendingT<=0){spawnBossEnemy();if(bossPendingCfg&&bossPendingCfg.roar)sfxFile(bossPendingCfg.roar,.5);else sfx('kill',.3)}
+}else if(!stageBoss){
+  stageT+=dt;
+  const quota=waveQuota(stageWave);
+  if(waveSpawned<quota){
+    spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,threatTier)*waveBudgetMul();
+    while(spawnBudget>=1&&waveSpawned<quota){spawnBudget-=1;if(spawnEnemy())waveSpawned++}
+  }
+  // SOFTLOCK GUARD (owner 2026-08-08 — the headline risk of the kill-based rewrite): a wave that can
+  // never reach "quota drained AND enemies.length===0" would hang the run forever. Track time since
+  // the last kill; once it exceeds WAVE_STALL_T, drag the blockers to the player rather than leaving
+  // them unreachable (wedged in an obstacle, wandered off-clamp, or simply lost by the player).
+  //
+  // REVIEW FIX 2026-08-08 (finding 2): this used to be hard-capped at `enemies.length<=3`, which made
+  // the valve a NO-OP in exactly the catastrophic case — a reviewer forced all damage to zero, the
+  // wave sat at 10 live enemies, waveNoKillT climbed past 600s, and the valve never fired because
+  // 10 > 3. Protecting only the common case and leaving the total-stall case unguarded is backwards
+  // for a safety valve. Now:
+  //   - once waveSpawned>=quota nothing further is coming, so EVERY remaining body is by definition
+  //     the thing blocking the wave and all of them get dragged in — no cap at all;
+  //   - while the wave is still spawning, the cap scales off WORLD.maxEnemies instead of a magic 3,
+  //     so it still can't fire during ordinary mid-wave combat on any FORGE config.
+  // WAVE_STALL_T (11s with zero kills) is the grace period that keeps this invisible to a competent
+  // player — normal play kills something every couple of seconds, which resets waveNoKillT.
+  waveNoKillT+=dt;
+  if(waveNoKillT>WAVE_STALL_T&&enemies.length>0){
+    const stallCap=waveSpawned>=quota?Infinity:Math.max(WAVE_STALL_MAX_LEFT,Math.ceil((WORLD.maxEnemies||220)*.25));
+    if(enemies.length<=stallCap){
+      for(const e of enemies){const a=Math.random()*Math.PI*2,d=rand(60,140);e.x=player.x+Math.cos(a)*d;e.y=player.y+Math.sin(a)*d;clampEnemy(e);pushOutOfObstacles(e);e.kx=0;e.ky=0}
+      waveNoKillT=0; // give the player a fresh window before nudging again
     }
   }
+  if(waveSpawned>=quota&&enemies.length===0){
+    if(stageWave<WAVES_PER_STAGE-1){
+      stageWave++;waveSpawned=0;waveNoKillT=0;
+      burst(player.x,player.y,'#6fffe2',18);sfx('kill',.12);
+    }else{
+      // wave 3 cleared → telegraph, then the guardian (spawnBossEnemy runs once bossPendingT hits 0)
+      bossPendingCfg=curBossCfg();bossPendingT=BOSS_TELEGRAPH_T;waveNoKillT=0;
+      shake=Math.min(10,shake+8);burst(player.x,player.y,'#ffe066',24);
+    }
+  }
+}else{
+  // Guardian is up: no wave spawning, just its own add trickle (0 adds is a no-op — see updateBossAdds).
+  updateBossAdds(dt);
+  // BOSS SOFTLOCK GUARD (review fix 2026-08-08, finding 1). The wave valve above lives inside the
+  // `else if(!stageBoss)` branch, so once the guardian spawned NOTHING advanced waveNoKillT and the
+  // boss fight had zero stall protection: a reviewer held a boss at zero damage for 600 simulated
+  // seconds and the run sat permanently on stage 0 with no recovery path. This is the asymmetry the
+  // kill-based rewrite introduced — the old timer-based rounds never blocked on one specific enemy
+  // dying, so they physically could not hang; a single unreachable boss now can. No organic trigger
+  // exists in today's shipped content, so this is structural insurance, but the guardian is exactly
+  // the encounter where a hang is unrecoverable and most infuriating, and the fix is cheap.
+  //
+  // The rescue is boss-appropriate rather than a copy of the wave teleport: the BOSS is the thing
+  // that must die, so it is what gets pulled to the player (adds are irrelevant — they never gate the
+  // fight). bossStallT is reset by any damage landing on the boss, not merely by a kill, because a
+  // boss fight legitimately runs a long time between deaths; "no damage dealt to the guardian for
+  // BOSS_STALL_T seconds" is the real definition of no progress here. Each successive rescue also
+  // clears the boss's knockback and drops it right on top of the player, so the fight cannot sit at
+  // zero progress indefinitely under any circumstance.
+  bossStallT+=dt;
+  if(stageBoss&&stageBoss.hp<bossStallHp-0.01){bossStallHp=stageBoss.hp;bossStallT=0} // damage = progress
+  if(bossStallT>BOSS_STALL_T&&stageBoss){
+    const a=Math.random()*Math.PI*2,d=rand(50,110);
+    stageBoss.x=player.x+Math.cos(a)*d;stageBoss.y=player.y+Math.sin(a)*d;
+    stageBoss.kx=0;stageBoss.ky=0;clampEnemy(stageBoss);pushOutOfObstacles(stageBoss);
+    shake=Math.min(10,shake+5);burst(stageBoss.x,stageBoss.y,'#ffe066',18);
+    bossStallT=0;
+  }
 }
-if(!stageBoss)spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave)*roundBudgetMul();
-while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}
 // Shield Matrix recharge
 if((skillStacks.shield||0)>0){shieldCd=Math.max(0,shieldCd-dt);if(shieldCd<=0&&shieldCharges<(skillStacks.shield||0)){shieldCharges=skillStacks.shield;shieldCd=12}}
 fireClock-=dt;if(fireClock<=0){fireClock+=wRate(WEAPON);fire();fireDrones()}
@@ -716,6 +953,18 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
     if(!isStaticEnemy(e)){e.x+=sx/sd*push;e.y+=sy/sd*push;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y}
     if(!isStaticEnemy(o)){o.x-=sx/sd*push;o.y-=sy/sd*push;clampEnemy(o)}}}
   pushOutOfObstacles(e);clampEnemy(e);e.hit=Math.max(0,e.hit-dt);
+      // Flamethrower BURN DoT tick (owner 2026-08-08). Deliberately its own block on its own
+      // e.burnDps/e.burnT fields — see the field-separation comment in fire()'s flame branch for
+      // why sharing the poison fields was a bug. Same shape as the poison tick below (drain by
+      // dps*dt once per frame, a damage number + puff every .18s) but orange so burn reads as
+      // visually distinct from green poison. No slow and no contagion: burn is pure damage.
+      // Napalm stacks scale e.burnDps upstream in wBurnDps(), never here.
+      if(e.burnT>0){e.hp-=e.burnDps*dt;e.burnT=Math.max(0,e.burnT-dt);e.burnTick=(e.burnTick||0)+dt;
+        if(e.burnTick>.18){spawnDmgNum(e.x,e.y-e.r,e.burnDps*.18);burst(e.x,e.y,'#ff9a3d',1);e.burnTick=0}
+        if(e.burnT<=0){e.burnDps=0;e.burnTick=0}}
+      // NOTE: no killEnemy() here on purpose — same as the poison tick. Deaths from DoT are
+      // reaped by the "clean dead marked by beam damage mid-loop" sweep after this loop, so
+      // explode()'s recursive kills can never splice enemies out from under this iteration.
       // S4 — poison DoT tick: keeps draining after the hit lands, independent of contact/bullet damage.
       if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}
         // S.7 CONTAGION (owner spec): "if the infected hit another enemy, they get infected".
@@ -740,7 +989,15 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
         if(player.hp<=0){player.hp=0;if(score>(META.bestScore||0)){META.bestScore=score;saveMeta()}state='dead';setPaused(false)}}}
         if(!isStaticEnemy(e)){e.x-=vx/d*28;e.y-=vy/d*28;clampEnemy(e)}}}
 for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
-  if(b.kind==='homing'){const t=nearestEnemy(b);if(t){const desired=Math.atan2(t.y-b.y,t.x-b.x),cur=Math.atan2(b.vy,b.vx);let diff=((desired-cur+Math.PI*3)%(Math.PI*2))-Math.PI;const maxTurn=(b.turn||7)*dt;diff=Math.max(-maxTurn,Math.min(maxTurn,diff));const sp=Math.hypot(b.vx,b.vy)||400;const na=cur+diff;b.vx=Math.cos(na)*sp;b.vy=Math.sin(na)*sp}}
+  if(b.kind==='homing'){const t=nearestEnemy(b);if(t){const desired=Math.atan2(t.y-b.y,t.x-b.x),cur=Math.atan2(b.vy,b.vx);let diff=((desired-cur+Math.PI*3)%(Math.PI*2))-Math.PI;const maxTurn=(b.turn||7)*dt;diff=Math.max(-maxTurn,Math.min(maxTurn,diff));const sp=Math.hypot(b.vx,b.vy)||400;const na=cur+diff;b.vx=Math.cos(na)*sp;b.vy=Math.sin(na)*sp}
+    // Heat Seeker smoke trail (owner 2026-08-08): a fading grey/white puff every ~0.03s along the
+    // missile's path. Budget guard: burst()/spawnGibs() already clamp to MAX_PARTICLES(220), so a
+    // screen full of scattered missiles just stops spawning new smoke once the pool is full rather
+    // than starving explosion/gib particles — smoke is the lowest-priority visual, so it's the one
+    // allowed to silently drop first.
+    b.smokeT=(b.smokeT||0)+dt;if(b.smokeT>.03){b.smokeT=0;
+      if(particles.length<MAX_PARTICLES){const g=rand(.75,.92)*255|0,gc=`rgb(${g},${g},${g})`;
+        particles.push({x:b.x,y:b.y,vx:-b.vx*.06+rand(-8,8),vy:-b.vy*.06+rand(-8,8),life:rand(.35,.55),color:gc,r:rand(2,4)})}}}
   b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
   // Ricochet off arena bounds
   if((b.bounces|0)>0){
@@ -751,9 +1008,12 @@ for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
   if(b.trail){b.trail.push(b.x,b.y);if(b.trail.length>16)b.trail.splice(0,2)}
   let removed=b.life<=0;
   const novaMetaFor=()=>({shards:b.shards||0,damage:b.damage,color:b.color,blast:b.blast||70,kb:b.kb});
-  if(removed&&(b.kind==='nova'||b.kind==='novashard'||b.kind==='rocket'))explode(b.x,b.y,b.color||'#ffe066',b.blast||(b.kind==='rocket'?56:70),false,b.kb,b.kind==='nova'?novaMetaFor():null);
-  for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){
-    if(b.kind==='nova'||b.kind==='novashard'||b.kind==='rocket'){explode(b.x,b.y,b.color||'#ffe066',b.blast||(b.kind==='rocket'?56:70),false,b.kb,b.kind==='nova'?novaMetaFor():null);removed=true;break}
+  if(removed&&(b.kind==='nova'||b.kind==='novashard'))explode(b.x,b.y,b.color||'#ffe066',b.blast||70,false,b.kb,b.kind==='nova'?novaMetaFor():null);
+  // Same shrink-faster-than-the-index hazard as the DoT sweep below: a nova/AOE hit inside this loop
+  // calls explode() -> killEnemy() which can splice SEVERAL enemies at once, so by a later iteration
+  // enemies[j] can be undefined. Clamp + skip instead of indexing blind (crash fix 2026-08-08).
+  for(let j=enemies.length-1;j>=0&&!removed;j--){if(j>=enemies.length)j=enemies.length-1;let e=enemies[j];if(!e)continue;let r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){
+    if(b.kind==='nova'||b.kind==='novashard'){explode(b.x,b.y,b.color||'#ffe066',b.blast||70,false,b.kb,b.kind==='nova'?novaMetaFor():null);removed=true;break}
     if(b.kind==='poison'){
       // Owner bug 2026-08-06: "it hits an enemy and continues to hit". A carrier no longer eats the
       // dart for nothing once already at max potency — the shot flies THROUGH a saturated target
@@ -785,8 +1045,14 @@ for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
     }}}
   if(removed)bullets.splice(i,1)}
 for(let i=beams.length-1;i>=0;i--){beams[i].life-=dt;if(beams[i].life<=0)beams.splice(i,1)}
-// clean dead marked by beam damage mid-loop
-for(let i=enemies.length-1;i>=0;i--)if(enemies[i].hp<=0)killEnemy(enemies[i]);
+// clean dead marked by beam/DoT damage mid-loop.
+// CRASH FIX 2026-08-08: this indexed `enemies[i]` unguarded, but killEnemy() -> explode() can chain
+// and splice SEVERAL bodies out in one call, so the array can shrink faster than i decrements —
+// leaving enemies[i] undefined and throwing "Cannot read properties of undefined (reading 'hp')".
+// Latent since the sweep was written; the kill-based waves + boss adds push enough simultaneous
+// bodies/AOE chains to actually hit it (reproduced in the harness at t=86s). Clamp i to the current
+// length each step and null-guard the slot.
+for(let i=enemies.length-1;i>=0;i--){if(i>=enemies.length)i=enemies.length-1;const e=enemies[i];if(e&&e.hp<=0)killEnemy(e)}
 // XP orbs — pickupRadius is magnet reach; bank only on touch.
 for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.y-p.y,d=Math.hypot(dx,dy)||1;
   p.t=(p.t||0)+dt;p.vx=p.vx||0;p.vy=p.vy||0;
@@ -812,7 +1078,7 @@ for(let i=0;i<dmgNums.length;i++){const o=dmgNums[i];if(!o.active)continue;o.y+=
 shake=Math.max(0,shake-dt*25)}
 function sx(x){return x-cam.x+VIEW.w/2}function sy(y){return y-cam.y+VIEW.h/2}
 // QA probe — Playwright cannot see script-scoped let; publish on window.
-window.__swarmDbg=()=>({state,wave,stage,stageT,stageBoss:!!stageBoss,elapsed,score,level,xp,nextXp,orbsCollected,
+window.__swarmDbg=()=>({state,wave:stageWave+1,threatTier,stage,stageT,stageWave,waveSpawned,waveQuota:waveQuota(stageWave),bossPendingT,stageBoss:!!stageBoss,elapsed,score,level,xp,nextXp,orbsCollected,
   pickups:pickups.length,enemies:enemies.length,hp:player.hp,px:Math.round(player.x),py:Math.round(player.y),
   slot:currentSlot(),codexUnlocked:codexVisible().length,codexTotal:codexPages().length,
   credits:META.credits||0,bestScore:META.bestScore||0,paused,version:GAME_VERSION,
@@ -820,7 +1086,7 @@ window.__swarmDbg=()=>({state,wave,stage,stageT,stageBoss:!!stageBoss,elapsed,sc
     shots:wShots(w),pierce:wPierce(w),mods:Object.assign({},weaponMods[w.id]||{}),orbs:weaponOrbs[w.id]||0,nextRankAt:orbsForRank(w.rank||1)})),
   weaponMods:Object.assign({},weaponMods),
   startWeapon:META.startWeapon||'weapon.pulse',bullets:bullets.length,beams:beams.length,particles:particles.length,
-  obstacles:obstacles.length,poisoned:enemies.filter(e=>e.poisonT>0).length,dmgNumsActive:dmgNums.filter(o=>o.active).length,
+  obstacles:obstacles.length,poisoned:enemies.filter(e=>e.poisonT>0).length,burning:enemies.filter(e=>e.burnT>0).length,dmgNumsActive:dmgNums.filter(o=>o.active).length,
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 window.__swarmPause=setPaused;window.__swarmTogglePause=togglePause;
@@ -841,6 +1107,30 @@ function draw(){
 for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-100||ox2>VIEW.w+100||oy2<-100||oy2>VIEW.h+100)continue;const oImg=spriteFor(o.art||OBSTACLE_SPRITE);const oS=o.r*2.8*(o.scale||1);ctx.save();ctx.globalAlpha=.28;ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(ox2,oy2+oS*0.28,oS*0.42,oS*0.16,0,0,7);ctx.fill();ctx.restore();if(oImg&&oImg.complete&&oImg.naturalWidth){ctx.globalAlpha=.98;ctx.drawImage(oImg,ox2-oS/2,oy2-oS/2,oS,oS);ctx.globalAlpha=1}else{ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.beginPath();ctx.arc(0,0,o.r,0,7);ctx.fill();ctx.restore()}}
 // beams (laser + chain) under projectiles
 for(const b of beams){
+  if(b.flame){
+    // Flamethrower cone (owner 2026-08-08): layered additive gradient wedge, NOT a solid
+    // triangle — outer orange, mid yellow, white-hot core near the muzzle — plus a scatter of
+    // flickering ember particles so it reads as fire instead of a geometric shape. Scales
+    // directly with b.len/b.halfAng, which already carry wFlameLen/wFlameWidth (mods + giant
+    // exclusion applied upstream in fire()).
+    const px=sx(b.x),py=sy(b.y),len=b.len,half=b.halfAng;
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.translate(px,py);ctx.rotate(b.ang);
+    const flick=.85+.15*Math.sin(elapsed*37+b.x*.05);
+    const grad=ctx.createLinearGradient(0,0,len,0);
+    grad.addColorStop(0,'rgba(255,255,240,'+(.85*flick)+')');
+    grad.addColorStop(.35,'rgba(255,196,80,'+(.55*flick)+')');
+    grad.addColorStop(1,'rgba(255,90,30,0)');
+    ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,0);
+    ctx.arc(0,0,len,-half,half);ctx.closePath();ctx.fill();
+    ctx.restore();
+    // Scattered ember flecks inside the cone — cheap, no new state stored on the beam object.
+    for(let i=0;i<5;i++){
+      const t=Math.random(),r=t*len,a=(Math.random()*2-1)*half*(1-t*.3);
+      const ex=px+Math.cos(b.ang+a)*r,ey=py+Math.sin(b.ang+a)*r;
+      ctx.globalAlpha=.5*(1-t);ctx.fillStyle=t<.4?'#fff6c8':'#ff9a3d';ctx.shadowColor='#ff9a3d';ctx.shadowBlur=8;
+      ctx.beginPath();ctx.arc(ex,ey,rand(1.2,2.6),0,7);ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;
+    }
+    continue}
   if(b.chain){
     // Storm Arc lightning: multi-jag path along the segment (follows the hit chain)
     const x1=sx(b.x1),y1=sy(b.y1),x2=sx(b.x2),y2=sy(b.y2);
@@ -989,9 +1279,17 @@ ctx.restore();ctx.globalAlpha=1;ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
    computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
-ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('STAGE '+(stage+1)+' · '+curStageCfg().name+'  ·  ROUND '+(stageBoss?'BOSS':(stageRound+1)+'/'+ROUNDS_PER_STAGE)+'  ·  WAVE '+wave,18,32+SAFE_TOP);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';
-const roundLeft=stageBoss?0:Math.max(0,Math.ceil(roundDuration()-roundT));
-ctx.fillText((stageBoss?'GUARDIAN '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp:(stageRound>=ROUNDS_PER_STAGE-1?'GUARDIAN IN ':'ROUND END ')+roundLeft+'s')+'   SCORE '+score+'   HOSTILES '+enemies.length+(shieldCharges?'   🛡'+shieldCharges:''),18,55+SAFE_TOP);ctx.fillStyle='#26383a';ctx.fillRect(18,70+SAFE_TOP,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70+SAFE_TOP,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80+SAFE_TOP);
+// HUD label: WAVE 1/3 .. WAVE 3/3, then STAGE BOSS once the guardian is up or telegraphing
+// (owner 2026-08-08 — "it does not need waves and rounds, call them Waves").
+ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('STAGE '+(stage+1)+' · '+curStageCfg().name+'  ·  '+((stageBoss||bossPendingT>0)?'STAGE BOSS':'WAVE '+(stageWave+1)+'/'+WAVES_PER_STAGE),18,32+SAFE_TOP);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';
+const waveLeft=Math.max(0,waveQuota(stageWave)-waveSpawned)+enemies.length;
+ctx.fillText((stageBoss?(stageBoss.bossName||'GUARDIAN')+' '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp:bossPendingT>0?'GUARDIAN INCOMING':'HOSTILES LEFT '+waveLeft)+'   SCORE '+score+'   HOSTILES '+enemies.length+(shieldCharges?'   🛡'+shieldCharges:''),18,55+SAFE_TOP);ctx.fillStyle='#26383a';ctx.fillRect(18,70+SAFE_TOP,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70+SAFE_TOP,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80+SAFE_TOP);
+if(bossPendingT>0){
+  ctx.textAlign='center';const pulse=.6+.4*Math.sin(elapsed*10);
+  ctx.fillStyle=`rgba(255,113,138,${pulse})`;ctx.font='900 26px system-ui';
+  ctx.fillText((bossPendingCfg&&bossPendingCfg.name||curStageCfg().name+' Guardian').toUpperCase()+' INCOMING',VIEW.w/2,VIEW.h*0.32);
+  ctx.textAlign='left';
+}
 ctx.fillStyle='#1b2f33';ctx.fillRect(18,88+SAFE_TOP,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88+SAFE_TOP,180*Math.max(0,Math.min(1,xp/nextXp)),8);
 ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected+'   🔫 '+heldWeapons.length,205,96+SAFE_TOP);
 // S2 — current weapon name, top-centre, just below the phone icons. Updates whenever grantWeapon
@@ -1133,7 +1431,7 @@ canvas.addEventListener('pointerdown',(e)=>{if(state==='debrief'){e.preventDefau
   btn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();togglePause()});
 })();
 let last=performance.now(),accumulator=0;function frame(now){accumulator+=Math.min(.05,(now-last)/1000);last=now;while(accumulator>=1/60){update(1/60);accumulator-=1/60}draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
-window.__hiveSwarmDebug=()=>({state,elapsed,score,wave,stage,stageT,stageBoss:!!stageBoss,stageName:curStageCfg().name,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
+window.__hiveSwarmDebug=()=>({state,elapsed,score,wave:stageWave+1,threatTier,stage,stageT,stageBoss:!!stageBoss,stageName:curStageCfg().name,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
 function weaponIconHtml(w){
   // Tiny inline canvas-like chip: colored square + first letter, plus sheet icon if available.
   if(!w)return '';
@@ -1167,7 +1465,7 @@ function buildCardPool(opts){
     text:s.text,
     apply:()=>skillApply[s.id]&&skillApply[s.id]()}));
   const evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{if(WEAPON)WEAPON.damage*=2;evolved=true}};
-  let pool=[...weapons,...skills,...(opts.allowEvo&&wave>=10&&!evolved?[evo]:[])];
+  let pool=[...weapons,...skills,...(opts.allowEvo&&threatTier>=10&&!evolved?[evo]:[])];
   return {held,weapons,skills,pool};
 }
 function offerCards(){
@@ -1291,7 +1589,7 @@ function offerStageBreak(){
   while(choices.length<3&&bag.length){let c=bag.splice(Math.floor(Math.random()*bag.length),1)[0];if(!choices.includes(c))choices.push(c)}
   if(!choices.length)choices.push({name:'Press On',text:'No upgrades available — deploy anyway',apply:()=>{}});
   const advance=()=>{
-    stage++;genObstacles();stageT=0;stageRound=0;roundT=0;stageBoss=null;
+    stage++;genObstacles();stageT=0;stageWave=0;waveSpawned=0;waveNoKillT=0;stageBoss=null;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;
     enemies=[];bullets=[];beams=[];
     // Keep cumulative run stats; only clear per-stage kill ledger so next debrief is stage-local.
     runStats.killsBy={};runStats.totalKills=0;runStats.orbs=0;
@@ -1423,7 +1721,7 @@ if(/[?&]forge=1/.test(location.search))setTimeout(()=>{const m=location.search.m
   head.addEventListener('pointermove',e=>{if(!drag)return;win.style.left=Math.max(0,ox+e.clientX-sx)+'px';win.style.top=Math.max(0,oy+e.clientY-sy)+'px';win.style.right='auto'});
   head.addEventListener('pointerup',()=>drag=false)})();
 
-const TABS=['ENTITIES','PLAYER','WAVES','WORLD','STAGES','AUDIO','DATA','BEASTIARY'];
+const TABS=['ENTITIES','PLAYER','WAVES','WORLD','STAGES','BOSSES','AUDIO','DATA','BEASTIARY'];
 let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false,tool:'brush'}, codexSel=0, beastFrame=0;
 // paintDir null = base sprite; 'e'..'ne' = walk sheet. paintZoom scales CSS paint display (pixel edit).
 let paintDir=null, paintZoom=2, paintUndo=[], paintSelMask=null;
@@ -1441,7 +1739,7 @@ const FIELD_HELP={
   pierce:'How many enemies a projectile can pass through. 0 = dies on first hit.',
   range:'Max reach in px. Storm Arc = jump search radius; beam = ray length; bullets despawn past this life/range.',
   color:'Hex color for projectiles / arcs / pickups.',
-  kind:'Fire mode: bullet, homing, beam, chain, nova, poison.',
+  kind:'Fire mode: bullet, homing, beam, chain, nova, poison, flame.',
   jumps:'Storm Arc only — how many lightning jumps between enemies.',
   blast:'Nova Shell explosion radius in px on impact or timeout.',
   shards:'Nova Shell base mini-stars spat out when a kill is caused by the nova explosion. Nova Star upgrade adds +2 each stack.',
@@ -1458,6 +1756,10 @@ const FIELD_HELP={
   id:'Stable internal id. Do not rename mid-save if you care about owned unlocks.',
   dot:'Toxin damage per second while infected.',
   dotTime:'How long a poison infection lasts (seconds).',
+  flameWidth:'Flamethrower cone width in px at full reach (flameLength). Wide Nozzle mod adds +25% per stack.',
+  flameLength:'Flamethrower cone reach in px. Pressure Tank mod adds +25% per stack.',
+  burnDps:'Flamethrower burn damage-per-second (own burnT/burnDps DoT, separate from poison). Most of the flamethrower damage lives here. Napalm mod adds +40% per stack.',
+  burnTime:'How long the flamethrower burn DoT lasts after leaving the cone (seconds).',
   spreadChance:'Per-attempt chance a carrier infects a clean neighbour.',
   spreadRadius:'Max distance for poison contagion.',
   spreadFactor:'Potency multiplier when infection spreads (0.7 = each hop is 30% weaker).',
@@ -1548,7 +1850,28 @@ function renderTab(){
       const rd=new FileReader();rd.onload=()=>{MEDIA_LIB[id]={name:f.name,data:rd.result};saveLibMedia(id).then(()=>{EDIT.stages[+i][field]='lib:'+id;persistForge();if(field==='obstacleArt')genObstacles();renderTab()}).catch(()=>alert('Upload store failed'))};rd.readAsDataURL(f);
     };
   }
-  else if(tab===5){// AUDIO — global toggle + per-enemy Idle/Attack/Die SFX
+  else if(tab===5){// BOSSES — one FORGE slot per stage guardian (owner 2026-08-08)
+    if(!EDIT.bosses)EDIT.bosses=copy(FORGE_BASE.bosses||[]);
+    const entityOpts=sel=>'<option value="">(derive from roster, legacy fallback)</option>'+(EDIT.entities||[]).map(e=>`<option value="${esc(e.id)}" ${sel===e.id?'selected':''}>${esc(e.name||e.id)}</option>`).join('');
+    body.innerHTML=`<div class="hint">One boss slot per stage. <b>baseEntityId</b> borrows that entity's sprite/animation (no new art needed) — hp/speed/damage/scale/color below are this boss's OWN absolute stats, not multipliers. <b>addTotal</b> 0 = no minions during the fight. Each STAGES entry references a boss by id; an unresolved/blank id falls back to the old derive-from-roster guardian so a stale save can't break the fight.</div>
+      ${EDIT.bosses.map((b,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0">
+        <h3 style="margin:0 0 6px;color:${esc(b.color||'#78efdb')}">${i+1}. ${esc(b.name||b.id)}</h3>
+        <div class="row">${fields({id:b.id,name:b.name,hp:b.hp,speed:b.speed,damage:b.damage,scale:b.scale,xp:b.xp,score:b.score,addTotal:b.addTotal,addPerSec:b.addPerSec},'bosses.'+i)}</div>
+        <label data-tip="Which shipped entity's sprite/walk-anim this guardian borrows.">base entity<select data-boss-base="${i}">${entityOpts(b.baseEntityId||'')}</select></label>
+        <label>color<input type="color" data-boss-color="${i}" value="${esc(bgHex(b.color))}"></label>
+        <label data-tip="Roar/telegraph SFX played when the boss appears.">roar<select data-boss-roar="${i}">${sfxOptions(b.roar||'')}</select></label>
+        <button type="button" data-boss-test="${i}">▶ TEST ROAR</button>
+      </article>`).join('')}
+      <button id="addBoss">+ ADD BOSS SLOT</button>`;
+    bindInputs();
+    body.querySelectorAll('[data-boss-base]').forEach(sel=>{sel.onchange=()=>{EDIT.bosses[+sel.dataset.bossBase].baseEntityId=sel.value;persistForge()}});
+    body.querySelectorAll('[data-boss-color]').forEach(input=>{input.oninput=()=>{EDIT.bosses[+input.dataset.bossColor].color=input.value;persistForge()}});
+    body.querySelectorAll('[data-boss-roar]').forEach(sel=>{sel.onchange=()=>{EDIT.bosses[+sel.dataset.bossRoar].roar=sel.value;persistForge()}});
+    body.querySelectorAll('[data-boss-test]').forEach(b=>b.onclick=()=>{const cfg=EDIT.bosses[+b.dataset.bossTest];if(cfg&&cfg.roar)sfxFile(cfg.roar,.4);else sfx('kill',.3)});
+    const addB=body.querySelector('#addBoss');
+    if(addB)addB.onclick=()=>{const n=EDIT.bosses.length+1;EDIT.bosses.push({id:'boss.custom'+n,name:'Custom Guardian '+n,baseEntityId:(EDIT.entities[0]&&EDIT.entities[0].id)||'',hp:800,speed:40,damage:24,scale:1.6,color:'#c7d4d3',xp:10,score:300,addTotal:0,addPerSec:0,roar:''});persistForge();renderTab()};
+  }
+  else if(tab===6){// AUDIO — global toggle + per-enemy Idle/Attack/Die SFX
     body.innerHTML=`<div class="hint">Assign SFX per enemy. Files live in <b>assets/SFX/</b>. Weapon fire sounds are on each weapon under <b>ENTITIES → weapons</b>.</div>
       <div class="row"><button id="audSfx">${audioOn?'SFX ON':'SFX OFF'}</button>
       <span class="hint">Library: ${SFX_FILES.length} samples</span></div>
@@ -1567,7 +1890,7 @@ function renderTab(){
     body.querySelectorAll('[data-esfx]').forEach(sel=>{sel.onchange=()=>{const [i,field]=sel.dataset.esfx.split('.');EDIT.entities[+i][field]=sel.value;applyForge();persistForge()}});
     body.querySelectorAll('[data-sfx-test]').forEach(b=>b.onclick=()=>{const e=EDIT.entities[+b.dataset.sfxTest];if(e&&e.sfxDie)sfxFile(e.sfxDie,.3);else sfx('kill',.25)});
   }
-  else if(tab===6){// DATA
+  else if(tab===7){// DATA
     body.innerHTML=`<div class="hint">Export / import a self-contained pack (values + optional media keys). Reset restores shipped numbers.</div>
       <div class="row"><button id="pkSave">⬇ EXPORT JSON</button>
         <label style="display:inline;grid-template-columns:none">⬆ IMPORT <input type="file" id="pkLoad" accept="application/json,.json" style="width:auto"></label>

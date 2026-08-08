@@ -1,7 +1,7 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.1.5';
+const GAME_VERSION='0.3.0';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -43,11 +43,19 @@ const FORGE_KEY='hive_swarm_forge_values_v1', copy=o=>JSON.parse(JSON.stringify(
 const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034,budgetBase:1.15,budgetExponent:1.065},drops:{xp:1,metaChance:.08,healChance:.07,heal:12,weaponChance:.05,eliteWeaponChance:.4},weapons:[
   // dropWeight = relative odds this gun is picked when a field cache rolls a weapon drop
   // (maybeDropWeapon does a weighted pick over EDIT.weapons; 1 = baseline, all guns shipped equal).
-  {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:760,dropWeight:1},
-  {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5,dropWeight:1},
-  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16},
-  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:16,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:280,jumps:4,dropWeight:1},
-  {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78,dropWeight:1},
+  {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:760,dropWeight:1,sfx:'m41a-pulse-rifle.mp3',icon:0},
+  {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5,dropWeight:1,sfx:'magic-spell.mp3',icon:1},
+  // Flamethrower replaces the old unguided multi-shot launcher weapon (owner 2026-08-08): Heat
+  // Seeker ('homing') already covered the "explosive projectile" niche, making that weapon
+  // redundant, and this game had no cone weapon (HiVE WAR's flamethrower). kind:'flame' is a CONTINUOUS cone, not a discrete
+  // projectile — see the kind==='flame' branch in fire() — so it is excluded from
+  // scatter/pierce/ricochet (same treatment as beam/chain) but keeps rapid/knockback/overcharge.
+  // No dedicated flame SFX ships in assets/SFX, so it reuses light-machine-gun.mp3 (closest
+  // existing continuous-fire sample) rather than a one-shot cue like grenade.mp3.
+  {id:'weapon.flame',name:'Flamethrower',kind:'flame',damage:9,rate:.06,speed:0,shots:1,pierce:99,color:'#ff9a3d',range:260,flameWidth:38,flameLength:260,burnDps:40,burnTime:2.2,dropWeight:1,sfx:'light-machine-gun.mp3',icon:5},
+  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'electric-explosive.mp3',icon:2},
+  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:150,jumps:4,dropWeight:1,coreWidth:1.8,glowWidth:12,glowIntensity:1,sfx:'lightning01.mp3',icon:3},
+  {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78,dropWeight:1,shards:3,sfx:'grenade.mp3',icon:4},
   // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
   // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
   // spreadRadius = how close that neighbour must be, spreadFactor = potency the infection is
@@ -59,7 +67,7 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{ha
   // of doing nothing, so sustained fire on a saturated field ramps up instead of idling.
   // slowFactor = poisoned enemies move at this fraction of normal speed, so you don't have to
   // kite/run away waiting for the DoT — the target is defanged the moment it's infected.
-  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:16,dotTime:2.2,spreadChance:.9,spreadRadius:52,spreadFactor:.7,poisonStackMax:3,slowFactor:.6,dropWeight:1}
+  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:640,dot:16,dotTime:2.2,spreadChance:.9,spreadRadius:52,spreadFactor:.7,poisonStackMax:3,slowFactor:.6,dropWeight:1,sfx:'subterrahit.mp3',icon:4}
 ],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'}],codexPages:null,
 // STAGE system (owner request 2026-08-06): discrete stages replace the pure-endless timer.
 // Each stage = its own backdrop palette + a roster cap (which entities can spawn) + a duration
@@ -67,11 +75,24 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{ha
 // a between-stage break (upgrade card + continue), then the next stage begins. Data-driven so
 // FORGE/DATA tab JSON export can retune name/seconds/enemyCap/bg/bossMul later without code edits.
 stages:[
-  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bgArt:'art_src/stages/outskirts.jpg',obstacleArt:'art_src/obstacles/outskirts.png',bossMul:6},
-  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bgArt:'art_src/stages/sewers.jpg',obstacleArt:'art_src/obstacles/sewers.png',bossMul:7},
-  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bgArt:'art_src/stages/downtown.jpg',obstacleArt:'art_src/obstacles/downtown.png',bossMul:8},
-  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bgArt:'art_src/stages/highway.jpg',obstacleArt:'art_src/obstacles/highway.png',bossMul:9},
-  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bgArt:'art_src/stages/hivecore.jpg',obstacleArt:'art_src/obstacles/hivecore.png',bossMul:12}
+  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bgArt:'art_src/stages/outskirts.jpg',obstacleArt:'art_src/obstacles/outskirts.png',bossMul:6,bossId:'boss.outskirts'},
+  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bgArt:'art_src/stages/sewers.jpg',obstacleArt:'art_src/obstacles/sewers.png',bossMul:7,bossId:'boss.sewers'},
+  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bgArt:'art_src/stages/downtown.jpg',obstacleArt:'art_src/obstacles/downtown.png',bossMul:8,bossId:'boss.downtown'},
+  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bgArt:'art_src/stages/highway.jpg',obstacleArt:'art_src/obstacles/highway.png',bossMul:9,bossId:'boss.highway'},
+  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bgArt:'art_src/stages/hivecore.jpg',obstacleArt:'art_src/obstacles/hivecore.png',bossMul:12,bossId:'boss.hivecore'}
+],
+// PER-STAGE BOSS SLOTS (owner 2026-08-08, "each boss has its own slot in bosses"): first-class,
+// FORGE-editable guardians. `baseEntityId` picks which shipped entity's sprite/anim the boss borrows
+// (no new art needed, same as the old derive-from-roster behaviour); everything else is the boss's
+// own stat block. hp/speed/damage/scale/color are absolute (NOT multipliers off the base entity) so
+// a designer can tune a guardian without doing the old roster-derive math in their head.
+// addTotal/addPerSec = optional minion trickle during the fight; addTotal:0 = no adds at all.
+bosses:[
+  {id:'boss.outskirts',name:'Outskirts Guardian',baseEntityId:'enemy.brute',hp:520,speed:36,damage:22,scale:1.6,color:'#e5a66e',xp:8,score:250,addTotal:0,addPerSec:0,roar:'praetorian01.mp3'},
+  {id:'boss.sewers',name:'Sewers Guardian',baseEntityId:'enemy.armored',hp:820,speed:40,damage:26,scale:1.65,color:'#71889b',xp:10,score:300,addTotal:4,addPerSec:.4,roar:'praetorian02.mp3'},
+  {id:'boss.downtown',name:'Downtown Guardian',baseEntityId:'enemy.mutant',hp:1180,speed:44,damage:30,scale:1.7,color:'#d86c67',xp:12,score:350,addTotal:6,addPerSec:.5,roar:'xeno attack.mp3'},
+  {id:'boss.highway',name:'Highway Guardian',baseEntityId:'enemy.colossus',hp:1600,speed:34,damage:36,scale:1.5,color:'#8b765f',xp:16,score:420,addTotal:8,addPerSec:.6,roar:'eldritch sponge attack.mp3'},
+  {id:'boss.hivecore',name:'HiVE Core Guardian',baseEntityId:'enemy.colossus',hp:2400,speed:38,damage:42,scale:1.8,color:'#a46fca',xp:22,score:520,addTotal:10,addPerSec:.75,roar:'xenotera hit.mp3'}
 ]};
 function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(key==='codexPages'){if(Array.isArray(saved.codexPages))next.codexPages=saved.codexPages;continue}if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object'&&!Array.isArray(base[key]))Object.assign(next[key],saved[key])}return next}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
@@ -80,6 +101,8 @@ Object.assign(EDIT.waves,{budgetBase:EDIT.waves.budgetBase??1.15,budgetExponent:
 if(EDIT.waves.budgetBase>=3.5){EDIT.waves.budgetBase=1.15;EDIT.waves.budgetExponent=1.065}
 function persistForge(){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){alert('Storage full — Forge values were not saved.')}}
 if(EDIT.waves.budgetBase===1.15&&EDIT.waves.budgetExponent===1.065){try{const raw=localStorage.getItem(FORGE_KEY);if(raw&&/"budgetBase"\s*:\s*[3-9]/.test(raw))persistForge()}catch(_){}}
+// 2026-08-07 Storm Arc retune (range 150 / dmg 22). Only rewrite the old shipped pair so hand-tunes stick.
+(function(){const c=(EDIT.weapons||[]).find(w=>w.id==='weapon.chain');if(c){if(c.range===280&&c.damage===16){c.range=150;c.damage=22;persistForge()}if(c.coreWidth==null)c.coreWidth=1.8;if(c.glowWidth==null)c.glowWidth=12;if(c.glowIntensity==null)c.glowIntensity=1}const n=(EDIT.weapons||[]).find(w=>w.id==='weapon.nova');if(n&&n.shards==null)n.shards=3})();
 
 // ---- SAVE SLOTS (mirror HiVE WAR: 3 slots + erase; legacy single key migrates into slot 1) ----
 const SAVE_SLOTS=3, LEGACY_KEY='hive_swarm_meta_v1', SLOT_PICK_KEY='hive_swarm_slot';
@@ -103,7 +126,7 @@ function codexDefaults(){
   const pages=[]; let n=0;
   const mk=(cat,title,subtitle,body,link)=>pages.push({id:'cx'+(++n),cat,title,subtitle,body:body||'',link:link||''});
   (EDIT.entities||[]).forEach(e=>mk('enemy',e.name||e.id,'Hostile',`Wave ${e.unlockWave||1}+ · HP ${e.hp} · DMG ${e.damage}`,'enemy:'+e.id));
-  (EDIT.weapons||[]).forEach(w=>mk('weapon',w.name||w.id,'Weapon',`Damage ${w.damage} · rate ${w.rate}`+(w.kind==='poison'?` · poison ${w.dot||0}/s for ${w.dotTime||0}s`:''),'weapon:'+w.id));
+  (EDIT.weapons||[]).forEach(w=>mk('weapon',w.name||w.id,'Weapon',`Damage ${w.damage} · rate ${w.rate}`+(w.kind==='poison'?` · poison ${w.dot||0}/s for ${w.dotTime||0}s`:'')+(w.kind==='flame'?` · burn ${w.burnDps||0}/s for ${w.burnTime||0}s`:''),'weapon:'+w.id));
   // Field items — unlock the first time the player actually collects one (not on kill alone).
   mk('item','Biomatter Orb','XP Drop','Glowing scrap that feeds your mid-run level bar. Magnet range pulls it in.','item:xp');
   mk('item','Stim Pack','Health Drop','Red cross vials. Rarer than XP; only worth the detour when you are hurt.','item:heal');
@@ -124,28 +147,125 @@ function codexSee(link,count){
 }
 
 // ---- sprites / media (FORGE paint + IndexedDB; game prefers override dataURL) ----
-const SPRITES={}; const SPRITE_OVR={}; // key -> dataURL
+const SPRITES={}; const SPRITE_OVR={}; // key -> dataURL OR {data,frames,fps}
+const MEDIA_LIB={}; // uploaded library images: id -> {name,data} for stage/bg dropdowns
 const PLAYER_SPRITE='art_src/topdown_v1/player.png';
 const OBSTACLE_SPRITE='art_src/topdown_v1/obstacle_rock.png';
+function ovrDataURL(ovr){return ovr&&typeof ovr==='object'?ovr.data:ovr}
 function spriteFor(src){
   if(!src)return null;
   // FORGE override wins when the entity id (or path) was painted/saved
   const ovr=SPRITE_OVR[src]||SPRITE_OVR['path:'+src];
-  if(ovr){if(!SPRITES[ovr]){const image=new Image();image.src=ovr;SPRITES[ovr]=image}return SPRITES[ovr]}
-  if(!SPRITES[src]){const image=new Image();image.src=src;SPRITES[src]=image}return SPRITES[src]
+  const ovrUrl=ovrDataURL(ovr);
+  if(ovrUrl){if(!SPRITES[ovrUrl]){const image=new Image();image.src=ovrUrl;SPRITES[ovrUrl]=image}return SPRITES[ovrUrl]}
+  // MEDIA_LIB paths (lib:id)
+  if(String(src).startsWith('lib:')&&MEDIA_LIB[src.slice(4)]){
+    const u=MEDIA_LIB[src.slice(4)].data;
+    if(!SPRITES[u]){const image=new Image();image.src=u;SPRITES[u]=image}return SPRITES[u];
+  }
+  if(!SPRITES[src]){
+    const image=new Image();
+    image.onerror=()=>{image._fail=1};
+    image.src=src;
+    SPRITES[src]=image;
+  }
+  return SPRITES[src]
+}
+function _escAttr(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+function mediaLibraryOptions(selected){
+  const opts=[];
+  opts.push(`<option value="">(none / default)</option>`);
+  const stock=['art_src/stages/outskirts.jpg','art_src/stages/sewers.jpg','art_src/stages/downtown.jpg','art_src/stages/highway.jpg','art_src/stages/hivecore.jpg',
+    'art_src/obstacles/outskirts.png','art_src/obstacles/sewers.png','art_src/obstacles/downtown.png','art_src/obstacles/highway.png','art_src/obstacles/hivecore.png',
+    OBSTACLE_SPRITE];
+  stock.forEach(p=>opts.push(`<option value="${_escAttr(p)}" ${selected===p?'selected':''}>${_escAttr(p.replace(/^art_src\//,''))}</option>`));
+  Object.entries(MEDIA_LIB).forEach(([id,m])=>{
+    const v='lib:'+id;
+    opts.push(`<option value="${_escAttr(v)}" ${selected===v?'selected':''}>⬆ ${_escAttr(m.name||id)}</option>`);
+  });
+  return opts.join('');
 }
 function entitySpriteKey(e){return e&&e.id?e.id:('path:'+(e&&e.sprite||''))}
-// 4-way + multi-frame walk sheets (_walk_e/s/w/n.png = horizontal frame strips)
+// 8-way facing for player + enemies — e,se,s,sw,w,nw,n,ne (full 360, Eric 2026-08-07)
+// 4-dir helpers kept as art fallback when diagonal sheets are missing.
 function facingFromAngle(a){const t=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);if(t<Math.PI*.25||t>=Math.PI*1.75)return 0;if(t<Math.PI*.75)return 1;if(t<Math.PI*1.25)return 2;return 3}
-const FACE_SFX=['e','s','w','n'], WALK_FPS=8;
+/** 8-dir index in atan2 space: 0=e,1=se,2=s,3=sw,4=w,5=nw,6=n,7=ne */
+function facingFromAngle8(a){const t=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);return Math.round(t/(Math.PI/4))%8}
+const FACE_SFX=['e','s','w','n'], FACE_SFX8=['e','se','s','sw','w','nw','n','ne'], WALK_FPS=8;
+/** Map 8-dir → nearest 4-dir index (fallback when diagonal art is missing). */
+function face8to4(f){return [0,1,1,1,2,3,3,0][f|0]} // se→s, sw→s, nw→n, ne→e
 function walkSheetSrc(base,face){if(!base||!String(base).endsWith('.png'))return '';const stem=String(base).replace(/\.png$/,'');return stem+'_walk_'+(FACE_SFX[face|0]||'e')+'.png'}
-function spriteSrcForEntity(e,face){const k=entitySpriteKey(e);if(SPRITE_OVR[k])return SPRITE_OVR[k];const base=(e&&e.sprite)||'';if(!base)return '';if(face!=null){const w=walkSheetSrc(base,face);if(w)return w;const dir=FACE_SFX[face===2?0:(face|0)]||'e';return base.replace(/\.png$/,'_'+dir+'.png')}return base}
-function spriteSrcForPlayer(face){const base=PLAYER_SPRITE;if(face!=null){const w=walkSheetSrc(base,face);if(w)return w;const dir=FACE_SFX[face===2?0:(face|0)]||'e';return base.replace(/\.png$/,'_'+dir+'.png')}return base}
-function drawSpriteAnim(img,x,y,size,moving){if(!img||!img.complete||!img.naturalWidth)return false;const frames=(img.naturalWidth>=img.naturalHeight*1.8)?Math.max(1,Math.round(img.naturalWidth/img.naturalHeight)):1;const fw=img.naturalWidth/frames,fh=img.naturalHeight;const fr=moving?(Math.floor(elapsed*WALK_FPS)%frames):0;ctx.drawImage(img,fr*fw,0,fw,fh,x-size/2,y-size/2,size,size);return true}
+function walkSheetSrc8(base,face8){if(!base||!String(base).endsWith('.png'))return '';const stem=String(base).replace(/\.png$/,'');return stem+'_walk_'+(FACE_SFX8[face8|0]||'e')+'.png'}
+/** Shared 8-dir path resolve for any base sprite path (player or enemy). */
+function spriteSrc8(base,face8){
+  if(!base)return '';
+  if(face8==null)return base;
+  const stem=String(base).replace(/\.png$/,'');
+  const sfx=FACE_SFX8[face8|0]||'e', s4=FACE_SFX[face8to4(face8)]||'e';
+  const prefer=[stem+'_walk_'+sfx+'.png', stem+'_'+sfx+'.png'];
+  const fallback=[stem+'_walk_'+s4+'.png', stem+'_'+s4+'.png', base];
+  for(const t of prefer){const im=spriteFor(t);if(im&&im.complete&&im.naturalWidth>0&&!im._fail)return t}
+  for(const t of fallback){
+    const im=spriteFor(t);
+    if(im&&im.complete&&im.naturalWidth>0&&!im._fail)return t;
+    if(im&&!im.complete&&!im._fail)return t;
+  }
+  return base;
+}
+function spriteSrcForEntity(e,face8){
+  const k=entitySpriteKey(e);if(SPRITE_OVR[k])return SPRITE_OVR[k];
+  const base=(e&&e.sprite)||'';if(!base)return '';
+  return spriteSrc8(base, face8);
+}
+function spriteSrcForPlayer(face8){return spriteSrc8(PLAYER_SPRITE, face8)}
+// Per-image frame meta: content alpha bounds so side-views (wide gun) don't look "bigger" than front/back.
+const SPRITE_META=new WeakMap();
+function spriteFrameMeta(img){
+  let m=SPRITE_META.get(img); if(m)return m;
+  const frames=(img.naturalWidth>=img.naturalHeight*1.8)?Math.max(1,Math.round(img.naturalWidth/img.naturalHeight)):1;
+  const fw=img.naturalWidth/frames|0, fh=img.naturalHeight|0;
+  const c=document.createElement('canvas'); c.width=fw; c.height=fh;
+  const g=c.getContext('2d',{willReadFrequently:true});
+  const bounds=[];
+  for(let i=0;i<frames;i++){
+    g.clearRect(0,0,fw,fh);
+    g.drawImage(img,i*fw,0,fw,fh,0,0,fw,fh);
+    const d=g.getImageData(0,0,fw,fh).data;
+    let minX=fw,minY=fh,maxX=0,maxY=0,hit=0;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){
+      if(d[(y*fw+x)*4+3]>12){hit=1;if(x<minX)minX=x;if(y<minY)minY=y;if(x>maxX)maxX=x;if(y>maxY)maxY=y}
+    }
+    bounds.push(hit?{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1}:{x:0,y:0,w:fw,h:fh});
+  }
+  m={frames,fw,fh,bounds}; SPRITE_META.set(img,m); return m;
+}
+/** Draw anim strip height-normalized: content height → size (fixes side-view size pop). */
+function drawSpriteAnim(img,x,y,size,moving){
+  if(!img||!img.complete||!img.naturalWidth)return false;
+  const m=spriteFrameMeta(img);
+  const fr=moving?(Math.floor(elapsed*WALK_FPS)%m.frames):0;
+  const b=m.bounds[fr]||m.bounds[0];
+  const sc=size/Math.max(1,b.h);
+  const dw=b.w*sc, dh=b.h*sc;
+  ctx.drawImage(img, fr*m.fw+b.x, b.y, b.w, b.h, x-dw/2, y-dh/2, dw, dh);
+  return true;
+}
 function playerScale(){const s=Number(EDIT.player&&EDIT.player.scale);return Number.isFinite(s)&&s>0?s:1}
+// Preload 8-dir sheets for player + cast so first facing switch isn't a missing-frame flash
+const PRELOAD_STEMS=['player','shambler','runner','crawler','necro_node','brute','armored_dead','mutant_enforcer','zombie_colossus'];
+PRELOAD_STEMS.forEach(stem=>{
+  FACE_SFX8.forEach(s=>{
+    spriteFor('art_src/topdown_v1/'+stem+'_walk_'+s+'.png');
+    spriteFor('art_src/topdown_v1/'+stem+'_'+s+'.png');
+  });
+});
 
+const SFX_FILES=['Eggs Open.mp3','eldritch sponge attack.mp3','eldritch sponge death.mp3','electric-explosive.mp3','grenade.mp3','light-machine-gun.mp3','lightning01.mp3','lightning02.mp3','m41a-pulse-rifle.mp3','magic-spell.mp3','money.mp3','praetorian01.mp3','praetorian02.mp3','subterrahit.mp3','xeno attack.mp3','xenotera hit.mp3'];
 const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;
+function sfxUrl(file){if(!file)return'';if(String(file).startsWith('assets/'))return file;return 'assets/SFX/'+file}
 function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
+function sfxFile(file,vol=.25){if(!audioOn||!file||typeof Audio==='undefined')return;try{const a=new Audio(sfxUrl(file));a.volume=vol;a.play().catch(()=>{})}catch(_){}}
+function sfxOptions(selected){return '<option value="">(none)</option>'+SFX_FILES.map(f=>'<option value="'+_escAttr(f)+'" '+(selected===f?'selected':'')+'>'+_escAttr(f)+'</option>').join('')}
 
 let player={x:0,y:0,r:16,hp:100,maxHp:100,speed:245,pickupRadius:90,inv:0,angle:0};
 let orbsCollected=0;
@@ -161,18 +281,70 @@ const MOD_MAX=3;                       // owner spec: up to 3 stacks of the same
 // See modApplies() below, which is the ONLY place this list is consulted — offerCards() and
 // offerStageBreak() both filter through it, so the matrix lives in exactly one place.
 const MODS=[
+  // Scatter = multi-shot for discrete projectiles ONLY. Beam/chain never fire discrete shots —
+  // offering Scatter for them is a dead card (owner 2026-08-08). nova/homing/poison/bullet all fire
+  // projectiles. Flame (2026-08-08) is a continuous cone like beam/chain, not a projectile, so it's
+  // excluded here too — see kind==='flame' in fire().
   {id:'scatter',   name:'Scatter',   text:'+2 projectiles per shot',              appliesTo:['bullet','homing','nova','poison']},
   {id:'venom',     name:'Venom',     text:'+60% poison damage and spread',        appliesTo:['poison']},
   {id:'pierce',    name:'Piercing',  text:'+1 pierce',                            appliesTo:['bullet','homing','nova','poison']},
-  {id:'rapid',     name:'Rapid',     text:'-15% time between shots',              appliesTo:['bullet','homing','beam','chain','nova','poison']},
-  {id:'knockback', name:'Knockback', text:'Pushes enemies back on hit',           appliesTo:['bullet','homing','beam','chain','nova','poison']},
+  {id:'rapid',     name:'Rapid',     text:'-15% time between shots',              appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
+  {id:'knockback', name:'Knockback', text:'Pushes enemies back on hit',           appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
+  // Ricochet: bounce off enemies and arena walls (owner 2026-08-08).
+  {id:'ricochet',  name:'Ricochet',  text:'Bullets bounce off enemies & walls',   appliesTo:['bullet','homing','poison']},
+  // Damage amp — Zombie Waves Overclock cousin for raw DPS.
+  {id:'overcharge',name:'Overcharge',text:'+22% weapon damage',                   appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
+  // Bigger projectiles / thicker beam. Flame deliberately excluded (owner 2026-08-08): it already
+  // has two dedicated size mods (flamelength/flamespread below) — folding 'giant' in too would let
+  // one card double-dip on the same stat, so 'giant' stays projectile/beam-only.
+  {id:'giant',     name:'Giant Rounds',text:'+35% projectile / beam size',        appliesTo:['bullet','homing','nova','poison','beam']},
+  // Nova Shell unique: kill explosions spit mini reactor-stars. Base shards (3) + 2 per stack.
+  {id:'novastar',  name:'Nova Star', text:'+2 mini nova stars on kill explosion', appliesTo:['nova']},
+  // Storm Arc unique: adds jumps on top of the weapon's current jump count (owner 2026-08-08).
+  {id:'arcjump',   name:'Forked Arc',text:'+2 Storm Arc jumps',                   appliesTo:['chain']},
+  // Flamethrower unique mods (owner 2026-08-08).
+  {id:'flamelength',name:'Pressure Tank',text:'+25% flame length',                appliesTo:['flame']},
+  {id:'flamespread',name:'Wide Nozzle',  text:'+25% flame width',                 appliesTo:['flame']},
+  {id:'flameburn',   name:'Napalm',      text:'+40% burn damage-over-time',       appliesTo:['flame']},
+];
+// Passive skills (not weapon-bound). Cap at MOD_MAX stacks; never offer a 3/3 skill again.
+const SKILLS=[
+  {id:'fleet',  name:'Fleet Footed', text:'+12% movement speed'},
+  {id:'bulk',   name:'Reinforced',   text:'+25 max HP and heal'},
+  {id:'magnet', name:'Magnet',       text:'+45 pickup radius'},
+  {id:'shield', name:'Shield Matrix',text:'Negate 1 hit every 12s (stacks = charges)'},
+  {id:'vampiric',name:'Vampiric',    text:'Heal 2 HP per kill (stacks add +1)'},
+  {id:'drone',  name:'Drone Escort', text:'Orbiting drones fire with you'},
 ];
 function modApplies(mod,w){return mod.appliesTo.includes(w.kind||'bullet')}
+function wNovaShards(w){return Math.max(0,(w.shards??3)+2*modStacks(w.id,'novastar'))}
+function wJumps(w){return Math.max(1,(w.jumps||4)+2*modStacks(w.id,'arcjump'))}
+function wDamage(w){return (w.damage||10)*(1+.22*modStacks(w.id,'overcharge'))}
+function wSizeMul(w){return 1+.35*modStacks(w.id,'giant')}
+function wBounces(w){return modStacks(w.id,'ricochet')}
+// Flamethrower unique stats (owner 2026-08-08). 'giant' deliberately does NOT feed these — see the
+// comment on the giant MODS entry — so only the dedicated flame mods scale length/width/burn.
+function wFlameLen(w){return (w.flameLength||260)*(1+.25*modStacks(w.id,'flamelength'))}
+function wFlameWidth(w){return (w.flameWidth||38)*(1+.25*modStacks(w.id,'flamespread'))}
+function wBurnDps(w){return (w.burnDps||0)*(1+.4*modStacks(w.id,'flameburn'))}
 let weaponMods={};                     // { weaponId: { modId: stacks } }
 let weaponOrbs={};                     // { weaponId: orbs banked toward the next rank }
+let skillStacks={};                    // { skillId: stacks } — run-scoped, max MOD_MAX
+// Stage run stats for HiveWar-style debrief
+let runStats={killsBy:{},totalKills:0,orbs:0,weaponsSeen:{},wave:0};
+function resetRunStats(){runStats={killsBy:{},totalKills:0,orbs:0,weaponsSeen:{},wave:0}}
+function noteKill(e){
+  const id=(e&&e.type&&e.type.id)||'unknown', nm=(e&&e.type&&e.type.name)||id;
+  if(!runStats.killsBy[id])runStats.killsBy[id]={name:nm,n:0,color:(e.type&&e.type.color)||'#8ab',sprite:(e.type&&e.type.sprite)||''};
+  runStats.killsBy[id].n++;runStats.totalKills++;
+  const vamp=skillStacks.vampiric||0;if(vamp)player.hp=Math.min(player.maxHp,player.hp+(1+vamp));
+}
+function noteWeapon(w){if(!w||!w.id)return;runStats.weaponsSeen[w.id]={id:w.id,name:w.name,rank:w.rank||1,color:w.color,icon:w.icon|0,kind:w.kind||'bullet'}}
 function modsFor(id){return weaponMods[id]||(weaponMods[id]={})}
 function modStacks(id,mod){return (weaponMods[id]||{})[mod]||0}
 function addMod(id,mod){const m=modsFor(id);if((m[mod]||0)>=MOD_MAX)return false;m[mod]=(m[mod]||0)+1;return true}
+function skillN(id){return skillStacks[id]||0}
+function addSkill(id){if((skillStacks[id]||0)>=MOD_MAX)return false;skillStacks[id]=(skillStacks[id]||0)+1;return true}
 // Orbs are the weapon's own progress bar. Only the gun you are actually holding banks them, so
 // carrying a weapon IS the investment - which is the incentive the owner asked for.
 function orbsForRank(rank){return Math.round(12*Math.pow(1.45,(rank||1)-1))}
@@ -180,7 +352,8 @@ function bankOrb(){for(const w of heldWeapons){const id=w.id;weaponOrbs[id]=(wea
   if(weaponOrbs[id]>=orbsForRank(w.rank||1)&&(w.rank||1)<5){weaponOrbs[id]=0;upgradeWeapon(w);burst(player.x,player.y,w.color||'#6fffe2',14);sfx('hit',.18)}}}
 // Effective stats = base weapon + its mods. Nothing mutates the weapon object, so a mod can never
 // be double-applied and removing one is just arithmetic.
-function wShots(w){return Math.min(9,(w.shots||1)+2*modStacks(w.id,'scatter'))}
+// Scatter works for every projectile kind (including nova). Beam/chain/flame excluded via appliesTo.
+function wShots(w){const k=w.kind||'bullet';if(k==='beam'||k==='chain')return 1;return Math.min(9,(w.shots||1)+2*modStacks(w.id,'scatter'))}
 function wPierce(w){return (w.pierce??0)+modStacks(w.id,'pierce')}
 function wRate(w){return Math.max(.05,(w.rate||.2)*Math.pow(.85,modStacks(w.id,'rapid')))}
 function venomMul(w){return (1+.6*modStacks(w.id,'venom'))*(1+.25*(META.venom||0))}
@@ -195,19 +368,68 @@ function venomMul(w){return (1+.6*modStacks(w.id,'venom'))*(1+.25*(META.venom||0
 // because it's simple, directly targets the one case the owner called out, and isBoss already
 // exists for exactly this kind of "the guardian is special" rule.
 const KB_IMPULSE=130, KB_CAP=420, KB_HALFLIFE=.12, KB_BOSS_RESIST=.15;
+function isStaticEnemy(e){return !!(e&&((e.speed||0)<=0.05||(e.type&&(e.type.speed||0)<=0)))}
+function clampEnemy(e){
+  if(!e)return;
+  const r=e.r||12;
+  e.x=Math.max(-WORLD.halfW+r,Math.min(WORLD.halfW-r,e.x));
+  e.y=Math.max(-WORLD.halfH+r,Math.min(WORLD.halfH-r,e.y));
+}
 function applyKnockback(e,dx,dy,stacks){
   if(!stacks)return;
+  // Static nodes (Necro Node etc.) MUST stay put — knockback used to shove them off-screen /
+  // past the arena edge, soft-locking a stage (owner 2026-08-08).
+  if(isStaticEnemy(e))return;
   const d=Math.hypot(dx,dy)||1,resist=e.isBoss?KB_BOSS_RESIST:1,power=KB_IMPULSE*stacks*resist;
   let kx=(e.kx||0)+dx/d*power,ky=(e.ky||0)+dy/d*power,mag=Math.hypot(kx,ky);
   if(mag>KB_CAP){kx=kx/mag*KB_CAP;ky=ky/mag*KB_CAP}
   e.kx=kx;e.ky=ky;
 }
-let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, wave=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
+// 2026-08-08 (owner): renamed the legacy elapsed-time power-level counter to threatTier so it can't
+// collide with the new WAVE terminology below ("wave" now means "kill-quota wave", never the old
+// timer). threatTier still drives unlockWave gating exactly as `wave` used to.
+let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, threatTier=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
 // STAGE state — stage = index into EDIT.stages (loops with rising bossMul once past the end),
 // stageT = seconds elapsed in the CURRENT stage (freezes while the boss is up or on break),
 // stageBoss = live ref to the boss enemy object (null when none is up).
 let stage=0, stageT=0, stageBoss=null, pendingStageAdvance=null;
+// Owner 2026-08-08: each stage = 3 WAVES of rising density, THEN the guardian, THEN debrief → next
+// stage. Waves are KILL-BASED, not timed ("a round should be defeating all enemies on screen not a
+// time limit" — Eric). Each wave has a finite spawn ROSTER (waveQuota) trickled in over time via the
+// existing spawnBudget pacing; the wave only ends once every enemy it spawned is dead.
+const WAVES_PER_STAGE=3;
+let stageWave=0; // 0..2 during combat waves; boss once wave 2 (3rd) is cleared
+let waveSpawned=0; // spawned-so-far vs this wave's total quota (spawned, not budget-consumed)
+// SOFTLOCK GUARDS (owner 2026-08-08 — see update() for full reasoning):
+// waveNoKillT = seconds since the last kill while a wave/boss-fight is live; reset on every kill.
+// If it climbs past WAVE_STALL_T with only a few bodies left, the stragglers get teleported to the
+// player instead of leaving them to hunt an unreachable enemy forever.
+let waveNoKillT=0;
+const WAVE_STALL_T=11, WAVE_STALL_MAX_LEFT=3;
+// Boss-fight equivalent (review fix 2026-08-08): bossStallT = seconds since the guardian last TOOK
+// DAMAGE (not since a kill — a legit boss fight goes a long time between deaths). bossStallHp is the
+// low-water mark used to detect that damage. BOSS_STALL_T is deliberately longer than WAVE_STALL_T:
+// a player kiting a tanky guardian while their DoT ticks is normal, so the valve must not yank the
+// boss on top of someone who is legitimately mid-fight.
+let bossStallT=0, bossStallHp=Infinity;
+const BOSS_STALL_T=15;
+// Boss entrance telegraph: bossPendingT counts down from BOSS_TELEGRAPH_T once wave 3 is fully
+// cleared; the guardian itself doesn't spawn until it hits 0, so the player gets a beat of warning
+// (shake + banner + roar) instead of the boss just appearing.
+let bossPendingT=0, bossPendingCfg=null;
+const BOSS_TELEGRAPH_T=1.6;
+// Boss-fight adds: budget accumulator + spawned counter, reset whenever a boss spawns.
+let bossAddBudget=0, bossAddSpawned=0;
 function curStageCfg(){const arr=EDIT.stages&&EDIT.stages.length?EDIT.stages:FORGE_BASE.stages;return arr[stage%arr.length]}
+function curBossCfg(){
+  const cfg=curStageCfg(), list=EDIT.bosses&&EDIT.bosses.length?EDIT.bosses:FORGE_BASE.bosses||[];
+  return list.find(b=>b.id===cfg.bossId)||null;
+}
+function waveBudgetMul(w){return 1+(w??stageWave)*0.55} // wave 1 = 1x, wave 2 ≈1.55x, wave 3 ≈2.1x
+// Total enemies this wave will ever spawn. Ramps with waveBudgetMul so wave 1 is smallest, wave 3
+// biggest, and scales up gently with stage index so later stages still feel denser.
+function waveQuota(w){return Math.max(4,Math.round((10+stage*3)*waveBudgetMul(w)))}
+let shieldCharges=0,shieldCd=0; // Shield Matrix runtime
 let WEAPON,ENEMIES,paused=false,pauseAccum=0;
 const MAX_PARTICLES=220;
 // S5 — pooled floating damage numbers. Fixed-size pool, no per-hit allocation at survivors-like fire rates.
@@ -231,7 +453,17 @@ function genObstacles(){
   }
 }
 function pushOutOfObstacles(body){for(const o of obstacles){let dx=body.x-o.x,dy=body.y-o.y,d=Math.hypot(dx,dy),gap=o.r+body.r;if(d<1e-4){dx=1;dy=0;d=1}if(d<gap){body.x=o.x+dx/d*gap;body.y=o.y+dy/d*gap}}}
-function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;const psc=EDIT.player.scale??1;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius,scale:psc,r:16*psc});WEAPON=EDIT.weapons[0];ENEMIES=(EDIT.entities||[]).map(e=>{if(e.scale==null)e.scale=1;return e});if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35}applyForge();
+function applyForge(){
+  Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;
+  // Scale once: hit radius = 16 * scale. Visual uses player.r only (no second multiply).
+  // Eric 2026-08-07: scale 2 looked like ~10 because draw did r*3.4*scale again after r=16*scale.
+  const psc=Math.max(0.35,Math.min(3,Number(EDIT.player.scale)||1));
+  Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius,scale:psc,r:16*psc});
+  WEAPON=EDIT.weapons[0];
+  ENEMIES=(EDIT.entities||[]).map(e=>{if(e.scale==null)e.scale=1;return e});
+  if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;
+  if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35;
+}applyForge();
 // G7 — weapon caches, ranks, armory seed
 function weaponById(id){return (EDIT.weapons||[]).find(w=>w.id===id)||EDIT.weapons[0]}
 // 2026-08-06 fix: armory cost table listed seeker/beam/chain/nova explicitly and silently fell
@@ -242,19 +474,19 @@ function weaponById(id){return (EDIT.weapons||[]).find(w=>w.id===id)||EDIT.weapo
 // weighted pick came back ~16.6% per weapon, dead uniform across all 6 guns), but because it was
 // pre-equipped turn one far more often than the others. Poison now has its own explicit price,
 // priced with seeker (both are DoT/utility-leaning, mid-tier picks) instead of defaulting cheapest.
-function weaponArmoryCost(id){return id==='weapon.seeker'?4:id==='weapon.poison'?4:id==='weapon.beam'?5:id==='weapon.chain'?5:id==='weapon.nova'?6:3}
-function upgradeWeapon(w){w.rank=Math.min(5,(w.rank||1)+1);w.damage=Math.round(w.damage*1.18);w.rate=Math.max(.06,+(w.rate*0.94).toFixed(3));if(w.rank%3===0)w.pierce=(w.pierce||1)+1;if(w.kind==='poison')w.dot=+((w.dot||8)*1.18).toFixed(2);return w}
+function weaponArmoryCost(id){return id==='weapon.seeker'?4:id==='weapon.flame'?5:id==='weapon.poison'?4:id==='weapon.beam'?5:id==='weapon.chain'?5:id==='weapon.nova'?6:3}
+function upgradeWeapon(w){w.rank=Math.min(5,(w.rank||1)+1);w.damage=Math.round(w.damage*1.18);w.rate=Math.max(.06,+(w.rate*0.94).toFixed(3));if(w.rank%3===0)w.pierce=(w.pierce||1)+1;if(w.kind==='poison')w.dot=+((w.dot||8)*1.18).toFixed(2);noteWeapon(w);return w}
 function grantWeapon(id){
   const base=weaponById(id);if(!base)return;
   codexSee('weapon:'+base.id,0);
   if(!META.ownedWeapons)META.ownedWeapons={'weapon.pulse':true};
   if(!META.ownedWeapons[base.id]){META.ownedWeapons[base.id]=true;saveMeta()}
   const have=heldWeapons.find(w=>w.id===base.id);
-  if(have){upgradeWeapon(have);return 'rank'}
+  if(have){upgradeWeapon(have);noteWeapon(have);return 'rank'}
   /* 2026-08-05: picking a weapon now REPLACES the current one (Eric, playtest). It used to hold up
      to 5 and fire ALL of them at once, so the starting pulse gun kept firing underneath every new
      weapon — you could never actually see or feel what you just picked up. Same id still ranks up. */
-  heldWeapons=[Object.assign(copy(base),{rank:1})];WEAPON=heldWeapons[0];return 'swap'}
+  heldWeapons=[Object.assign(copy(base),{rank:1})];WEAPON=heldWeapons[0];noteWeapon(WEAPON);return 'swap'}
 function maybeDropWeapon(x,y,elite){
   const p=elite?(EDIT.drops.eliteWeaponChance??.35):(EDIT.drops.weaponChance??.04);
   if(rand(0,1)>=p)return;
@@ -270,12 +502,12 @@ function reset(){applyForge();
   const startId=(META.startWeapon&&META.ownedWeapons[META.startWeapon])?META.startWeapon:'weapon.pulse';
   const start=weaponById(startId);
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
-  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=wave=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;weaponMods={};weaponOrbs={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
-  stage=0;stageT=0;stageBoss=null;
+  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=threatTier=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;weaponMods={};weaponOrbs={};skillStacks={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
+  stage=0;stageT=0;stageBoss=null;stageWave=0;waveSpawned=0;waveNoKillT=0;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;shieldCharges=0;shieldCd=0;resetRunStats();
   genObstacles();for(const o of dmgNums)o.active=0;
-  if(WEAPON&&WEAPON.id)codexSee('weapon:'+WEAPON.id,0)}
+  if(WEAPON&&WEAPON.id){codexSee('weapon:'+WEAPON.id,0);noteWeapon(WEAPON)}}
 function rand(a,b){return a+Math.random()*(b-a)} function dist2(a,b){let x=a.x-b.x,y=a.y-b.y;return x*x+y*y}
-function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return}
+function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return false}
   // G6: early waves spawn from full ring (not the facing cone). The cone made "walk forward"
   // walk into every spawn and soft-locked wave 1 even at sane spawn rates.
   let a=elapsed<45||Math.random()<.35?Math.random()*Math.PI*2:player.angle+rand(-Math.PI/3,Math.PI/3);
@@ -289,22 +521,60 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   let total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);let x=Math.max(-WORLD.halfW+type.r,Math.min(WORLD.halfW-type.r,player.x+Math.cos(a)*distance)),y=Math.max(-WORLD.halfH+type.r,Math.min(WORLD.halfH-type.r,player.y+Math.sin(a)*distance));
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
-  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});}
+  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});return true}
 // STAGE climax: one scaled-up copy of the strongest entity this stage's roster allows (no new art
 // needed). cycle = how many full laps through EDIT.stages we've made, so re-visiting Stage 1 after
 // looping past HiVE Core still fields a tougher guardian than the first time.
 function spawnBossEnemy(){
   const cfg=curStageCfg(),stageCap=cfg.enemyCap??99,cycle=Math.floor(stage/((EDIT.stages&&EDIT.stages.length)||FORGE_BASE.stages.length));
-  let roster=ENEMIES.filter(e=>(e.unlockWave||1)<=stageCap);if(!roster.length)roster=ENEMIES;
-  const base=roster.reduce((best,e)=>(!best||(e.unlockWave||1)>=(best.unlockWave||1))?e:best,null);
   const mul=(cfg.bossMul||6)*(1+cycle*.4);
+  // PER-BOSS FORGE SLOT (owner 2026-08-08, "each boss has its own slot in bosses"): prefer a
+  // first-class entry from EDIT.bosses keyed by the stage's bossId. Falls back to the old
+  // derive-from-strongest-roster-entity behaviour when the stage has no bossId, the id doesn't
+  // resolve (stale/hand-edited FORGE JSON), or bosses is missing entirely — this is what keeps an
+  // OLD localStorage FORGE payload (saved before this feature existed, no `bosses` array at all)
+  // from breaking the guardian fight after this update ships.
+  const bcfg=curBossCfg();
+  let roster=ENEMIES.filter(e=>(e.unlockWave||1)<=stageCap);if(!roster.length)roster=ENEMIES;
+  const fallbackBase=roster.reduce((best,e)=>(!best||(e.unlockWave||1)>=(best.unlockWave||1))?e:best,null);
+  const base=(bcfg&&ENEMIES.find(e=>e.id===bcfg.baseEntityId))||fallbackBase;
+  const scale=bcfg?(bcfg.scale||1.6):1.6;
   const a=Math.random()*Math.PI*2,distance=Math.hypot(VIEW.w,VIEW.h)*.6+160;
-  let x=Math.max(-WORLD.halfW+base.r*1.6,Math.min(WORLD.halfW-base.r*1.6,player.x+Math.cos(a)*distance)),
-      y=Math.max(-WORLD.halfH+base.r*1.6,Math.min(WORLD.halfH-base.r*1.6,player.y+Math.sin(a)*distance));
-  const hp=base.hp*mul;
-  codexSee('boss:'+base.id,0);
-  const boss={x,y,r:base.r*1.6,hp,maxHp:hp,speed:base.speed*.85,damage:base.damage*1.4,type:base,color:base.color,hit:0,isBoss:true,bossName:cfg.name+' Guardian'};
-  enemies.push(boss);stageBoss=boss;}
+  const r=base.r*scale;
+  let x=Math.max(-WORLD.halfW+r,Math.min(WORLD.halfW-r,player.x+Math.cos(a)*distance)),
+      y=Math.max(-WORLD.halfH+r,Math.min(WORLD.halfH-r,player.y+Math.sin(a)*distance));
+  const hp=bcfg?(bcfg.hp||base.hp*mul):base.hp*mul;
+  const bossId=bcfg?bcfg.id:'boss:'+base.id;
+  codexSee(bossId,0);
+  const boss={x,y,r,hp,maxHp:hp,
+    speed:bcfg?(bcfg.speed??base.speed*.85):base.speed*.85,
+    damage:bcfg?(bcfg.damage??base.damage*1.4):base.damage*1.4,
+    type:base,color:(bcfg&&bcfg.color)||base.color,hit:0,isBoss:true,
+    bossName:(bcfg&&bcfg.name)||(cfg.name+' Guardian'),
+    rewardScore:(bcfg&&bcfg.score)||250,rewardXp:(bcfg&&bcfg.xp)||0};
+  enemies.push(boss);stageBoss=boss;
+  // Reset the boss-fight add-spawn budget/counter every time a NEW guardian spawns.
+  bossAddBudget=0;bossAddSpawned=0;
+  // Arm the boss stall watchdog against THIS guardian's starting HP (review fix 2026-08-08).
+  bossStallT=0;bossStallHp=boss.hp;
+  waveNoKillT=0;
+}
+// Boss-fight adds (owner 2026-08-08, "amount of spawns total and per second are options to add for
+// spawns during boss fight"). addTotal:0 means no adds at all — the while-guard below never spawns
+// if addTotal is falsy, so a boss with no configured adds behaves exactly like before this feature.
+// Adds are ordinary roster spawns (spawnEnemy()); they do NOT gate the fight ending — the boss dying
+// ends it regardless of how many adds are still alive (see killEnemy's wasBoss branch), and they are
+// never counted against waveSpawned/waveQuota so they can't keep a "wave" (which is already cleared
+// by the time the boss is up) artificially alive.
+function updateBossAdds(dt){
+  const bcfg=curBossCfg();
+  const addTotal=bcfg?Math.max(0,bcfg.addTotal|0):0;
+  if(!addTotal||bossAddSpawned>=addTotal)return;
+  const addPerSec=Math.max(0,bcfg.addPerSec||0);
+  if(!addPerSec)return;
+  bossAddBudget+=dt*addPerSec;
+  while(bossAddBudget>=1&&bossAddSpawned<addTotal){bossAddBudget-=1;if(spawnEnemy())bossAddSpawned++}
+}
 function nearestEnemy(from,ignore,ok){let target=null,best=Infinity;for(const e of enemies){if(ignore&&ignore.has(e))continue;if(ok&&!ok(e))continue;let d=(from.x-e.x)**2+(from.y-e.y)**2;if(d<best){best=d;target=e}}return target}
 // S.7 owner bug: "after an enemy is poisoned the weapon stops targeting them". The toxin gun kept
 // dumping shots into a target that was already dying of the DoT. It now looks for the nearest
@@ -315,7 +585,7 @@ function fire(){
   let a=Math.atan2(target.y-player.y,target.x-player.x);player.angle=a;
   const dmgMul=1+Math.min(.25,META.damage*.05);
   for(const w of heldWeapons){
-    const kind=w.kind||'bullet', dmg=w.damage*dmgMul;
+    const kind=w.kind||'bullet', dmg=wDamage(w)*dmgMul;
     // Each weapon aims for itself now - the toxin gun wants a clean target, everything else wants
     // the closest body.
     let wTarget=kind==='poison'?poisonTarget():target;
@@ -326,17 +596,35 @@ function fire(){
       // continuous ray — damage everything on the segment this tick
       const len=w.range||720, x2=player.x+Math.cos(wa)*len, y2=player.y+Math.sin(wa)*len;
       const beamLife=.14;
-      beams.push({x1:player.x,y1:player.y,x2,y2,color:w.color,core:w.coreColor,life:beamLife,lifeMax:beamLife,w:w.glowWidth||24,coreW:w.coreWidth||2.4,pulseRate:w.pulseRate||16});
+      const sm=wSizeMul(w);
+      beams.push({x1:player.x,y1:player.y,x2,y2,color:w.color,core:w.coreColor,life:beamLife,lifeMax:beamLife,w:(w.glowWidth||24)*sm,coreW:(w.coreWidth||2.4)*sm,pulseRate:w.pulseRate||16});
       const hitList=[];
       for(const e of enemies){
         const px=e.x-player.x,py=e.y-player.y,segx=x2-player.x,segy=y2-player.y,t=Math.max(0,Math.min(1,(px*segx+py*segy)/(segx*segx+segy*segy||1)));
         const dx=player.x+segx*t-e.x,dy=player.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){const tick=dmg*w.rate*3;e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);applyKnockback(e,e.x-player.x,e.y-player.y,modStacks(w.id,'knockback'));if(Math.random()<.5)burst(e.x,e.y,w.coreColor||'#eaffff',2);if(e.hp<=0)hitList.push(e)}}
       for(const e of hitList)killEnemy(e);
-      sfx('fire',.04);continue}
+      if(w.sfx)sfxFile(w.sfx,.04);else sfx('fire',.04);continue}
     if(kind==='chain'){
-      let cur=wTarget, hit=new Set(), jumps=w.jumps||4, from={x:player.x,y:player.y};
+      // Range-consistency (owner 2026-08-08, "storm arc range... it don't seem to stay consistent"):
+      // wTarget is the SAME globally-nearest `target` used to aim every other weapon, with NO range
+      // bound, so the first zap could reach arbitrarily far while every later jump was correctly
+      // capped to w.range (see the jump-distance check below).
+      //
+      // REVIEW FIX 2026-08-08: the first attempt at this bounded the first link by RANGE-TESTING
+      // wTarget and `continue`-ing on failure. That `continue` is on the OUTER `for(const w of
+      // heldWeapons)` loop, so whenever the globally-nearest enemy happened to be out of range the
+      // gun skipped its turn entirely — even with other enemies well inside range. That's a dead
+      // zone, not a range cap. Correct behaviour: pick the first link as the nearest enemy WITHIN
+      // range (same rule links 2..N already get via nearestEnemy(from,hit) + the distance check),
+      // and only decline to fire when NO enemy at all is in range.
+      const chainRangeSq=(w.range||150)**2;
+      let cur=nearestEnemy(player,null,e=>(e.x-player.x)**2+(e.y-player.y)**2<=chainRangeSq);
+      if(!cur)continue; // genuinely nothing in range — the only case Storm Arc holds fire
+      let hit=new Set(), jumps=wJumps(w), from={x:player.x,y:player.y};
+      const chainGlow=Math.max(4,(w.glowWidth||12)*(w.glowIntensity??1));
+      const chainCore=Math.max(0.6,w.coreWidth||1.8);
       for(let j=0;j<jumps&&cur;j++){
-        beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:.12,w:3,chain:1});
+        beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:.2,w:chainGlow,coreW:chainCore,glowI:w.glowIntensity??1,chain:1});
         const jd=dmg*(1-j*0.12);cur.hp-=jd;cur.hit=.12;spawnDmgNum(cur.x,cur.y-cur.r,jd);hit.add(cur);
         // Direction = away from `from` (the arc's immediate source: the player on jump 0, the
         // previous link after that) rather than away from the player — a chain can zig-zag several
@@ -344,30 +632,101 @@ function fire(){
         // own path instead of reading as "this link just got hit FROM here".
         applyKnockback(cur,cur.x-from.x,cur.y-from.y,modStacks(w.id,'knockback'));if(cur.hp<=0)killEnemy(cur);
         from={x:cur.x,y:cur.y};cur=nearestEnemy(from,hit);
-        if(cur&&(cur.x-from.x)**2+(cur.y-from.y)**2>(w.range||280)**2)cur=null}
-      sfx('hit',.1);continue}
-    // projectile kinds: bullet / homing / nova
-    sfx('fire',kind==='nova'?.12:.08);
+        if(cur&&(cur.x-from.x)**2+(cur.y-from.y)**2>(w.range||150)**2)cur=null}
+      if(w.sfx)sfxFile(w.sfx,.12);else sfx('hit',.1);continue}
+    if(kind==='flame'){
+      // Flamethrower (owner 2026-08-08): continuous cone, not a projectile — same family as
+      // beam/chain (no wShots/wPierce/scatter/ricochet). Every tick it damages every enemy inside
+      // a cone from the player aimed at wa, reach wFlameLen(w), half-angle derived from
+      // wFlameWidth(w) (treated as the cone's width in px AT full reach). It also applies a burn
+      // DoT via its OWN e.burnDps/e.burnT fields.
+      //
+      // BURN vs POISON FIELD SEPARATION (owner 2026-08-08, review fix): burn originally reused
+      // e.poisonT/poisonDps/poisonStacks. That was a real bug — poison writes those fields with an
+      // INCREMENTAL multiplicative model (`e.poisonDps=(b.dot||8)*nextStacks`, gated on
+      // `e.poisonT>0?(e.poisonStacks||1):0`) while flame wrote them with a take-the-max model, so
+      // poison read flame-authored stacks as its own prior stacks and flame's max() swallowed
+      // poison's DPS (probe: poisonDps=33.6 stacks=1, impossible under either formula). Burn now
+      // owns e.burnDps/e.burnT exclusively and ticks in its own block in update().
+      //
+      // DPS TUNING (owner 2026-08-08, review fix). Both flame and beam are continuous per-tick
+      // weapons, so the tick rate cancels out: DPS = tickDamage * (1/rate).
+      //   Breach Laser: tick = dmg*rate*3, ticks/s = 1/rate  ->  DPS = dmg*3 = 28*3 = 84
+      //   Flamethrower direct: tick = dmg*rate*2.2           ->  DPS = dmg*2.2 = 9*2.2 = 19.8
+      //   Flamethrower burn (burnDps 40, refreshed every tick while in cone) ->  40
+      //   Flame sustained single-target total = 19.8 + 40 = 59.8 DPS
+      // 59.8 vs the laser's 84 keeps the laser the precision/single-target king, while flame wins
+      // hard on a packed crowd (a 38px-wide cone catches far more bodies than a 1-px-wide ray) and
+      // leans ~67% of its damage on the burn DoT, which also keeps ticking after the target leaves
+      // the cone. Short range (260 vs 720) is the cost of that area. Overcharge scales the direct
+      // tick only; Napalm scales burnDps only — neither double-dips.
+      const len=wFlameLen(w), halfAng=Math.atan2(wFlameWidth(w)/2,len);
+      beams.push({flame:1,x:player.x,y:player.y,ang:wa,len,halfAng,color:w.color,life:.1});
+      const tick=dmg*w.rate*2.2;
+      const burn=wBurnDps(w);
+      // Collect-then-kill, same as the beam branch above: killEnemy() -> explode() can kill more
+      // enemies and splice the array, which is unsafe to do while iterating it.
+      const flameKills=[];
+      for(const e of enemies){
+        const dx=e.x-player.x,dy=e.y-player.y,d=Math.hypot(dx,dy);if(d>len+e.r)continue;
+        let diff=Math.atan2(dy,dx)-wa;diff=((diff+Math.PI*3)%(Math.PI*2))-Math.PI;
+        if(Math.abs(diff)>halfAng+Math.atan2(e.r,Math.max(1,d)))continue;
+        e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);
+        applyKnockback(e,dx,dy,modStacks(w.id,'knockback'));
+        if(Math.random()<.4)burst(e.x,e.y,'#ff9a3d',2);
+        // Refresh only — this writes no damage, so the ~16 refreshes/sec at rate .06 can never
+        // double-apply. All burn damage is dealt once per frame by the burn tick in update(),
+        // and fire() itself runs at most once per frame (`if(fireClock<=0)`, not `while`).
+        e.burnDps=Math.max(e.burnDps||0,burn);e.burnT=Math.max(e.burnT||0,w.burnTime||2.2);
+        if(e.hp<=0)flameKills.push(e);
+      }
+      for(const e of flameKills)killEnemy(e);
+      if(w.sfx)sfxFile(w.sfx,.05);else sfx('fire',.05);continue}
+    // projectile kinds: bullet / homing / nova / poison
+    if(w.sfx)sfxFile(w.sfx,kind==='nova'?.14:.08);else sfx('fire',kind==='nova'?.12:.08);
     const shots=wShots(w);
+    const shards=kind==='nova'?wNovaShards(w):0;
+    const sm=wSizeMul(w), bounces=wBounces(w);
+    // Wider fan when Scatter stacks so multi-shot reads clearly.
+    const fan=.12+.04*Math.max(0,shots-1);
     for(let i=0;i<shots;i++){
-      let spread=(i-(shots-1)/2)*.1;
+      let spread=(i-(shots-1)/2)*fan;
       const ang=wa+spread;
+      const baseR=kind==='nova'?7:kind==='homing'?5:4;
       bullets.push({
         x:player.x+Math.cos(ang)*18,y:player.y+Math.sin(ang)*18,
         vx:Math.cos(ang)*(w.speed||700),vy:Math.sin(ang)*(w.speed||700),
-        r:kind==='nova'?7:kind==='homing'?5:4,
+        r:baseR*sm,
         damage:dmg,pierce:wPierce(w),life:kind==='homing'?2.2:kind==='nova'?1.4:1.05,
         dot:(w.dot||0)*venomMul(w),dotTime:w.dotTime||0,slow:w.slowFactor??1,stackMax:w.poisonStackMax??1,
         spread:kind==='poison'?{chance:(w.spreadChance??.9)*venomMul(w),radius:w.spreadRadius??52,factor:w.spreadFactor??.7,slow:w.slowFactor??1}:null,
-        // kb snapshotted at fire time (not looked up at hit time) — bullets never carry a weapon
-        // reference, only kind, so modStacks(w.id,...) has to happen here while `w` is still in
-        // scope. Same immutable-snapshot pattern as dot/spread above.
         kb:modStacks(w.id,'knockback'),
-        color:w.color,kind,turn:w.turn||0,blast:w.blast||0,trail:[]
+        shards, srcWep:w.id, bounces, bounced:0,
+        color:w.color,kind,turn:w.turn||0,blast:w.blast||0,trail:[],
+        _hit:null
       })}}}
-function killEnemy(e,gibs){
+function spawnNovaShards(x,y,count,opts){
+  // Mini reactor-stars spit from a Nova kill. No recursive shard cascade (kind='novashard').
+  const n=Math.min(16,Math.max(0,count|0));if(!n)return;
+  const dmg=opts.damage||16, col=opts.color||'#ffe066', blast=(opts.blast||70)*.38, kb=opts.kb||0;
+  for(let i=0;i<n;i++){
+    const ang=Math.random()*Math.PI*2, sp=rand(180,320);
+    bullets.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,r:4,damage:dmg*.42,pierce:0,life:.9,
+      color:col,kind:'novashard',blast,kb,shards:0,trail:[]});
+  }
+  burst(x,y,col,8);
+}
+function killEnemy(e,gibs,killOpts){
   const idx=enemies.indexOf(e);if(idx<0)return;
-  score+=10;sfx('kill',.18);codexSee('enemy:'+e.type.id);
+  waveNoKillT=0; // any kill (wave enemy, boss, or add) proves progress — feeds the softlock valve
+  score+=10;noteKill(e);
+  // Prefer per-entity die SFX from FORGE, fall back to global kill.
+  const dieSfx=(e.type&&e.type.sfxDie)||'';
+  if(dieSfx)sfxFile(dieSfx,.2);else sfx('kill',.18);
+  codexSee('enemy:'+e.type.id);
+  if(killOpts&&killOpts.novaShards>0){
+    spawnNovaShards(e.x,e.y,killOpts.novaShards,{damage:killOpts.damage||20,color:killOpts.color,blast:killOpts.blast,kb:killOpts.kb});
+  }
   const elite=(e.type.dropXp||0)>=5;if(elite){META.credits++;saveMeta()}
   pickups.push({x:e.x,y:e.y,value:(e.type.dropXp||1)*EDIT.drops.xp});
   if(rand(0,1)<(EDIT.drops.healChance!==undefined?EDIT.drops.healChance:.07))
@@ -385,16 +744,28 @@ function killEnemy(e,gibs){
         const dx=o.x-e.x,dy=o.y-e.y;if(dx*dx+dy*dy>(rad+o.r)*(rad+o.r))continue;
         o.poisonDps=(e.poisonDps||0)*(sp.factor??.7);o.poisonT=Math.max(1.2,e.poisonT||1.2);o.poisonSrc=sp;o.poisonSlow=e.poisonSlow;o.poisonStacks=1;
         burst(o.x,o.y,'#7cff4f',4)}}}
-  explode(e.x,e.y,e.color||'#ff8',42,gibs);enemies.splice(idx,1);
+  // Splice BEFORE death VFX explode so recursive AOE kills from explode() cannot leave a stale idx
+  // (or re-enter this same body). Capture pos/boss flag first.
+  const wasBoss=!!e.isBoss,ex=e.x,ey=e.y,ecol=e.color||'#ff8';
+  enemies.splice(idx,1);
+  explode(ex,ey,ecol,42,gibs);
   // STAGE clear: the boss dying ends the stage immediately — bigger blast, score bonus, then the
   // between-stage break screen (mirrors how the level-up card interrupts play at pickups line ~410).
-  if(e.isBoss){stageBoss=null;score+=250;shake=Math.min(10,shake+6);explode(e.x,e.y,'#ffe066',110,true);state='stagebreak';offerStageBreak()}}
+  if(wasBoss){
+    score+=e.rewardScore||250;
+    if(e.rewardXp)pickups.push({x:ex,y:ey,value:e.rewardXp});
+    stageBoss=null;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;
+    // Leftover adds are allowed to persist into the debrief (owner spec: "any leftover adds should
+    // be cleared or allowed to persist into the debrief without breaking the wave-clear logic") —
+    // they were never counted toward waveSpawned/waveQuota so the next stage's wave-clear check
+    // starts clean regardless (offerStageBreak() also hard-clears enemies=[] on advance()).
+    shake=Math.min(10,shake+6);explode(ex,ey,'#ffe066',110,true);state='debrief';startDebrief()}}
 function burst(x,y,color,n=8){n=Math.min(n,MAX_PARTICLES-particles.length);for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(25,160);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.6),color,r:rand(1.5,3.5)})}}
 // S3 — Heat Seeker kills gib enemies into rotating debris chunks, on top of the existing puff.
 // Same particle pool/budget as burst(); a dedicated draw-time shape (rotated rect) makes them
 // read as "bits" instead of more circular spark.
 function spawnGibs(x,y,color){const n=Math.min(6,MAX_PARTICLES-particles.length);for(let i=0;i<n;i++){let a=Math.random()*6.283,s=rand(60,220);particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.35,.7),color,r:rand(2,4),gib:1,rot:Math.random()*6.283,rvel:rand(-8,8)})}}
-function explode(x,y,color,r=60,gibs,kb=0){// shockwave + debris + shake — budgeted particle count
+function explode(x,y,color,r=60,gibs,kb=0,novaMeta){// shockwave + debris + shake — budgeted particle count
   /* 2026-08-05: this ran on EVERY enemy death and re-armed shake to a full 10 each time. Decay is
      only ~25/s, so at survivors-like kill rates the screen never stopped shaking and the game was
      hard to play (Eric, playtest). Now a kill adds a small amount against a low cap; only genuinely
@@ -402,10 +773,16 @@ function explode(x,y,color,r=60,gibs,kb=0){// shockwave + debris + shake — bud
   shake=Math.min(4.5,shake+1.6);burst(x,y,color,14);burst(x,y,'#fff6c8',8);
   if(gibs)spawnGibs(x,y,color);
   particles.push({x,y,vx:0,vy:0,life:.28,color,shock:r});
-  // kb = Nova Shell's knockback stacks, passed in only by the two bullet-hit call sites below (kill
-  // VFX explosions elsewhere pass none, so they keep their existing fixed 18px nudge unchanged).
-  for(const e of enemies){const dx=e.x-x,dy=e.y-y,d=Math.hypot(dx,dy);if(d<r){e.hp-=22*(1-d/r);e.hit=.15;if(d>1){e.x+=dx/d*18;e.y+=dy/d*18}applyKnockback(e,dx,dy,kb)}}}
+  // kb = Nova Shell's knockback stacks. novaMeta: when set, enemies KILLED by this blast spit mini nova-stars.
+  const doomed=[];
+  for(const e of enemies){const dx=e.x-x,dy=e.y-y,d=Math.hypot(dx,dy);if(d<r){const dmg=22*(1-d/r);e.hp-=dmg;e.hit=.15;spawnDmgNum(e.x,e.y-e.r,dmg);if(d>1&&!isStaticEnemy(e)){e.x+=dx/d*18;e.y+=dy/d*18;clampEnemy(e)}applyKnockback(e,dx,dy,kb);if(e.hp<=0)doomed.push(e)}}
+  for(const e of doomed){
+    const shardN=novaMeta?Math.max(0,novaMeta.shards|0):0;
+    killEnemy(e,false,shardN?{novaShards:shardN,damage:novaMeta.damage,color:novaMeta.color||color,blast:novaMeta.blast||r,kb}:null);
+  }
+}
 function setPaused(on){
+  if(state==='debrief'||state==='stagebreak')return;
   if(state!=='play'&&state!=='levelup'&&!(paused&&on===false)){if(state==='title'||state==='dead')return}
   if(on===paused)return;
   paused=!!on;pauseAccum=0;
@@ -421,29 +798,126 @@ function update(dt){
   // see the comment in offerStageBreak() for why this can't run synchronously from killEnemy.
   if(pendingStageAdvance){const fn=pendingStageAdvance;pendingStageAdvance=null;fn()}
   if(newCodexT>0)newCodexT=Math.max(0,newCodexT-dt);
+  if(state==='debrief'){updateDebrief(dt);return}
   if(paused){// freeze sim: no spawnBudget/fireClock/enemy advance — resume is frame-clean
     for(let i=beams.length-1;i>=0;i--){beams[i].life-=dt;if(beams[i].life<=0)beams.splice(i,1)}
     return}
-  if(state!=='play')return;elapsed+=dt;wave=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));pushOutOfObstacles(player);followCamera();
-// STAGE: advance the in-stage clock only while no guardian is up; once stageT crosses the
-// stage's seconds budget, spawn the guardian and freeze normal spawn growth (existing mobs still
-// fight) until it dies (killEnemy → offerStageBreak → advance() resets stageT for the next stage).
-if(!stageBoss){stageT+=dt;if(stageT>=curStageCfg().seconds)spawnBossEnemy()}
-if(!stageBoss)spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,wave);
-while(spawnBudget>=1){spawnBudget-=1;spawnEnemy()}fireClock-=dt;if(fireClock<=0){fireClock+=wRate(WEAPON);fire()}
+  if(state!=='play')return;elapsed+=dt;threatTier=1+Math.floor(elapsed/EDIT.waves.seconds);player.inv=Math.max(0,player.inv-dt);let dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0),dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);if(STICK.active&&(STICK.dx||STICK.dy)){dx=STICK.dx;dy=STICK.dy}let mag=Math.hypot(dx,dy);if(mag){player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;player.angle=Math.atan2(dy,dx)}player.x=Math.max(-WORLD.halfW+player.r,Math.min(WORLD.halfW-player.r,player.x));player.y=Math.max(-WORLD.halfH+player.r,Math.min(WORLD.halfH-player.r,player.y));pushOutOfObstacles(player);followCamera();
+// STAGE / WAVE (owner 2026-08-08, rewritten from a timer to KILL-BASED waves): each stage is
+// WAVES_PER_STAGE (3) waves, each with a finite spawn quota (waveQuota()) trickled in at the usual
+// spawnBudget pace. A wave only ends when every enemy it spawned is dead — enemies.length===0 is a
+// safe proxy for "every wave enemy is dead" here because during waves 1-3 stageBoss is always null
+// (nothing else is pushing to `enemies`), and once the boss IS up this whole branch is skipped, so
+// adds spawned during the boss fight (see updateBossAdds) can never be mistaken for wave enemies or
+// block a wave from clearing.
+if(bossPendingT>0){
+  // Boss entrance telegraph — brief shake/banner window between "wave 3 cleared" and the guardian
+  // actually appearing. See draw() for the banner text.
+  stageT+=dt;bossPendingT=Math.max(0,bossPendingT-dt);shake=Math.min(10,shake+dt*6);
+  if(bossPendingT<=0){spawnBossEnemy();if(bossPendingCfg&&bossPendingCfg.roar)sfxFile(bossPendingCfg.roar,.5);else sfx('kill',.3)}
+}else if(!stageBoss){
+  stageT+=dt;
+  const quota=waveQuota(stageWave);
+  if(waveSpawned<quota){
+    spawnBudget+=dt*EDIT.waves.budgetBase*Math.pow(EDIT.waves.budgetExponent,threatTier)*waveBudgetMul();
+    while(spawnBudget>=1&&waveSpawned<quota){spawnBudget-=1;if(spawnEnemy())waveSpawned++}
+  }
+  // SOFTLOCK GUARD (owner 2026-08-08 — the headline risk of the kill-based rewrite): a wave that can
+  // never reach "quota drained AND enemies.length===0" would hang the run forever. Track time since
+  // the last kill; once it exceeds WAVE_STALL_T, drag the blockers to the player rather than leaving
+  // them unreachable (wedged in an obstacle, wandered off-clamp, or simply lost by the player).
+  //
+  // REVIEW FIX 2026-08-08 (finding 2): this used to be hard-capped at `enemies.length<=3`, which made
+  // the valve a NO-OP in exactly the catastrophic case — a reviewer forced all damage to zero, the
+  // wave sat at 10 live enemies, waveNoKillT climbed past 600s, and the valve never fired because
+  // 10 > 3. Protecting only the common case and leaving the total-stall case unguarded is backwards
+  // for a safety valve. Now:
+  //   - once waveSpawned>=quota nothing further is coming, so EVERY remaining body is by definition
+  //     the thing blocking the wave and all of them get dragged in — no cap at all;
+  //   - while the wave is still spawning, the cap scales off WORLD.maxEnemies instead of a magic 3,
+  //     so it still can't fire during ordinary mid-wave combat on any FORGE config.
+  // WAVE_STALL_T (11s with zero kills) is the grace period that keeps this invisible to a competent
+  // player — normal play kills something every couple of seconds, which resets waveNoKillT.
+  waveNoKillT+=dt;
+  if(waveNoKillT>WAVE_STALL_T&&enemies.length>0){
+    const stallCap=waveSpawned>=quota?Infinity:Math.max(WAVE_STALL_MAX_LEFT,Math.ceil((WORLD.maxEnemies||220)*.25));
+    if(enemies.length<=stallCap){
+      for(const e of enemies){const a=Math.random()*Math.PI*2,d=rand(60,140);e.x=player.x+Math.cos(a)*d;e.y=player.y+Math.sin(a)*d;clampEnemy(e);pushOutOfObstacles(e);e.kx=0;e.ky=0}
+      waveNoKillT=0; // give the player a fresh window before nudging again
+    }
+  }
+  if(waveSpawned>=quota&&enemies.length===0){
+    if(stageWave<WAVES_PER_STAGE-1){
+      stageWave++;waveSpawned=0;waveNoKillT=0;
+      burst(player.x,player.y,'#6fffe2',18);sfx('kill',.12);
+    }else{
+      // wave 3 cleared → telegraph, then the guardian (spawnBossEnemy runs once bossPendingT hits 0)
+      bossPendingCfg=curBossCfg();bossPendingT=BOSS_TELEGRAPH_T;waveNoKillT=0;
+      shake=Math.min(10,shake+8);burst(player.x,player.y,'#ffe066',24);
+    }
+  }
+}else{
+  // Guardian is up: no wave spawning, just its own add trickle (0 adds is a no-op — see updateBossAdds).
+  updateBossAdds(dt);
+  // BOSS SOFTLOCK GUARD (review fix 2026-08-08, finding 1). The wave valve above lives inside the
+  // `else if(!stageBoss)` branch, so once the guardian spawned NOTHING advanced waveNoKillT and the
+  // boss fight had zero stall protection: a reviewer held a boss at zero damage for 600 simulated
+  // seconds and the run sat permanently on stage 0 with no recovery path. This is the asymmetry the
+  // kill-based rewrite introduced — the old timer-based rounds never blocked on one specific enemy
+  // dying, so they physically could not hang; a single unreachable boss now can. No organic trigger
+  // exists in today's shipped content, so this is structural insurance, but the guardian is exactly
+  // the encounter where a hang is unrecoverable and most infuriating, and the fix is cheap.
+  //
+  // The rescue is boss-appropriate rather than a copy of the wave teleport: the BOSS is the thing
+  // that must die, so it is what gets pulled to the player (adds are irrelevant — they never gate the
+  // fight). bossStallT is reset by any damage landing on the boss, not merely by a kill, because a
+  // boss fight legitimately runs a long time between deaths; "no damage dealt to the guardian for
+  // BOSS_STALL_T seconds" is the real definition of no progress here. Each successive rescue also
+  // clears the boss's knockback and drops it right on top of the player, so the fight cannot sit at
+  // zero progress indefinitely under any circumstance.
+  bossStallT+=dt;
+  if(stageBoss&&stageBoss.hp<bossStallHp-0.01){bossStallHp=stageBoss.hp;bossStallT=0} // damage = progress
+  if(bossStallT>BOSS_STALL_T&&stageBoss){
+    const a=Math.random()*Math.PI*2,d=rand(50,110);
+    stageBoss.x=player.x+Math.cos(a)*d;stageBoss.y=player.y+Math.sin(a)*d;
+    stageBoss.kx=0;stageBoss.ky=0;clampEnemy(stageBoss);pushOutOfObstacles(stageBoss);
+    shake=Math.min(10,shake+5);burst(stageBoss.x,stageBoss.y,'#ffe066',18);
+    bossStallT=0;
+  }
+}
+// Shield Matrix recharge
+if((skillStacks.shield||0)>0){shieldCd=Math.max(0,shieldCd-dt);if(shieldCd<=0&&shieldCharges<(skillStacks.shield||0)){shieldCharges=skillStacks.shield;shieldCd=12}}
+fireClock-=dt;if(fireClock<=0){fireClock+=wRate(WEAPON);fire();fireDrones()}
 for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1,
     // S.7 feel pass: poisoned enemies are slowed (poisonSlow, from weapon.poison's slowFactor) so
     // the player never has to kite/run away waiting the DoT out — infection defangs on contact.
     moveSpeed=e.speed*(e.poisonT>0?(e.poisonSlow||1):1);
-  e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;
+  if(!isStaticEnemy(e)){e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt}
+  e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;
   // Knockback offset: applied AFTER the chase step, BEFORE separation/pushOutOfObstacles so both
   // still see (and correct) the shoved position this same frame — nothing gets knocked through an
   // obstacle or another enemy. World-bound clamp here too — enemies were never clamped to the
   // arena edge before (only at spawn), which was fine for plain chase movement but a knockback can
   // shove one past the edge in a single hit, so clamp same as player. Decays via a half-life so it
   // reads as a snappy shove, not a fling.
-  if(e.kx||e.ky){e.x+=e.kx*dt;e.y+=e.ky*dt;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;e.x=Math.max(-WORLD.halfW+e.r,Math.min(WORLD.halfW-e.r,e.x));e.y=Math.max(-WORLD.halfH+e.r,Math.min(WORLD.halfH-e.r,e.y));const kd=Math.pow(.5,dt/KB_HALFLIFE);e.kx*=kd;e.ky*=kd;if(Math.abs(e.kx)<1)e.kx=0;if(Math.abs(e.ky)<1)e.ky=0}
-  for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;e.x+=sx/sd*push;e.y+=sy/sd*push;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;o.x-=sx/sd*push;o.y-=sy/sd*push}}pushOutOfObstacles(e);e.hit=Math.max(0,e.hit-dt);
+  if((e.kx||e.ky)&&!isStaticEnemy(e)){e.x+=e.kx*dt;e.y+=e.ky*dt;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;const kd=Math.pow(.5,dt/KB_HALFLIFE);e.kx*=kd;e.ky*=kd;if(Math.abs(e.kx)<1)e.kx=0;if(Math.abs(e.ky)<1)e.ky=0}
+  else{e.kx=0;e.ky=0}
+  for(let j=0;j<i;j++){let o=enemies[j],sx=e.x-o.x,sy=e.y-o.y,sd=Math.hypot(sx,sy)||.01,gap=(e.r+o.r)*.8;if(sd<gap){let push=(gap-sd)*.5;
+    if(!isStaticEnemy(e)){e.x+=sx/sd*push;e.y+=sy/sd*push;e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y}
+    if(!isStaticEnemy(o)){o.x-=sx/sd*push;o.y-=sy/sd*push;clampEnemy(o)}}}
+  pushOutOfObstacles(e);clampEnemy(e);e.hit=Math.max(0,e.hit-dt);
+      // Flamethrower BURN DoT tick (owner 2026-08-08). Deliberately its own block on its own
+      // e.burnDps/e.burnT fields — see the field-separation comment in fire()'s flame branch for
+      // why sharing the poison fields was a bug. Same shape as the poison tick below (drain by
+      // dps*dt once per frame, a damage number + puff every .18s) but orange so burn reads as
+      // visually distinct from green poison. No slow and no contagion: burn is pure damage.
+      // Napalm stacks scale e.burnDps upstream in wBurnDps(), never here.
+      if(e.burnT>0){e.hp-=e.burnDps*dt;e.burnT=Math.max(0,e.burnT-dt);e.burnTick=(e.burnTick||0)+dt;
+        if(e.burnTick>.18){spawnDmgNum(e.x,e.y-e.r,e.burnDps*.18);burst(e.x,e.y,'#ff9a3d',1);e.burnTick=0}
+        if(e.burnT<=0){e.burnDps=0;e.burnTick=0}}
+      // NOTE: no killEnemy() here on purpose — same as the poison tick. Deaths from DoT are
+      // reaped by the "clean dead marked by beam damage mid-loop" sweep after this loop, so
+      // explode()'s recursive kills can never splice enemies out from under this iteration.
       // S4 — poison DoT tick: keeps draining after the hit lands, independent of contact/bullet damage.
       if(e.poisonT>0){e.hp-=e.poisonDps*dt;e.poisonT=Math.max(0,e.poisonT-dt);e.poisonTick=(e.poisonTick||0)+dt;if(e.poisonTick>.18){spawnDmgNum(e.x,e.y-e.r,e.poisonDps*.18);burst(e.x,e.y,'#7cff4f',1);e.poisonTick=0}
         // S.7 CONTAGION (owner spec): "if the infected hit another enemy, they get infected".
@@ -461,17 +935,38 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
                 const dx=o.x-e.x,dy=o.y-e.y;if(dx*dx+dy*dy>(rad+o.r)*(rad+o.r))continue;
                 o.poisonDps=e.poisonDps*(sp.factor??.7);o.poisonT=e.poisonT;o.poisonSrc=sp;o.poisonSlow=e.poisonSlow;o.poisonStacks=1;
                 burst(o.x,o.y,'#7cff4f',3);break}}}}}
-      if(d<e.r+player.r){if(!player.inv){player.hp-=e.damage;player.inv=.7;shake=8;burst(player.x,player.y,'#ff718a',14);
+      if(d<e.r+player.r){if(!player.inv){
+        if(shieldCharges>0){shieldCharges--;player.inv=.55;burst(player.x,player.y,'#6fffe2',12);sfx('hit',.1)}
+        else{if(e.type&&e.type.sfxAttack)sfxFile(e.type.sfxAttack,.16);player.hp-=e.damage;player.inv=.7;shake=8;burst(player.x,player.y,'#ff718a',14);
         player.x-=vx/d*18;player.y-=vy/d*18;
-        if(player.hp<=0){player.hp=0;if(score>(META.bestScore||0)){META.bestScore=score;saveMeta()}state='dead';setPaused(false)}}e.x-=vx/d*28;e.y-=vy/d*28}}
+        if(player.hp<=0){player.hp=0;if(score>(META.bestScore||0)){META.bestScore=score;saveMeta()}state='dead';setPaused(false)}}}
+        if(!isStaticEnemy(e)){e.x-=vx/d*28;e.y-=vy/d*28;clampEnemy(e)}}}
 for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
-  if(b.kind==='homing'){const t=nearestEnemy(b);if(t){const desired=Math.atan2(t.y-b.y,t.x-b.x),cur=Math.atan2(b.vy,b.vx);let diff=((desired-cur+Math.PI*3)%(Math.PI*2))-Math.PI;const maxTurn=(b.turn||7)*dt;diff=Math.max(-maxTurn,Math.min(maxTurn,diff));const sp=Math.hypot(b.vx,b.vy)||400;const na=cur+diff;b.vx=Math.cos(na)*sp;b.vy=Math.sin(na)*sp}}
+  if(b.kind==='homing'){const t=nearestEnemy(b);if(t){const desired=Math.atan2(t.y-b.y,t.x-b.x),cur=Math.atan2(b.vy,b.vx);let diff=((desired-cur+Math.PI*3)%(Math.PI*2))-Math.PI;const maxTurn=(b.turn||7)*dt;diff=Math.max(-maxTurn,Math.min(maxTurn,diff));const sp=Math.hypot(b.vx,b.vy)||400;const na=cur+diff;b.vx=Math.cos(na)*sp;b.vy=Math.sin(na)*sp}
+    // Heat Seeker smoke trail (owner 2026-08-08): a fading grey/white puff every ~0.03s along the
+    // missile's path. Budget guard: burst()/spawnGibs() already clamp to MAX_PARTICLES(220), so a
+    // screen full of scattered missiles just stops spawning new smoke once the pool is full rather
+    // than starving explosion/gib particles — smoke is the lowest-priority visual, so it's the one
+    // allowed to silently drop first.
+    b.smokeT=(b.smokeT||0)+dt;if(b.smokeT>.03){b.smokeT=0;
+      if(particles.length<MAX_PARTICLES){const g=rand(.75,.92)*255|0,gc=`rgb(${g},${g},${g})`;
+        particles.push({x:b.x,y:b.y,vx:-b.vx*.06+rand(-8,8),vy:-b.vy*.06+rand(-8,8),life:rand(.35,.55),color:gc,r:rand(2,4)})}}}
   b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
+  // Ricochet off arena bounds
+  if((b.bounces|0)>0){
+    const margin=8;
+    if(b.x<-WORLD.halfW+margin||b.x>WORLD.halfW-margin){b.vx*=-1;b.x=Math.max(-WORLD.halfW+margin,Math.min(WORLD.halfW-margin,b.x));b.bounces--;b.life=Math.max(b.life,.2);burst(b.x,b.y,b.color||'#fff',2)}
+    if(b.y<-WORLD.halfH+margin||b.y>WORLD.halfH-margin){b.vy*=-1;b.y=Math.max(-WORLD.halfH+margin,Math.min(WORLD.halfH-margin,b.y));b.bounces--;b.life=Math.max(b.life,.2);burst(b.x,b.y,b.color||'#fff',2)}
+  }
   if(b.trail){b.trail.push(b.x,b.y);if(b.trail.length>16)b.trail.splice(0,2)}
   let removed=b.life<=0;
-  if(removed&&b.kind==='nova')explode(b.x,b.y,b.color||'#ffe066',b.blast||70,false,b.kb);
-  for(let j=enemies.length-1;j>=0&&!removed;j--){let e=enemies[j],r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){
-    if(b.kind==='nova'){explode(b.x,b.y,b.color||'#ffe066',b.blast||70,false,b.kb);removed=true;break}
+  const novaMetaFor=()=>({shards:b.shards||0,damage:b.damage,color:b.color,blast:b.blast||70,kb:b.kb});
+  if(removed&&(b.kind==='nova'||b.kind==='novashard'))explode(b.x,b.y,b.color||'#ffe066',b.blast||70,false,b.kb,b.kind==='nova'?novaMetaFor():null);
+  // Same shrink-faster-than-the-index hazard as the DoT sweep below: a nova/AOE hit inside this loop
+  // calls explode() -> killEnemy() which can splice SEVERAL enemies at once, so by a later iteration
+  // enemies[j] can be undefined. Clamp + skip instead of indexing blind (crash fix 2026-08-08).
+  for(let j=enemies.length-1;j>=0&&!removed;j--){if(j>=enemies.length)j=enemies.length-1;let e=enemies[j];if(!e)continue;let r=e.r+b.r;if((e.x-b.x)**2+(e.y-b.y)**2<r*r){
+    if(b.kind==='nova'||b.kind==='novashard'){explode(b.x,b.y,b.color||'#ffe066',b.blast||70,false,b.kb,b.kind==='nova'?novaMetaFor():null);removed=true;break}
     if(b.kind==='poison'){
       // Owner bug 2026-08-06: "it hits an enemy and continues to hit". A carrier no longer eats the
       // dart for nothing once already at max potency — the shot flies THROUGH a saturated target
@@ -488,11 +983,29 @@ for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
       applyKnockback(e,b.vx,b.vy,b.kb);
       b.pierce--;if(b.pierce<0)removed=true;continue}
     e.hp-=b.damage;e.hit=.1;sfx('hit',.08);burst(b.x,b.y,b.color||WEAPON.color,4);spawnDmgNum(e.x,e.y-e.r,b.damage);applyKnockback(e,b.vx,b.vy,b.kb);b.pierce--;
-    if(e.hp<=0)killEnemy(e,b.kind==='homing');if(b.pierce<0)removed=true}}
+    if(e.hp<=0)killEnemy(e,b.kind==='homing');
+    if(b.pierce<0){
+      // Ricochet off the enemy surface instead of dying, while bounces remain.
+      if((b.bounces|0)>0){
+        const nx=b.x-e.x,ny=b.y-e.y,nd=Math.hypot(nx,ny)||1;
+        // Reflect velocity about the contact normal
+        const ux=nx/nd,uy=ny/nd,dot=b.vx*ux+b.vy*uy;
+        b.vx=b.vx-2*dot*ux;b.vy=b.vy-2*dot*uy;
+        b.x=e.x+ux*(e.r+b.r+2);b.y=e.y+uy*(e.r+b.r+2);
+        b.bounces--;b.pierce=0;b.life=Math.max(b.life,.25);b.damage*=.92;
+        burst(b.x,b.y,b.color||'#fff',3);
+      }else removed=true;
+    }}}
   if(removed)bullets.splice(i,1)}
 for(let i=beams.length-1;i>=0;i--){beams[i].life-=dt;if(beams[i].life<=0)beams.splice(i,1)}
-// clean dead marked by beam damage mid-loop
-for(let i=enemies.length-1;i>=0;i--)if(enemies[i].hp<=0)killEnemy(enemies[i]);
+// clean dead marked by beam/DoT damage mid-loop.
+// CRASH FIX 2026-08-08: this indexed `enemies[i]` unguarded, but killEnemy() -> explode() can chain
+// and splice SEVERAL bodies out in one call, so the array can shrink faster than i decrements —
+// leaving enemies[i] undefined and throwing "Cannot read properties of undefined (reading 'hp')".
+// Latent since the sweep was written; the kill-based waves + boss adds push enough simultaneous
+// bodies/AOE chains to actually hit it (reproduced in the harness at t=86s). Clamp i to the current
+// length each step and null-guard the slot.
+for(let i=enemies.length-1;i>=0;i--){if(i>=enemies.length)i=enemies.length-1;const e=enemies[i];if(e&&e.hp<=0)killEnemy(e)}
 // XP orbs — pickupRadius is magnet reach; bank only on touch.
 for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.y-p.y,d=Math.hypot(dx,dy)||1;
   p.t=(p.t||0)+dt;p.vx=p.vx||0;p.vy=p.vy||0;
@@ -509,7 +1022,7 @@ for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.
   if(d<player.r+10){
     if(p.weapon){grantWeapon(p.weaponId);burst(p.x,p.y,p.color||'#ffe08a',10);sfx('kill',.12)}
     else if(p.heal){player.hp=Math.min(player.maxHp,player.hp+p.value);burst(p.x,p.y,'#ff5f7a',7);codexSee('item:heal',0)}
-    else{xp+=p.value;orbsCollected++;bankOrb();burst(p.x,p.y,'#6fffe2',5);codexSee('item:xp',0)}
+    else{xp+=p.value;orbsCollected++;runStats.orbs++;bankOrb();burst(p.x,p.y,'#6fffe2',5);codexSee('item:xp',0)}
     sfx('hit',.05);pickups.splice(i,1);
     if(!p.heal&&!p.weapon&&xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);state='levelup';offerCards()}}}
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.gib)p.rot=(p.rot||0)+(p.rvel||0)*dt;if(p.life<=0)particles.splice(i,1)}
@@ -518,7 +1031,7 @@ for(let i=0;i<dmgNums.length;i++){const o=dmgNums[i];if(!o.active)continue;o.y+=
 shake=Math.max(0,shake-dt*25)}
 function sx(x){return x-cam.x+VIEW.w/2}function sy(y){return y-cam.y+VIEW.h/2}
 // QA probe — Playwright cannot see script-scoped let; publish on window.
-window.__swarmDbg=()=>({state,wave,stage,stageT,stageBoss:!!stageBoss,elapsed,score,level,xp,nextXp,orbsCollected,
+window.__swarmDbg=()=>({state,wave:stageWave+1,threatTier,stage,stageT,stageWave,waveSpawned,waveQuota:waveQuota(stageWave),bossPendingT,stageBoss:!!stageBoss,elapsed,score,level,xp,nextXp,orbsCollected,
   pickups:pickups.length,enemies:enemies.length,hp:player.hp,px:Math.round(player.x),py:Math.round(player.y),
   slot:currentSlot(),codexUnlocked:codexVisible().length,codexTotal:codexPages().length,
   credits:META.credits||0,bestScore:META.bestScore||0,paused,version:GAME_VERSION,
@@ -526,7 +1039,7 @@ window.__swarmDbg=()=>({state,wave,stage,stageT,stageBoss:!!stageBoss,elapsed,sc
     shots:wShots(w),pierce:wPierce(w),mods:Object.assign({},weaponMods[w.id]||{}),orbs:weaponOrbs[w.id]||0,nextRankAt:orbsForRank(w.rank||1)})),
   weaponMods:Object.assign({},weaponMods),
   startWeapon:META.startWeapon||'weapon.pulse',bullets:bullets.length,beams:beams.length,particles:particles.length,
-  obstacles:obstacles.length,poisoned:enemies.filter(e=>e.poisonT>0).length,dmgNumsActive:dmgNums.filter(o=>o.active).length,
+  obstacles:obstacles.length,poisoned:enemies.filter(e=>e.poisonT>0).length,burning:enemies.filter(e=>e.burnT>0).length,dmgNumsActive:dmgNums.filter(o=>o.active).length,
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 window.__swarmPause=setPaused;window.__swarmTogglePause=togglePause;
@@ -536,14 +1049,70 @@ function draw(){
   const st=curStageCfg(), stageBg=(st.bg)||['#050b14','#050b14'],bgGrad=ctx.createLinearGradient(0,0,0,VIEW.h);
   bgGrad.addColorStop(0,stageBg[0]);bgGrad.addColorStop(1,stageBg[1]||stageBg[0]);
   ctx.fillStyle=bgGrad;ctx.fillRect(0,0,VIEW.w,VIEW.h);
-  if(st.bgArt){const bgImg=spriteFor(st.bgArt);if(bgImg&&bgImg.complete&&bgImg.naturalWidth){const zoom=1.12,bw=VIEW.w*zoom,bh=VIEW.h*zoom,bxo=-(cam.x*0.08)%bw,byo=-(cam.y*0.08)%bh;ctx.globalAlpha=0.52;for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++)ctx.drawImage(bgImg,bxo+ix*bw,byo+iy*bh,bw,bh);ctx.globalAlpha=1}}let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
+  let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);
+  // Arena plane = grid again (Eric 2026-08-07: photo floors looked horrible). Stage bgArt is
+  // still pickable in FORGE for optional later use, but gameplay draws the grid.
+  ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;const grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;
+  for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}
+  for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
 // S6 — static obstacles (procedural rock-cluster shapes, deterministic per-seed so they don't
 // flicker frame to frame). Push-out collision handled in update(); drawn under everything else.
 for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-100||ox2>VIEW.w+100||oy2<-100||oy2>VIEW.h+100)continue;const oImg=spriteFor(o.art||OBSTACLE_SPRITE);const oS=o.r*2.8*(o.scale||1);ctx.save();ctx.globalAlpha=.28;ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(ox2,oy2+oS*0.28,oS*0.42,oS*0.16,0,0,7);ctx.fill();ctx.restore();if(oImg&&oImg.complete&&oImg.naturalWidth){ctx.globalAlpha=.98;ctx.drawImage(oImg,ox2-oS/2,oy2-oS/2,oS,oS);ctx.globalAlpha=1}else{ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.beginPath();ctx.arc(0,0,o.r,0,7);ctx.fill();ctx.restore()}}
 // beams (laser + chain) under projectiles
 for(const b of beams){
-  if(b.chain){ctx.save();ctx.globalAlpha=Math.min(1,b.life*10);ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=18;ctx.lineWidth=b.w||4;ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(sx(b.x1),sy(b.y1));const mx=(b.x1+b.x2)/2+rand(-8,8),my=(b.y1+b.y2)/2+rand(-8,8);ctx.lineTo(sx(mx),sy(my));ctx.lineTo(sx(b.x2),sy(b.y2));ctx.stroke();ctx.restore();continue}
+  if(b.flame){
+    // Flamethrower cone (owner 2026-08-08): layered additive gradient wedge, NOT a solid
+    // triangle — outer orange, mid yellow, white-hot core near the muzzle — plus a scatter of
+    // flickering ember particles so it reads as fire instead of a geometric shape. Scales
+    // directly with b.len/b.halfAng, which already carry wFlameLen/wFlameWidth (mods + giant
+    // exclusion applied upstream in fire()).
+    const px=sx(b.x),py=sy(b.y),len=b.len,half=b.halfAng;
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.translate(px,py);ctx.rotate(b.ang);
+    const flick=.85+.15*Math.sin(elapsed*37+b.x*.05);
+    const grad=ctx.createLinearGradient(0,0,len,0);
+    grad.addColorStop(0,'rgba(255,255,240,'+(.85*flick)+')');
+    grad.addColorStop(.35,'rgba(255,196,80,'+(.55*flick)+')');
+    grad.addColorStop(1,'rgba(255,90,30,0)');
+    ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,0);
+    ctx.arc(0,0,len,-half,half);ctx.closePath();ctx.fill();
+    ctx.restore();
+    // Scattered ember flecks inside the cone — cheap, no new state stored on the beam object.
+    for(let i=0;i<5;i++){
+      const t=Math.random(),r=t*len,a=(Math.random()*2-1)*half*(1-t*.3);
+      const ex=px+Math.cos(b.ang+a)*r,ey=py+Math.sin(b.ang+a)*r;
+      ctx.globalAlpha=.5*(1-t);ctx.fillStyle=t<.4?'#fff6c8':'#ff9a3d';ctx.shadowColor='#ff9a3d';ctx.shadowBlur=8;
+      ctx.beginPath();ctx.arc(ex,ey,rand(1.2,2.6),0,7);ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;
+    }
+    continue}
+  if(b.chain){
+    // Storm Arc lightning: multi-jag path along the segment (follows the hit chain)
+    const x1=sx(b.x1),y1=sy(b.y1),x2=sx(b.x2),y2=sy(b.y2);
+    const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len;
+    const segs=Math.max(5,Math.min(14,Math.round(len/28)));
+    const pts=[{x:x1,y:y1}];
+    for(let i=1;i<segs;i++){
+      const t=i/segs, baseX=x1+dx*t, baseY=y1+dy*t;
+      // deterministic-ish jitter that still animates: seed from endpoints + frame
+      const j=(Math.sin(elapsed*48+i*2.7+b.x1*.01+b.y2*.01)*0.5+Math.sin(i*7.1+elapsed*22))*Math.min(18,len*0.08);
+      pts.push({x:baseX+nx*j,y:baseY+ny*j});
+    }
+    pts.push({x:x2,y:y2});
+    const alpha=Math.min(1,b.life*10);
+    const gi=b.glowI??1, glowW=b.w||12, coreW=b.coreW||1.8;
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';ctx.lineJoin='round';
+    // outer glow — glowWidth * glowIntensity (FORGE-editable)
+    ctx.globalAlpha=alpha*.28*gi;ctx.strokeStyle=b.color||'#d7a6ff';ctx.shadowColor=b.color||'#d7a6ff';ctx.shadowBlur=14+12*gi;ctx.lineWidth=glowW;
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();
+    // mid bolt
+    ctx.globalAlpha=alpha*.7;ctx.shadowBlur=10+6*gi;ctx.lineWidth=Math.max(2,glowW*.35);ctx.stroke();
+    // hot core — coreWidth (FORGE-editable thickness of the white center)
+    ctx.globalAlpha=alpha;ctx.strokeStyle='#f4e8ff';ctx.shadowBlur=4+4*gi;ctx.lineWidth=coreW;ctx.stroke();
+    // spark nodes along path
+    for(let i=1;i<pts.length-1;i+=2){
+      ctx.globalAlpha=alpha*.9;ctx.fillStyle='#fff';ctx.shadowBlur=10;
+      ctx.beginPath();ctx.arc(pts[i].x,pts[i].y,1.8+Math.random()*1.2,0,7);ctx.fill();
+    }
+    ctx.restore();continue}
   // Breach Laser — layered beam: wide low-alpha glow, mid core, hot near-white inner core,
   // plus a shimmering intensity and a bright muzzle flash at the emitter. One path, three
   // strokes reusing it (cheap) instead of separate particle systems.
@@ -570,8 +1139,24 @@ ctx.globalAlpha=1;ctx.textAlign='left';
 for(const b of bullets){const col=b.color||WEAPON.color;
   if(b.trail&&b.trail.length>3){ctx.strokeStyle=col;ctx.lineWidth=b.kind==='homing'?3:2;ctx.lineCap='round';ctx.shadowColor=col;ctx.shadowBlur=12;
     for(let k=0;k<b.trail.length-2;k+=2){ctx.globalAlpha=.08+.45*(k/b.trail.length);ctx.beginPath();ctx.moveTo(sx(b.trail[k]),sy(b.trail[k+1]));ctx.lineTo(sx(b.trail[k+2]),sy(b.trail[k+3]));ctx.stroke()}ctx.globalAlpha=1;ctx.shadowBlur=0}
-  ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=b.kind==='nova'?22:16;
-  if(b.kind==='nova'){ctx.beginPath();ctx.arc(sx(b.x),sy(b.y),b.r,0,7);ctx.fill();ctx.fillStyle='#fff8c8';ctx.beginPath();ctx.arc(sx(b.x),sy(b.y),b.r*.45,0,7);ctx.fill()}
+  ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=(b.kind==='nova'||b.kind==='novashard')?22:16;
+  if(b.kind==='nova'||b.kind==='novashard'){
+    // Nuclear-reactor core pulse: breathing outer plasma + hot white core + flicker ring
+    const t=elapsed*10+(b.x+b.y)*.02;
+    const pulse=1+0.22*Math.sin(t)+0.08*Math.sin(t*2.7);
+    const baseR=(b.kind==='novashard'?b.r*0.85:b.r)*pulse;
+    const bx=sx(b.x),by=sy(b.y);
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    ctx.globalAlpha=.35;ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=28;
+    ctx.beginPath();ctx.arc(bx,by,baseR*1.55,0,7);ctx.fill();
+    ctx.globalAlpha=.85;ctx.fillStyle=col;ctx.shadowBlur=18;
+    ctx.beginPath();ctx.arc(bx,by,baseR,0,7);ctx.fill();
+    ctx.globalAlpha=1;ctx.fillStyle='#fff8c8';ctx.shadowBlur=10;
+    ctx.beginPath();ctx.arc(bx,by,baseR*(.42+.08*Math.sin(t*1.6)),0,7);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.globalAlpha=.55+.35*Math.sin(t*3);ctx.lineWidth=1.2;ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(bx,by,baseR*1.15,0,7);ctx.stroke();
+    ctx.restore();
+  }
   else if(b.kind==='homing'){const ang=Math.atan2(b.vy,b.vx);ctx.save();ctx.translate(sx(b.x),sy(b.y));ctx.rotate(ang);ctx.fillRect(-8,-3,14,6);ctx.fillStyle='#fff';ctx.fillRect(4,-2,6,4);ctx.restore()}
   else{ctx.beginPath();ctx.arc(sx(b.x),sy(b.y),b.r,0,7);ctx.fill()}ctx.shadowBlur=0}
 for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
@@ -592,16 +1177,72 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    new Image().src='enemy.shambler' -> a bogus URL -> a truthy Image, so the `||` fallback to the
    real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
-for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;let img=spriteFor(spriteSrcForEntity(e.type,eFace));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;if(!drawSpriteAnim(img,x,y,s,moving)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);if(eFace===2)ctx.scale(-1,1);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
-  // S4 — visually distinct poison tell: pulsing green ring while a DoT stack is active.
-  if(e.poisonT>0){ctx.globalAlpha=.35;ctx.fillStyle='#7cff4f';ctx.beginPath();ctx.arc(x,y,e.r*1.15,0,7);ctx.fill();ctx.globalAlpha=1}
+for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;let img=spriteFor(spriteSrcForEntity(e.type,eFace));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;if(!drawSpriteAnim(img,x,y,s,moving)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
+  // S4 — toxin tell: tiny green bubbles rise bottom→top over the infected (not one big blob).
+  // Color differentiation + transparency so stacks read as a cloud of acid gas, not a solid disc.
+  if(e.poisonT>0){
+    const stacks=Math.max(1,e.poisonStacks||1);
+    const n=10+Math.min(8,stacks*2); // twice the bubbles (owner 2026-08-08)
+    const tNow=performance.now()*0.001;
+    // Stable per-enemy seed so the pattern is coherent while they move, not random static.
+    const seed=((e.x*12.9898+e.y*78.233+e.r*37.1)|0)>>>0;
+    const palette=['#7cff4f','#a8ff6a','#4fe87a','#c6ff7a','#3dcc5a','#9dff88'];
+    for(let i=0;i<n;i++){
+      const speed=.45+((seed+i*17)&7)*0.04;
+      const phase=((tNow*speed+i*.31+((seed>>i)&15)*.05)%1+1)%1; // 0 bottom → 1 above head
+      const rise=e.r*(.9-phase*2.15); // start near feet, float past crown
+      const wobble=Math.sin(tNow*2.8+i*1.9+seed*.01)*e.r*(.28+.08*(i%3));
+      const lane=((i%5)-2)*e.r*.18;
+      const bx=x+wobble+lane, by=y+rise;
+      const br=1.2+((seed+i*3)&3)*.55+(1-phase)*.9;
+      // Fade in near bottom, peak mid, fade out at top — soft transparency throughout.
+      const alpha=.18+.42*(1-phase)*Math.min(1,phase*5);
+      ctx.globalAlpha=alpha;
+      ctx.fillStyle=palette[(seed+i*5)%palette.length];
+      ctx.beginPath();ctx.arc(bx,by,br,0,7);ctx.fill();
+      // Specular highlight so each reads as a bubble, not a flat dot.
+      ctx.globalAlpha=alpha*.55;
+      ctx.fillStyle='#e8ffd0';
+      ctx.beginPath();ctx.arc(bx-br*.28,by-br*.28,Math.max(.6,br*.32),0,7);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
   ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
-let px=sx(player.x),py=sy(player.y);const pFace=facingFromAngle(player.angle);const pImg=spriteFor(spriteSrcForPlayer(pFace));const pS=player.r*3.4*playerScale();const pMoving=!!(STICK.active&&(STICK.dx||STICK.dy))||['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].some(k=>keys.has(k));ctx.globalAlpha=player.inv?.55:1;if(!drawSpriteAnim(pImg,px,py,pS,pMoving)){ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore()}ctx.globalAlpha=1;ctx.restore();
+// Off-screen markers — static nodes / bosses can sit far from the camera; never soft-lock a stage
+// because the target is outside the viewport (owner 2026-08-08).
+for(const e of enemies){
+  if(!(e.isBoss||isStaticEnemy(e)))continue;
+  const x=sx(e.x),y=sy(e.y),m=28;
+  if(x>=-20&&x<=VIEW.w+20&&y>=-20&&y<=VIEW.h+20)continue;
+  const cx2=Math.max(m,Math.min(VIEW.w-m,x)), cy2=Math.max(m,Math.min(VIEW.h-m,y));
+  const ang=Math.atan2(e.y-cam.y,e.x-cam.x);
+  ctx.save();ctx.translate(cx2,cy2);ctx.rotate(ang);
+  ctx.fillStyle=e.isBoss?'#ffe066':'#c6f';ctx.globalAlpha=.9;
+  ctx.beginPath();ctx.moveTo(14,0);ctx.lineTo(-8,8);ctx.lineTo(-8,-8);ctx.closePath();ctx.fill();
+  ctx.restore();ctx.globalAlpha=1;
+}
+// Player = teal sphere + barrel again (Eric 2026-08-07). FORGE paint overrides still apply to
+// enemies/weapons via BEASTIARY; player ship reads clearest as the greybox sphere.
+let px=sx(player.x),py=sy(player.y);ctx.globalAlpha=player.inv?.55:1;
+ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);
+ctx.shadowColor='#6fffe2';ctx.shadowBlur=12;
+ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();
+ctx.shadowBlur=0;ctx.fillStyle='#dff';ctx.fillRect(player.r*0.45,-player.r*0.28,player.r*1.35,player.r*0.55);
+ctx.restore();ctx.globalAlpha=1;ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
    computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
-ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('STAGE '+(stage+1)+' · '+curStageCfg().name+'  ·  WAVE '+wave,18,32+SAFE_TOP);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';
-ctx.fillText((stageBoss?'GUARDIAN '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp:'NEXT GUARDIAN '+Math.max(0,Math.ceil(curStageCfg().seconds-stageT))+'s')+'   SCORE '+score+'   HOSTILES '+enemies.length,18,55+SAFE_TOP);ctx.fillStyle='#26383a';ctx.fillRect(18,70+SAFE_TOP,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70+SAFE_TOP,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80+SAFE_TOP);
+// HUD label: WAVE 1/3 .. WAVE 3/3, then STAGE BOSS once the guardian is up or telegraphing
+// (owner 2026-08-08 — "it does not need waves and rounds, call them Waves").
+ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('STAGE '+(stage+1)+' · '+curStageCfg().name+'  ·  '+((stageBoss||bossPendingT>0)?'STAGE BOSS':'WAVE '+(stageWave+1)+'/'+WAVES_PER_STAGE),18,32+SAFE_TOP);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';
+const waveLeft=Math.max(0,waveQuota(stageWave)-waveSpawned)+enemies.length;
+ctx.fillText((stageBoss?(stageBoss.bossName||'GUARDIAN')+' '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp:bossPendingT>0?'GUARDIAN INCOMING':'HOSTILES LEFT '+waveLeft)+'   SCORE '+score+'   HOSTILES '+enemies.length+(shieldCharges?'   🛡'+shieldCharges:''),18,55+SAFE_TOP);ctx.fillStyle='#26383a';ctx.fillRect(18,70+SAFE_TOP,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70+SAFE_TOP,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80+SAFE_TOP);
+if(bossPendingT>0){
+  ctx.textAlign='center';const pulse=.6+.4*Math.sin(elapsed*10);
+  ctx.fillStyle=`rgba(255,113,138,${pulse})`;ctx.font='900 26px system-ui';
+  ctx.fillText((bossPendingCfg&&bossPendingCfg.name||curStageCfg().name+' Guardian').toUpperCase()+' INCOMING',VIEW.w/2,VIEW.h*0.32);
+  ctx.textAlign='left';
+}
 ctx.fillStyle='#1b2f33';ctx.fillRect(18,88+SAFE_TOP,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88+SAFE_TOP,180*Math.max(0,Math.min(1,xp/nextXp)),8);
 ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected+'   🔫 '+heldWeapons.length,205,96+SAFE_TOP);
 // S2 — current weapon name, top-centre, just below the phone icons. Updates whenever grantWeapon
@@ -622,68 +1263,302 @@ if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active
   ctx.save();ctx.globalAlpha=STICK.active?.34:.16;ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(bx,by,STICK.radius,0,7);ctx.stroke();
   ctx.globalAlpha=STICK.active?.5:.22;ctx.fillStyle='#6fffe2';ctx.beginPath();ctx.arc(kx,ky,26,0,7);ctx.fill();ctx.restore()}
-if(state==='title'||state==='dead'){ctx.fillStyle='rgba(3,8,10,.72)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.textAlign='center';ctx.fillStyle='#e4fff8';ctx.font='700 34px system-ui';ctx.fillText(state==='dead'?'RUN ENDED':'HiVE SWARM',VIEW.w/2,VIEW.h/2-80);ctx.save();ctx.font='12px system-ui';ctx.fillStyle='rgba(150,200,190,.55)';ctx.fillText('v'+GAME_VERSION,VIEW.w/2,VIEW.h/2-58);ctx.restore();ctx.font='16px system-ui';ctx.fillStyle='#b3cbc7';ctx.fillText(state==='dead'?'Score '+score+' · survived '+formatTime(elapsed):'Open arena · HiVE brand art v2',VIEW.w/2,VIEW.h/2-30);ctx.fillStyle='#8ab';ctx.font='14px system-ui';ctx.fillText('SLOT '+currentSlot()+'  ·  '+ (META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),VIEW.w/2,VIEW.h/2-6);ctx.fillStyle='#6fffe2';ctx.font='16px system-ui';ctx.fillText('Click or press Enter to deploy',VIEW.w/2,VIEW.h/2+28);ctx.textAlign='left'}
+if(state==='title'||state==='dead')drawTitleOrDead()
 // First-sighting toast
 if(newCodexT>0&&newCodexTitle){const a=Math.min(1,newCodexT/.5);ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';
   ctx.fillStyle='rgba(60,20,90,.82)';ctx.fillRect(VIEW.w/2-170,96,340,52);ctx.strokeStyle='#c6f';ctx.strokeRect(VIEW.w/2-170,96,340,52);
   ctx.fillStyle='#e8d8ff';ctx.font='bold 13px system-ui';ctx.fillText('NEW BEASTIARY ENTRY',VIEW.w/2,118);
   ctx.fillStyle='#fff';ctx.font='bold 18px system-ui';ctx.fillText(newCodexTitle,VIEW.w/2,140);ctx.restore()}
+if(state==='debrief')drawDebrief();
 if(typeof ensureTitleChrome==='function')ensureTitleChrome();
 }
 function formatTime(t){return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0')}
+/** Title / game-over screen: arena mood + cast lineup + wordmark (Eric 2026-08-08). */
+function drawTitleOrDead(){
+  const W=VIEW.w,H=VIEW.h,cx=W/2,t=performance.now()/1000;
+  // Night arena sky
+  const g0=ctx.createLinearGradient(0,0,0,H);
+  g0.addColorStop(0,'#050b14');g0.addColorStop(.45,'#0a1a22');g0.addColorStop(1,'#061018');
+  ctx.fillStyle=g0;ctx.fillRect(0,0,W,H);
+  // Subtle grid floor (same language as gameplay)
+  ctx.save();ctx.globalAlpha=.22;ctx.strokeStyle='#1a4a55';ctx.lineWidth=1;
+  const grid=48,ox=(t*12)%grid;
+  for(let x=-grid+ox;x<W;x+=grid){ctx.beginPath();ctx.moveTo(x,H*.55);ctx.lineTo(x+40,H);ctx.stroke()}
+  for(let y=H*.55;y<H;y+=grid*.7){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+  ctx.restore();
+  // Ambient glow orbs
+  for(let i=0;i<6;i++){
+    const px=(Math.sin(t*.4+i*1.7)*.5+.5)*W, py=H*.25+Math.cos(t*.3+i)*40;
+    const rg=ctx.createRadialGradient(px,py,0,px,py,80);
+    rg.addColorStop(0,'rgba(111,255,226,.12)');rg.addColorStop(1,'rgba(111,255,226,0)');
+    ctx.fillStyle=rg;ctx.beginPath();ctx.arc(px,py,80,0,7);ctx.fill();
+  }
+  // Cast lineup — real game sprites (player sphere + enemies)
+  const lineup=[
+    {kind:'player'},
+    {path:'art_src/topdown_v1/shambler.png'},
+    {path:'art_src/topdown_v1/runner.png'},
+    {path:'art_src/topdown_v1/crawler.png'},
+    {path:'art_src/topdown_v1/brute.png'},
+    {path:'art_src/topdown_v1/armored_dead.png'},
+    {path:'art_src/topdown_v1/mutant_enforcer.png'},
+    {path:'art_src/topdown_v1/zombie_colossus.png'}
+  ];
+  const rowY=H*.42, n=lineup.length, span=Math.min(W*.88,n*78), startX=cx-span/2;
+  for(let i=0;i<n;i++){
+    const x=startX+(i+.5)*(span/n), bob=Math.sin(t*2.2+i*.7)*5;
+    const sz=i===n-1?86:i===0?62:58;
+    if(lineup[i].kind==='player'){
+      ctx.save();ctx.translate(x,rowY+bob);ctx.shadowColor='#6fffe2';ctx.shadowBlur=18;
+      ctx.fillStyle='#6fffe2';ctx.beginPath();ctx.arc(0,0,sz*.32,0,7);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle='#dff';ctx.fillRect(sz*.12,-sz*.1,sz*.42,sz*.18);
+      ctx.restore();
+    }else{
+      const im=spriteFor(lineup[i].path);
+      if(im&&im.complete&&im.naturalWidth){
+        ctx.save();ctx.globalAlpha=.95;ctx.shadowColor='#000';ctx.shadowBlur=12;
+        // first frame of strip if wide
+        const nf=im.naturalWidth>=im.naturalHeight*1.6?Math.max(1,Math.round(im.naturalWidth/im.naturalHeight)):1;
+        const fw=im.naturalWidth/nf;
+        ctx.drawImage(im,0,0,fw,im.naturalHeight,x-sz/2,rowY+bob-sz/2,sz,sz);
+        ctx.restore();
+      }else{
+        ctx.fillStyle='#4a6670';ctx.beginPath();ctx.arc(x,rowY+bob,sz*.28,0,7);ctx.fill();
+      }
+    }
+  }
+  // Vignette
+  const vig=ctx.createRadialGradient(cx,H*.4,W*.15,cx,H*.45,W*.7);
+  vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,.55)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+  // Wordmark
+  ctx.textAlign='center';
+  if(state==='dead'){
+    ctx.fillStyle='#ff8a9a';ctx.font='700 36px system-ui';ctx.shadowColor='#400';ctx.shadowBlur=12;
+    ctx.fillText('RUN ENDED',cx,H*.18);ctx.shadowBlur=0;
+    ctx.fillStyle='#b3cbc7';ctx.font='16px system-ui';
+    ctx.fillText('Score '+score+' · survived '+formatTime(elapsed),cx,H*.18+32);
+  }else{
+    ctx.save();
+    ctx.font='800 44px system-ui';
+    ctx.shadowColor='#6fffe2';ctx.shadowBlur=22;
+    ctx.fillStyle='#e4fff8';
+    ctx.fillText('HiVE SWARM',cx,H*.16);
+    ctx.shadowBlur=0;
+    // cyan underline accent
+    ctx.strokeStyle='#6fffe2';ctx.lineWidth=3;ctx.globalAlpha=.7;
+    ctx.beginPath();ctx.moveTo(cx-90,H*.16+10);ctx.lineTo(cx+90,H*.16+10);ctx.stroke();
+    ctx.globalAlpha=1;
+    ctx.font='600 13px system-ui';ctx.fillStyle='#7ecfc0';
+    ctx.fillText('OPEN ARENA  ·  AUTO-FIRE  ·  SURVIVE THE SWARM',cx,H*.16+34);
+    ctx.restore();
+    ctx.fillStyle='rgba(150,200,190,.55)';ctx.font='12px system-ui';
+    ctx.fillText('v'+GAME_VERSION,cx,H*.16+54);
+  }
+  // Footer CTA card
+  const cardY=H*.72, cardW=Math.min(360,W*.86), cardH=108;
+  ctx.fillStyle='rgba(8,24,28,.82)';ctx.strokeStyle='#3a6a62';ctx.lineWidth=1.5;
+  roundRectPath(ctx,cx-cardW/2,cardY,cardW,cardH,12);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#8ab';ctx.font='14px system-ui';
+  ctx.fillText('SLOT '+currentSlot()+'  ·  '+(META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),cx,cardY+32);
+  const pulse=.75+.25*Math.sin(t*3.5);
+  ctx.fillStyle='rgba(111,255,226,'+pulse+')';ctx.font='700 17px system-ui';
+  ctx.fillText(state==='dead'?'Click or Enter — deploy again':'Click or press Enter to deploy',cx,cardY+64);
+  ctx.fillStyle='#5a8a84';ctx.font='12px system-ui';
+  ctx.fillText('WASD / stick · weapons fire automatically',cx,cardY+88);
+  ctx.textAlign='left';
+}
+function roundRectPath(c,x,y,w,h,r){
+  c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();
+}
 function tryDeploy(){if(state==='title'||state==='dead'){setPaused(false);reset()}}
 addEventListener('keydown',e=>{
   if(e.key==='Enter')tryDeploy();
   if(e.key==='Escape'||e.key==='p'||e.key==='P'){e.preventDefault();togglePause()}
 });
-canvas.addEventListener('click',()=>{if(state==='title'||state==='dead')tryDeploy()});
+canvas.addEventListener('click',()=>{if(state==='title'||state==='dead')tryDeploy();else if(state==='debrief')finishDebrief()});
+canvas.addEventListener('pointerdown',(e)=>{if(state==='debrief'){e.preventDefault();finishDebrief()}});
 (function wirePauseBtn(){
   const btn=document.getElementById('pauseBtn');if(!btn)return;
   btn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();togglePause()});
 })();
 let last=performance.now(),accumulator=0;function frame(now){accumulator+=Math.min(.05,(now-last)/1000);last=now;while(accumulator>=1/60){update(1/60);accumulator-=1/60}draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
-window.__hiveSwarmDebug=()=>({state,elapsed,score,wave,stage,stageT,stageBoss:!!stageBoss,stageName:curStageCfg().name,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
-function offerCards(){
-  // S.7: weapon cards now grant a MOD attached to the held weapon's ID instead of mutating the
-  // weapon object. Swapping guns no longer deletes what you just earned, and the same mod can be
-  // stacked up to MOD_MAX times on one weapon (owner spec: "up to 3 times on the same weapon").
+window.__hiveSwarmDebug=()=>({state,elapsed,score,wave:stageWave+1,threatTier,stage,stageT,stageBoss:!!stageBoss,stageName:curStageCfg().name,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
+function weaponIconHtml(w){
+  // Tiny inline canvas-like chip: colored square + first letter, plus sheet icon if available.
+  if(!w)return '';
+  const col=w.color||'#6fffe2', nm=(w.name||'?')[0]||'?';
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:${col}22;border:1px solid ${col};color:${col};font-weight:900;margin-right:8px;vertical-align:middle">${nm}</span>`;
+}
+function cardIconHtml(c){
+  if(c.iconHtml)return c.iconHtml;
+  if(c.wep)return weaponIconHtml(c.wep);
+  return `<span style="display:inline-flex;width:28px;height:28px;border-radius:6px;background:#1a3034;border:1px solid #3a6a62;align-items:center;justify-content:center;margin-right:8px">✦</span>`;
+}
+function buildCardPool(opts){
+  // Shared pool for level-up + stage break. Never offer a mod/skill already at MOD_MAX (3/3).
+  opts=opts||{};
   const held=heldWeapons[0]||WEAPON;
-  let weapons=MODS.filter(m=>modApplies(m,held)&&modStacks(held.id,m.id)<MOD_MAX).map(m=>({
+  const weapons=MODS.filter(m=>held&&modApplies(m,held)&&modStacks(held.id,m.id)<MOD_MAX).map(m=>({
     name:m.name+' '+(modStacks(held.id,m.id)+1)+'/'+MOD_MAX,
     text:m.text+' — '+held.name,
-    apply:()=>addMod(held.id,m.id)})),stats=[{name:'Fleet Footed',text:'+12% movement speed',apply:()=>player.speed=Math.round(player.speed*1.12)},{name:'Reinforced',text:'+25 max HP and heal',apply:()=>{player.maxHp+=25;player.hp=Math.min(player.maxHp,player.hp+25)}},{name:'Magnet',text:'+45 pickup radius',apply:()=>player.pickupRadius+=45}],evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{WEAPON.damage*=2;evolved=true}};let pool=[...weapons,...stats,...(wave>=10&&!evolved?[evo]:[])],first=cardPicks<3&&weapons.length?weapons[Math.floor(Math.random()*weapons.length)]:null;choices=[];if(first)choices.push(first);while(choices.length<3&&pool.length){let c=pool.splice(Math.floor(Math.random()*pool.length),1)[0];if(!choices.includes(c))choices.push(c)}
-  // Headless harness has no real DOM — auto-pick so balance sims are not stuck on the chooser.
+    wep:held,
+    apply:()=>addMod(held.id,m.id)}));
+  const skillApply={
+    fleet:()=>{addSkill('fleet');player.speed=Math.round(player.speed*1.12)},
+    bulk:()=>{addSkill('bulk');const h=opts.bigHeal?40:25;player.maxHp+=h;player.hp=opts.bigHeal?player.maxHp:Math.min(player.maxHp,player.hp+h)},
+    magnet:()=>{addSkill('magnet');player.pickupRadius+=45},
+    shield:()=>{addSkill('shield');shieldCharges=skillN('shield');shieldCd=0},
+    vampiric:()=>addSkill('vampiric'),
+    drone:()=>addSkill('drone'),
+  };
+  const skills=SKILLS.filter(s=>skillN(s.id)<MOD_MAX).map(s=>({
+    name:s.name+' '+(skillN(s.id)+1)+'/'+MOD_MAX,
+    text:s.text,
+    apply:()=>skillApply[s.id]&&skillApply[s.id]()}));
+  const evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{if(WEAPON)WEAPON.damage*=2;evolved=true}};
+  let pool=[...weapons,...skills,...(opts.allowEvo&&threatTier>=10&&!evolved?[evo]:[])];
+  return {held,weapons,skills,pool};
+}
+function offerCards(){
+  // S.7: weapon cards grant a MOD attached to the held weapon's ID. Skills are run-scoped, max 3.
+  const {weapons,pool}=buildCardPool({allowEvo:true,bigHeal:false});
+  let first=cardPicks<3&&weapons.length?weapons[Math.floor(Math.random()*weapons.length)]:null;
+  choices=[];if(first)choices.push(first);
+  const bag=pool.slice();
+  while(choices.length<3&&bag.length){let c=bag.splice(Math.floor(Math.random()*bag.length),1)[0];if(!choices.includes(c))choices.push(c)}
+  if(!choices.length)choices.push({name:'Press On',text:'Everything is maxed — keep fighting',apply:()=>{}});
   if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();cardPicks++;state='play';return}
-  let box=document.createElement('div');box.id='cards';box.className='overlay';box.innerHTML='<h2>LEVEL '+level+' — CHOOSE ONE</h2>'+choices.map((c,i)=>`<button data-card="${i}" style="width:260px;padding:18px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px"><b>${c.name}</b><br>${c.text}</button>`).join('');document.body.append(box);box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();cardPicks++;box.remove();state='play'})}
-// STAGE break screen: boss is already dead (killEnemy set state='stagebreak' and cleared
-// stageBoss before calling this). Reuses the same upgrade-card pool as offerCards() so a stage
-// clear feels like a bigger level-up, then advances stage/stageT and wipes the field for a clean
-// arrival into the next stage's backdrop + roster. Same headless-DOM fallback as offerCards() so
-// the harness/verification scripts can drive straight through without a real browser.
+  let box=document.createElement('div');box.id='cards';box.className='overlay';
+  box.innerHTML='<h2>LEVEL '+level+' — CHOOSE ONE</h2>'+choices.map((c,i)=>`<button data-card="${i}" style="width:280px;padding:16px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px;text-align:left"><b style="display:flex;align-items:center">${cardIconHtml(c)}${c.name}</b><br><span style="opacity:.85">${c.text}</span></button>`).join('');
+  document.body.append(box);
+  box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();cardPicks++;box.remove();state='play'});
+}
+// ---- HiveWar-style stage debrief (count-up stats) then upgrade pick ----
+let debriefT=0, debriefDone=false, debriefRowsCache=null, debriefLastVal={};
+function debriefRows(){
+  if(debriefRowsCache)return debriefRowsCache;
+  const rows=[];
+  const kills=Object.values(runStats.killsBy||{}).sort((a,b)=>b.n-a.n);
+  for(const k of kills)if(k.n>0)rows.push({label:k.name,value:k.n,col:k.color||'#9ef',kind:1});
+  rows.push({label:'TOTAL KILLS',value:runStats.totalKills||0,big:true,col:'#4ff'});
+  rows.push({label:'ORBS COLLECTED',value:runStats.orbs||0,col:'#6fffe2'});
+  // Weapons seen this run with current rank + mod stacks
+  const weps=Object.values(runStats.weaponsSeen||{});
+  for(const w of weps){
+    const live=(heldWeapons.find(h=>h.id===w.id))||weaponById(w.id)||w;
+    const rank=live.rank||w.rank||1;
+    const mods=weaponMods[w.id]||{};
+    const modTxt=Object.keys(mods).filter(k=>mods[k]>0).map(k=>k+' '+mods[k]+'/'+MOD_MAX).join(', ');
+    rows.push({label:(live.name||w.name)+'  Rk.'+rank+(modTxt?' · '+modTxt:''),value:rank,col:live.color||'#ffe08a',wep:live,weapon:1});
+  }
+  debriefRowsCache=rows;return rows;
+}
+function startDebrief(){
+  debriefT=0;debriefDone=false;debriefRowsCache=null;debriefLastVal={};
+  state='debrief';
+  if(typeof HTMLElement==='undefined'){// harness: skip animation
+    pendingStageAdvance=()=>offerStageBreak();return}
+}
+function updateDebrief(dt){
+  if(state!=='debrief')return;
+  debriefT+=dt;
+  const rows=debriefRows();
+  const full=rows.length*0.45+1.4;
+  if(!debriefDone&&debriefT>full)debriefDone=true;
+}
+function drawDebrief(){
+  if(state!=='debrief')return;
+  const W=VIEW.w,H=VIEW.h;
+  ctx.save();
+  ctx.fillStyle='rgba(2,8,16,.86)';ctx.fillRect(0,0,W,H);
+  const panelW=Math.min(W-36,520),panelH=Math.min(H-80,560);
+  const px0=(W-panelW)/2,py0=(H-panelH)/2;
+  ctx.fillStyle='rgba(12,28,32,.96)';ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
+  ctx.shadowColor='#6fffe2';ctx.shadowBlur=22;
+  if(ctx.roundRect){ctx.beginPath();ctx.roundRect(px0,py0,panelW,panelH,14);ctx.fill();ctx.stroke()}
+  else{ctx.fillRect(px0,py0,panelW,panelH);ctx.strokeRect(px0,py0,panelW,panelH)}
+  ctx.shadowBlur=0;ctx.textAlign='center';
+  ctx.fillStyle='#6fffe2';ctx.font='900 32px system-ui';
+  ctx.fillText('STAGE '+(stage+1)+' CLEAR',W/2,py0+48);
+  ctx.fillStyle='#9ebbb6';ctx.font='14px system-ui';
+  ctx.fillText(curStageCfg().name+' · Guardian down · +250 score',W/2,py0+74);
+  const rows=debriefRows();
+  rows.forEach((r,i)=>{
+    const appear=i*0.45, shown=debriefT-appear;if(shown<=0)return;
+    const k=Math.min(1,shown/0.4), val=Math.round((r.value||0)*k*k);
+    const y=py0+110+i*36;
+    if(r.big){
+      ctx.fillStyle='#fff';ctx.font='900 28px system-ui';ctx.shadowColor='#4ff';ctx.shadowBlur=16;
+      ctx.fillText(String(val),W/2,y);
+      ctx.shadowBlur=0;ctx.fillStyle='#9ef';ctx.font='700 13px system-ui';
+      ctx.fillText(r.label,W/2,y+18);
+    }else{
+      ctx.textAlign='left';ctx.fillStyle=r.col||'#dce9e7';ctx.font='700 15px system-ui';
+      const labelX=px0+28;
+      if(r.wep){/* weapon chip */
+        ctx.fillStyle=(r.wep.color||'#6ff')+'33';ctx.fillRect(labelX,y-16,22,22);
+        ctx.strokeStyle=r.wep.color||'#6ff';ctx.strokeRect(labelX,y-16,22,22);
+        ctx.fillStyle=r.wep.color||'#6ff';ctx.font='900 12px system-ui';ctx.textAlign='center';
+        ctx.fillText((r.wep.name||'?')[0],labelX+11,y+1);ctx.textAlign='left';
+        ctx.fillStyle=r.col||'#dce9e7';ctx.font='700 14px system-ui';
+        ctx.fillText(r.label,labelX+30,y);
+      }else{
+        ctx.fillText(r.label,labelX,y);
+      }
+      ctx.textAlign='right';ctx.fillStyle='#fff';ctx.font='900 18px system-ui';
+      ctx.fillText(String(val),px0+panelW-28,y);
+      ctx.textAlign='center';
+    }
+  });
+  if(debriefDone){
+    const pulse=.7+.3*Math.sin(debriefT*5);
+    ctx.fillStyle=`rgba(111,255,226,${pulse})`;ctx.font='700 16px system-ui';
+    ctx.fillText('TAP TO CONTINUE',W/2,py0+panelH-28);
+  }
+  ctx.restore();
+}
+function finishDebrief(){
+  if(state!=='debrief'||!debriefDone)return;
+  offerStageBreak();
+}
+function fireDrones(){
+  // Drone Escort skill: small orbiting shots toward nearest enemy.
+  const n=skillN('drone');if(!n)return;
+  const t=nearestEnemy(player);if(!t)return;
+  for(let i=0;i<n;i++){
+    const ang=elapsed*2.2+i*(Math.PI*2/Math.max(1,n));
+    const ox=player.x+Math.cos(ang)*36, oy=player.y+Math.sin(ang)*36;
+    const a=Math.atan2(t.y-oy,t.x-ox), sp=520;
+    bullets.push({x:ox,y:oy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:3,damage:6+n*2,pierce:0,life:.7,color:'#9ef',kind:'bullet',kb:0,shards:0,trail:[],bounces:0});
+  }
+}
+// STAGE break: after debrief, pick a reward then advance.
 function offerStageBreak(){
   const clearedCfg=curStageCfg();
-  const held=heldWeapons[0]||WEAPON;
-  let weapons=MODS.filter(m=>modApplies(m,held)&&modStacks(held.id,m.id)<MOD_MAX).map(m=>({
-    name:m.name+' '+(modStacks(held.id,m.id)+1)+'/'+MOD_MAX,
-    text:m.text+' — '+held.name,
-    apply:()=>addMod(held.id,m.id)})),
-    stats=[{name:'Fleet Footed',text:'+12% movement speed',apply:()=>player.speed=Math.round(player.speed*1.12)},
-      {name:'Reinforced',text:'+40 max HP and full heal',apply:()=>{player.maxHp+=40;player.hp=player.maxHp}},
-      {name:'Magnet',text:'+45 pickup radius',apply:()=>player.pickupRadius+=45}];
-  let pool=[...weapons,...stats];choices=[];
-  while(choices.length<3&&pool.length){let c=pool.splice(Math.floor(Math.random()*pool.length),1)[0];if(!choices.includes(c))choices.push(c)}
+  const {pool}=buildCardPool({allowEvo:false,bigHeal:true});
+  choices=[];const bag=pool.slice();
+  while(choices.length<3&&bag.length){let c=bag.splice(Math.floor(Math.random()*bag.length),1)[0];if(!choices.includes(c))choices.push(c)}
   if(!choices.length)choices.push({name:'Press On',text:'No upgrades available — deploy anyway',apply:()=>{}});
-  // advance() mutates enemies/bullets — NEVER call it synchronously from inside killEnemy (it can
-  // fire mid-iteration over the very bullets/enemies arrays update() is looping through, which
-  // corrupts those loops). Both paths below only schedule it; update()'s top-of-frame check runs
-  // it once the current frame's simulation loops have finished.
-  const advance=()=>{stage++;genObstacles();stageT=0;stageBoss=null;enemies=[];bullets=[];beams=[];player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.25));state='play'};
+  const advance=()=>{
+    stage++;genObstacles();stageT=0;stageWave=0;waveSpawned=0;waveNoKillT=0;stageBoss=null;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;
+    enemies=[];bullets=[];beams=[];
+    // Keep cumulative run stats; only clear per-stage kill ledger so next debrief is stage-local.
+    runStats.killsBy={};runStats.totalKills=0;runStats.orbs=0;
+    player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.25));
+    state='play';
+  };
   if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();pendingStageAdvance=advance;return}
+  // remove any leftover debrief overlay
+  const prev=document.getElementById('stagebreak');if(prev)prev.remove();
   let box=document.createElement('div');box.id='stagebreak';box.className='overlay';
-  box.innerHTML='<h2>STAGE '+(stage+1)+' CLEAR — '+clearedCfg.name+'</h2><div class="hint">Guardian down · score +250 · choose a reward, then deploy to Stage '+(stage+2)+'</div>'+
-    choices.map((c,i)=>`<button data-card="${i}" style="width:260px;padding:18px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px"><b>${c.name}</b><br>${c.text}</button>`).join('');
+  box.innerHTML='<h2>STAGE '+(stage+1)+' REWARD</h2><div class="hint">'+clearedCfg.name+' cleared · pick one, then deploy Stage '+(stage+2)+'</div>'+
+    choices.map((c,i)=>`<button data-card="${i}" style="width:280px;padding:16px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px;text-align:left"><b style="display:flex;align-items:center">${cardIconHtml(c)}${c.name}</b><br><span style="opacity:.85">${c.text}</span></button>`).join('');
   document.body.append(box);
-  box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();box.remove();pendingStageAdvance=advance})}
+  box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();box.remove();pendingStageAdvance=advance});
+  state='stagebreak';
+}
 function openMeta(){if(document.querySelector('#meta'))return;let box=document.createElement('div');box.id='meta';box.className='overlay';
   if(!META.ownedWeapons)META.ownedWeapons={'weapon.pulse':true};
   let render=()=>{const owned=Object.keys(META.ownedWeapons||{}).filter(id=>META.ownedWeapons[id]);
@@ -769,12 +1644,18 @@ async function blobData(blob){return new Promise((resolve,reject)=>{const r=new 
 async function hydrateMedia(){
   try{const rows=await mediaAll();
     for(const row of rows){const data=await blobData(row.blob);
-      if(row.id.startsWith('sprite:'))SPRITE_OVR[row.key]=data;
-      else if(row.id.startsWith('codex:'))CODEX_IMG[row.key]=data}}
-  catch(_){}}
+      if(row.id.startsWith('sprite:'))SPRITE_OVR[row.key]={data,frames:row.frames||1,fps:row.fps||8};
+      else if(row.id.startsWith('codex:'))CODEX_IMG[row.key]=data;
+      else if(row.id.startsWith('lib:'))MEDIA_LIB[row.key]={name:row.name||row.key,data}}
+  }catch(_){}}
 await hydrateMedia();
-function saveSpriteMedia(key){const data=SPRITE_OVR[key];return queueMedia(async()=>data?mediaPut({id:'sprite:'+key,key,blob:await dataBlob(data),frames:1,fps:8}):mediaDel('sprite:'+key))}
+function saveSpriteMedia(key){
+  const o=SPRITE_OVR[key];const data=ovrDataURL(o);
+  const frames=(o&&typeof o==='object'&&o.frames)||1, fps=(o&&typeof o==='object'&&o.fps)||8;
+  return queueMedia(async()=>data?mediaPut({id:'sprite:'+key,key,blob:await dataBlob(data),frames,fps}):mediaDel('sprite:'+key));
+}
 function saveCodexMedia(id){const data=CODEX_IMG[id];return queueMedia(async()=>data?mediaPut({id:'codex:'+id,key:id,blob:await dataBlob(data)}):mediaDel('codex:'+id))}
+function saveLibMedia(id){const m=MEDIA_LIB[id];return queueMedia(async()=>m&&m.data?mediaPut({id:'lib:'+id,key:id,name:m.name||id,blob:await dataBlob(m.data)}):mediaDel('lib:'+id))}
 
 const btn=document.createElement('button');btn.id='forgeBtn';btn.textContent='⚒';btn.title='HiVE SWARM Forge (F2)';document.body.appendChild(btn);
 const win=document.createElement('section');win.id='forge';
@@ -793,126 +1674,725 @@ if(/[?&]forge=1/.test(location.search))setTimeout(()=>{const m=location.search.m
   head.addEventListener('pointermove',e=>{if(!drag)return;win.style.left=Math.max(0,ox+e.clientX-sx)+'px';win.style.top=Math.max(0,oy+e.clientY-sy)+'px';win.style.right='auto'});
   head.addEventListener('pointerup',()=>drag=false)})();
 
-const TABS=['ENTITIES','PLAYER','WEAPONS','WAVES','WORLD','STAGES','SPRITES','AUDIO','DATA','BEASTIARY'];
-let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false}, codexSel=0;
+const TABS=['ENTITIES','PLAYER','WAVES','WORLD','STAGES','BOSSES','AUDIO','DATA','BEASTIARY'];
+let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false,tool:'brush'}, codexSel=0, beastFrame=0;
+// paintDir null = base sprite; 'e'..'ne' = walk sheet. paintZoom scales CSS paint display (pixel edit).
+let paintDir=null, paintZoom=2, paintUndo=[], paintSelMask=null;
 TABS.forEach((t,i)=>{const d=document.createElement('button');d.type='button';d.textContent=t;d.id='forgeTab'+i;d.onclick=()=>{tab=i;spriteSel=-1;renderTab()};tabsEl.appendChild(d)});
 function getP(p){return p.split('.').reduce((o,k)=>o[k],EDIT)}
 function setP(p,v){const ks=p.split('.'),last=ks.pop();ks.reduce((o,k)=>o[k],EDIT)[last]=v}
-function fields(obj,path){return Object.entries(obj).filter(([,v])=>typeof v==='number'||typeof v==='string').map(([k,v])=>`<label>${k}<input data-p="${path}.${k}" value="${v}" ${typeof v==='number'?'type="number" step="any"':''}></label>`).join('')}
-function bindInputs(){body.querySelectorAll('input[data-p]').forEach(input=>{input.oninput=()=>{const p=input.dataset.p;const old=getP(p);let value=typeof old==='number'?Number(input.value):input.value;if(typeof old==='number'&&!Number.isFinite(value))return;setP(p,value);applyForge();persistForge()}})}
 function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+// Hover tooltips for FORGE numeric/string fields (Eric 2026-08-07).
+const FIELD_HELP={
+  dropWeight:'Relative odds this gun is chosen when a field cache drops a weapon. 1 = baseline. Raise to make a gun drop more often; 0 = never drops from caches.',
+  damage:'Hit damage per shot / tick. Beam scales by rate; chain fades per jump; nova also blasts on impact.',
+  rate:'Seconds between shots (lower = faster fire). Mods like Rapid multiply this down.',
+  speed:'Projectile travel speed in px/s. Beams and Storm Arc ignore this (instant).',
+  shots:'Base projectiles per volley. Scatter mod adds +2 per stack.',
+  pierce:'How many enemies a projectile can pass through. 0 = dies on first hit.',
+  range:'Max reach in px. Storm Arc = jump search radius; beam = ray length; bullets despawn past this life/range.',
+  color:'Hex color for projectiles / arcs / pickups.',
+  kind:'Fire mode: bullet, homing, beam, chain, nova, poison, flame.',
+  jumps:'Storm Arc only — how many lightning jumps between enemies.',
+  blast:'Nova Shell explosion radius in px on impact or timeout.',
+  shards:'Nova Shell base mini-stars spat out when a kill is caused by the nova explosion. Nova Star upgrade adds +2 each stack.',
+  coreWidth:'Storm Arc / Breach Laser — thickness of the bright center line.',
+  glowWidth:'Width of the soft outer glow around the arc/beam.',
+  glowIntensity:'Storm Arc only — multiplies glow strength and bloom (1 = default).',
+  coreColor:'Breach Laser hot-core color.',
+  pulseRate:'Breach Laser shimmer speed.',
+  turn:'Heat Seeker turn rate (radians/sec of aim correction).',
+  width:'Breach Laser hit thickness (collision, not just visual).',
+  sfx:'Fire sound from the SFX library (filename under assets/SFX/).',
+  icon:'Index into assets/weapon_icons.png (128px cells).',
+  name:'Display name on HUD and in the forge list.',
+  id:'Stable internal id. Do not rename mid-save if you care about owned unlocks.',
+  dot:'Toxin damage per second while infected.',
+  dotTime:'How long a poison infection lasts (seconds).',
+  flameWidth:'Flamethrower cone width in px at full reach (flameLength). Wide Nozzle mod adds +25% per stack.',
+  flameLength:'Flamethrower cone reach in px. Pressure Tank mod adds +25% per stack.',
+  burnDps:'Flamethrower burn damage-per-second (own burnT/burnDps DoT, separate from poison). Most of the flamethrower damage lives here. Napalm mod adds +40% per stack.',
+  burnTime:'How long the flamethrower burn DoT lasts after leaving the cone (seconds).',
+  spreadChance:'Per-attempt chance a carrier infects a clean neighbour.',
+  spreadRadius:'Max distance for poison contagion.',
+  spreadFactor:'Potency multiplier when infection spreads (0.7 = each hop is 30% weaker).',
+  poisonStackMax:'Max poison DPS stacks from re-hitting an already infected target.',
+  slowFactor:'Movement multiplier while poisoned (0.6 = 40% slower).',
+  seconds:'Stage length in seconds before the guardian spawns (or wave counter length on WAVES).',
+  enemyCap:'How many distinct enemy TYPES from the roster may appear this stage (by unlockWave order). Not a live-body cap — that is world.maxEnemies.',
+  bossMul:'HP multiplier for the stage guardian (scaled from a roster enemy).',
+  bgArt:'Optional stage art path (library or shipped). Gameplay floor is still the grid.',
+  obstacleArt:'Sprite used for rock/obstacle clusters this stage.',
+  halfW:'World half-width in px (arena edge left/right from origin).',
+  halfH:'World half-height in px (arena edge top/bottom from origin).',
+  maxEnemies:'Hard cap on simultaneous living enemies.',
+  deadZone:'Camera dead-zone fraction of the view before the cam starts sliding.',
+  budgetBase:'Base spawns per second at wave 1. Keep near ~1 for openers.',
+  budgetExponent:'Per-wave spawn rate multiplier exponent (grows density over time).',
+  baseInterval:'Legacy interval knob (spawn pacing companion).',
+  intervalPerWave:'Legacy per-wave interval delta.',
+  xp:'XP value multiplier for biomatter orbs from kills.',
+  metaChance:'Chance a kill grants extra biomatter credit (meta currency).',
+  healChance:'Chance a kill drops a stim pack.',
+  heal:'HP restored by a stim pack pickup.',
+  weaponChance:'Chance a normal kill drops a weapon cache.',
+  eliteWeaponChance:'Chance an elite kill drops a weapon cache.',
+  hp:'Max hit points for this enemy type.',
+  speed:'Chase speed in px/s (0 = stationary turret/node).',
+  r:'Hit radius in px (also drives visual size).',
+  scale:'Player/entity size multiplier. Player hit radius = 16 * scale.',
+  weight:'Relative spawn weight inside the current stage roster.',
+  dropXp:'XP orbs granted on kill (also flags elite if >= 5).',
+  unlockWave:'Earliest wave number this enemy can appear.',
+  sprite:'Base sprite path (8-dir walk sheets derived from stem).',
+  pickupRadius:'How far the player magnet pulls XP/heal orbs.',
+  maxHp:'Player starting max health.',
+  sfxIdle:'Optional ambient SFX for this enemy (FORGE Audio / entity).',
+  sfxAttack:'Played when this enemy damages the player.',
+  sfxDie:'Played when this enemy dies.'
+};
+function fieldTip(k){return FIELD_HELP[k]||''}
+function fields(obj,path){return Object.entries(obj).filter(([,v])=>typeof v==='number'||typeof v==='string').map(([k,v])=>{
+  const tip=fieldTip(k);const tipAttr=tip?` data-tip="${esc(tip)}"`:'';
+  return `<label${tipAttr}><span>${k}${tip?'<span class="tipMark" aria-hidden="true">?</span>':''}</span><input data-p="${path}.${k}" value="${v}" ${typeof v==='number'?'type="number" step="any"':''}></label>`}).join('')}
+function bindInputs(){body.querySelectorAll('input[data-p]').forEach(input=>{input.oninput=()=>{const p=input.dataset.p;const old=getP(p);let value=typeof old==='number'?Number(input.value):input.value;if(typeof old==='number'&&!Number.isFinite(value))return;setP(p,value);applyForge();persistForge()}})}
 function bgHex(v){return /^#[0-9a-fA-F]{6}$/.test(v||'')?v:'#000000'}
 
 function renderTab(){
   tabsEl.querySelectorAll('button').forEach((d,i)=>d.classList.toggle('on',i===tab));
-  if(tab===0){// ENTITIES
-    body.innerHTML=`<div class="hint">Enemy roster. Numbers, names, colours and sprite paths apply live. Behaviours stay in code.</div>
-      <table><tr><th></th><th>ID</th><th>NAME</th><th>HP</th><th>SPD</th><th>DMG</th><th>R</th><th>SCALE</th><th>W</th><th>WAVE</th><th></th></tr>
-      ${EDIT.entities.map((e,i)=>`<tr>
-        <td><img class="kthumb" src="${esc(spriteSrcForEntity(e)||e.sprite||'')}" onerror="this.style.opacity=.2"></td>
-        <td><input data-p="entities.${i}.id" value="${esc(e.id)}" style="width:110px"></td>
-        <td><input data-p="entities.${i}.name" value="${esc(e.name)}" style="width:100px"></td>
-        <td><input type="number" data-p="entities.${i}.hp" value="${e.hp}" style="width:56px"></td>
-        <td><input type="number" data-p="entities.${i}.speed" value="${e.speed}" style="width:56px"></td>
-        <td><input type="number" data-p="entities.${i}.damage" value="${e.damage}" style="width:48px"></td>
-        <td><input type="number" step="any" data-p="entities.${i}.r" value="${e.r||12}" style="width:48px"></td>
-        <td><input type="number" step="0.05" min="0.2" max="4" data-p="entities.${i}.scale" value="${e.scale??1}" style="width:56px" title="size scale"></td>
-        <td><input type="number" data-p="entities.${i}.weight" value="${e.weight}" style="width:44px"></td>
-        <td><input type="number" data-p="entities.${i}.unlockWave" value="${e.unlockWave||1}" style="width:48px"></td>
-        <td><button data-del="${i}" class="warn">✕</button></td></tr>`).join('')}</table>
-      <div class="row"><button id="addEnemy">+ ADD ENEMY</button></div>`;
-    bindInputs();
-    body.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(EDIT.entities.length>1){EDIT.entities.splice(+b.dataset.del,1);applyForge();persistForge();renderTab()}});
-    body.querySelector('#addEnemy').onclick=()=>{const n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,scale:1,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1,sprite:''});applyForge();persistForge();renderTab()};
-    if(!body.querySelector('#exportForgeFile')){const row=body.querySelector('.row');if(row)row.insertAdjacentHTML('beforeend',' <button id="exportForgeFile">⬇ SAVE FORGE JSON</button> <label style="display:inline-flex;gap:6px;align-items:center">⬆ LOAD<input type="file" id="importForgeFile" accept="application/json,.json" style="width:auto"></label>');}
-    const exp=body.querySelector('#exportForgeFile');if(exp)exp.onclick=()=>{const blob=new Blob([JSON.stringify(EDIT,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hiveswarm_forge_'+GAME_VERSION+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2e3)};
-    const imp=body.querySelector('#importForgeFile');if(imp)imp.onchange=async ev=>{const f=ev.target.files&&ev.target.files[0];if(!f)return;try{EDIT=forgeMerge(FORGE_BASE,JSON.parse(await f.text()));applyForge();persistForge();genObstacles();renderTab()}catch(err){alert('Bad forge file: '+err.message)}};
+  if(tab===0){// ENTITIES — asset browser + paint editor + weapon stats/SFX
+    renderEntitiesEditor();
   }
   else if(tab===1){// PLAYER
-    body.innerHTML=`<div class="hint">Player combat knobs. <b>scale</b> resizes sprite + hit radius (1=default). Saved with Forge / SAVE FORGE JSON.</div>
+    body.innerHTML=`<div class="hint">Player combat knobs. Hover any field label for a short explanation. <b>scale</b> multiplies base hit radius once (1=default, max 3). Player draws as a teal sphere.</div>
       <div class="row">${fields(EDIT.player,'player')}</div>
       <div class="row">${fields(EDIT.drops,'drops')}</div>`;
     bindInputs();
   }
-  else if(tab===2){// WEAPONS
-    body.innerHTML=`<div class="hint">Per-weapon tuning. Weapons fire automatically at the nearest hostile.</div>
-      ${EDIT.weapons.map((w,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0"><h3 style="margin:0 0 6px;color:#78efdb">${esc(w.name||w.id)}</h3>${fields(w,'weapons.'+i)}</article>`).join('')}
-      <div class="row"><button id="addWep">+ ADD WEAPON</button></div>`;
-    bindInputs();
-    body.querySelector('#addWep').onclick=()=>{EDIT.weapons.push({id:'weapon.custom'+(EDIT.weapons.length+1),name:'Custom',damage:12,rate:.2,speed:700,shots:1,pierce:1,color:'#b7fff5',range:700});persistForge();renderTab()};
-  }
-  else if(tab===3){// WAVES
-    body.innerHTML=`<div class="hint">Wave budget drives spawn density. seconds = wave length for the WAVE counter.</div>
+  else if(tab===2){// WAVES
+    body.innerHTML=`<div class="hint">Wave budget drives spawn density. Hover <b>seconds</b>, <b>budgetBase</b>, etc. for what each value does.</div>
       <div class="row">${fields(EDIT.waves,'waves')}</div>`;
     bindInputs();
   }
-  else if(tab===4){// WORLD
-    body.innerHTML=`<div class="hint">Arena bounds and camera dead-zone. halfW/halfH are world half-extents in px.</div>
+  else if(tab===3){// WORLD
+    body.innerHTML=`<div class="hint">Arena bounds and camera dead-zone. Hover fields for details.</div>
       <div class="row">${fields(EDIT.world,'world')}</div>`;
     bindInputs();
   }
-  else if(tab===5){// STAGES
-    body.innerHTML=`<div class="hint">Stage order (backdrop, roster cap, boss timer). What a boss DOES stays in code — only its numbers and the stage's look are editable here. Reordering/adding stages is JSON-only via the DATA tab.</div>
+  else if(tab===4){// STAGES
+    body.innerHTML=`<div class="hint">Stage roster + look. Hover <b>seconds</b> / <b>enemyCap</b> / <b>bossMul</b> for meanings. <b>enemyCap</b> = how many enemy TYPES unlock this stage, not live body count.</div>
       ${EDIT.stages.map((s,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0">
         <h3 style="margin:0 0 6px;color:#78efdb">${i+1}. ${esc(s.name||s.id)}</h3>
-        <div class="row">${fields(s,'stages.'+i)}</div>
+        <div class="row">${fields({id:s.id,name:s.name,seconds:s.seconds,enemyCap:s.enemyCap,bossMul:s.bossMul},'stages.'+i)}</div>
         <label>bg top<input type="color" data-bg="${i}.0" value="${esc(bgHex(s.bg&&s.bg[0]))}"></label>
         <label>bg bottom<input type="color" data-bg="${i}.1" value="${esc(bgHex(s.bg&&s.bg[1]))}"></label>
-      </article>`).join('')}`;
+        <div class="row">BG ART <select data-stage-art="${i}.bgArt" style="width:min(280px,60vw)">${mediaLibraryOptions(s.bgArt||'')}</select>
+          <button type="button" data-up-stage="${i}.bgArt">⬆ UPLOAD</button></div>
+        <div class="row">OBSTACLE ART <select data-stage-art="${i}.obstacleArt" style="width:min(280px,60vw)">${mediaLibraryOptions(s.obstacleArt||'')}</select>
+          <button type="button" data-up-stage="${i}.obstacleArt">⬆ UPLOAD</button></div>
+      </article>`).join('')}
+      <input type="file" id="stageUploadFile" accept="image/*" style="display:none">`;
     bindInputs();
     body.querySelectorAll('[data-bg]').forEach(input=>{input.oninput=()=>{const [i,slot]=input.dataset.bg.split('.');const arr=EDIT.stages[+i].bg=EDIT.stages[+i].bg?EDIT.stages[+i].bg.slice():['#000','#000'];arr[+slot]=input.value;applyForge();persistForge()}});
+    body.querySelectorAll('[data-stage-art]').forEach(sel=>{sel.onchange=()=>{const [i,field]=sel.dataset.stageArt.split('.');EDIT.stages[+i][field]=sel.value;persistForge();if(field==='obstacleArt')genObstacles()}});
+    let pendingStageField=null;
+    body.querySelectorAll('[data-up-stage]').forEach(b=>b.onclick=()=>{pendingStageField=b.dataset.upStage;body.querySelector('#stageUploadFile').click()});
+    body.querySelector('#stageUploadFile').onchange=e=>{
+      const f=e.target.files&&e.target.files[0];e.target.value='';if(!f||!pendingStageField)return;
+      const [i,field]=pendingStageField.split('.');const id='up_'+Date.now().toString(36);
+      const rd=new FileReader();rd.onload=()=>{MEDIA_LIB[id]={name:f.name,data:rd.result};saveLibMedia(id).then(()=>{EDIT.stages[+i][field]='lib:'+id;persistForge();if(field==='obstacleArt')genObstacles();renderTab()}).catch(()=>alert('Upload store failed'))};rd.readAsDataURL(f);
+    };
   }
-  else if(tab===6){// SPRITES
-    renderSprites();
+  else if(tab===5){// BOSSES — one FORGE slot per stage guardian (owner 2026-08-08)
+    if(!EDIT.bosses)EDIT.bosses=copy(FORGE_BASE.bosses||[]);
+    const entityOpts=sel=>'<option value="">(derive from roster, legacy fallback)</option>'+(EDIT.entities||[]).map(e=>`<option value="${esc(e.id)}" ${sel===e.id?'selected':''}>${esc(e.name||e.id)}</option>`).join('');
+    body.innerHTML=`<div class="hint">One boss slot per stage. <b>baseEntityId</b> borrows that entity's sprite/animation (no new art needed) — hp/speed/damage/scale/color below are this boss's OWN absolute stats, not multipliers. <b>addTotal</b> 0 = no minions during the fight. Each STAGES entry references a boss by id; an unresolved/blank id falls back to the old derive-from-roster guardian so a stale save can't break the fight.</div>
+      ${EDIT.bosses.map((b,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0">
+        <h3 style="margin:0 0 6px;color:${esc(b.color||'#78efdb')}">${i+1}. ${esc(b.name||b.id)}</h3>
+        <div class="row">${fields({id:b.id,name:b.name,hp:b.hp,speed:b.speed,damage:b.damage,scale:b.scale,xp:b.xp,score:b.score,addTotal:b.addTotal,addPerSec:b.addPerSec},'bosses.'+i)}</div>
+        <label data-tip="Which shipped entity's sprite/walk-anim this guardian borrows.">base entity<select data-boss-base="${i}">${entityOpts(b.baseEntityId||'')}</select></label>
+        <label>color<input type="color" data-boss-color="${i}" value="${esc(bgHex(b.color))}"></label>
+        <label data-tip="Roar/telegraph SFX played when the boss appears.">roar<select data-boss-roar="${i}">${sfxOptions(b.roar||'')}</select></label>
+        <button type="button" data-boss-test="${i}">▶ TEST ROAR</button>
+      </article>`).join('')}
+      <button id="addBoss">+ ADD BOSS SLOT</button>`;
+    bindInputs();
+    body.querySelectorAll('[data-boss-base]').forEach(sel=>{sel.onchange=()=>{EDIT.bosses[+sel.dataset.bossBase].baseEntityId=sel.value;persistForge()}});
+    body.querySelectorAll('[data-boss-color]').forEach(input=>{input.oninput=()=>{EDIT.bosses[+input.dataset.bossColor].color=input.value;persistForge()}});
+    body.querySelectorAll('[data-boss-roar]').forEach(sel=>{sel.onchange=()=>{EDIT.bosses[+sel.dataset.bossRoar].roar=sel.value;persistForge()}});
+    body.querySelectorAll('[data-boss-test]').forEach(b=>b.onclick=()=>{const cfg=EDIT.bosses[+b.dataset.bossTest];if(cfg&&cfg.roar)sfxFile(cfg.roar,.4);else sfx('kill',.3)});
+    const addB=body.querySelector('#addBoss');
+    if(addB)addB.onclick=()=>{const n=EDIT.bosses.length+1;EDIT.bosses.push({id:'boss.custom'+n,name:'Custom Guardian '+n,baseEntityId:(EDIT.entities[0]&&EDIT.entities[0].id)||'',hp:800,speed:40,damage:24,scale:1.6,color:'#c7d4d3',xp:10,score:300,addTotal:0,addPerSec:0,roar:''});persistForge();renderTab()};
   }
-  else if(tab===7){// AUDIO
-    body.innerHTML=`<div class="hint">Global SFX toggle. Per-entity samples stay code-side in this greybox.</div>
+  else if(tab===6){// AUDIO — global toggle + per-enemy Idle/Attack/Die SFX
+    body.innerHTML=`<div class="hint">Assign SFX per enemy. Files live in <b>assets/SFX/</b>. Weapon fire sounds are on each weapon under <b>ENTITIES → weapons</b>.</div>
       <div class="row"><button id="audSfx">${audioOn?'SFX ON':'SFX OFF'}</button>
-      <span class="hint">Samples: ${Object.keys(SFX).join(', ')}</span></div>`;
+      <span class="hint">Library: ${SFX_FILES.length} samples</span></div>
+      ${(EDIT.entities||[]).map((e,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0">
+        <h3 style="margin:0 0 6px;color:${esc(e.color||'#78efdb')}">${esc(e.name||e.id)}</h3>
+        <div class="sfxRow"><label data-tip="Optional loop/ambient cue when this type is on screen (reserved).">Idle
+          <select data-esfx="${i}.sfxIdle">${sfxOptions(e.sfxIdle||'')}</select></label>
+          <label data-tip="Plays when this enemy damages the player.">Attack
+          <select data-esfx="${i}.sfxAttack">${sfxOptions(e.sfxAttack||'')}</select></label>
+          <label data-tip="Plays when this enemy dies.">Die
+          <select data-esfx="${i}.sfxDie">${sfxOptions(e.sfxDie||'')}</select></label>
+          <button type="button" data-sfx-test="${i}">▶ TEST DIE</button>
+        </div>
+      </article>`).join('')}`;
     body.querySelector('#audSfx').onclick=()=>{audioOn=!audioOn;renderTab()};
+    body.querySelectorAll('[data-esfx]').forEach(sel=>{sel.onchange=()=>{const [i,field]=sel.dataset.esfx.split('.');EDIT.entities[+i][field]=sel.value;applyForge();persistForge()}});
+    body.querySelectorAll('[data-sfx-test]').forEach(b=>b.onclick=()=>{const e=EDIT.entities[+b.dataset.sfxTest];if(e&&e.sfxDie)sfxFile(e.sfxDie,.3);else sfx('kill',.25)});
   }
-  else if(tab===8){// DATA
+  else if(tab===7){// DATA
     body.innerHTML=`<div class="hint">Export / import a self-contained pack (values + optional media keys). Reset restores shipped numbers.</div>
       <div class="row"><button id="pkSave">⬇ EXPORT JSON</button>
         <label style="display:inline;grid-template-columns:none">⬆ IMPORT <input type="file" id="pkLoad" accept="application/json,.json" style="width:auto"></label>
         <button id="forgeReset" class="warn">RESET SHIPPED VALUES</button></div>`;
-    body.querySelector('#pkSave').onclick=()=>{const pack={version:GAME_VERSION,values:EDIT,sprites:SPRITE_OVR,codexImages:CODEX_IMG};
+    body.querySelector('#pkSave').onclick=()=>{const pack={version:GAME_VERSION,values:EDIT,sprites:SPRITE_OVR,codexImages:CODEX_IMG,mediaLib:MEDIA_LIB};
       const blob=new Blob([JSON.stringify(pack,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hiveswarm-forge-pack.json';a.click()};
     body.querySelector('#pkLoad').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const pack=JSON.parse(await f.text());
       if(pack.values){EDIT=forgeMerge(FORGE_BASE,pack.values);if(Array.isArray(pack.values.codexPages))EDIT.codexPages=pack.values.codexPages;persistForge();applyForge()}
-      if(pack.sprites){Object.assign(SPRITE_OVR,pack.sprites);for(const [k,d] of Object.entries(pack.sprites))await saveSpriteMedia(k)}
-      if(pack.codexImages){Object.assign(CODEX_IMG,pack.codexImages);for(const [k,d] of Object.entries(pack.codexImages))await saveCodexMedia(k)}
+      if(pack.sprites){Object.assign(SPRITE_OVR,pack.sprites);for(const k of Object.keys(pack.sprites))await saveSpriteMedia(k)}
+      if(pack.codexImages){Object.assign(CODEX_IMG,pack.codexImages);for(const k of Object.keys(pack.codexImages))await saveCodexMedia(k)}
+      if(pack.mediaLib){Object.assign(MEDIA_LIB,pack.mediaLib);for(const k of Object.keys(pack.mediaLib))await saveLibMedia(k)}
       renderTab()}catch(err){alert('Bad pack: '+err.message)}};
     body.querySelector('#forgeReset').onclick=()=>{if(confirm('Restore shipped Forge values?')){EDIT=copy(FORGE_BASE);EDIT.codexPages=codexDefaults();applyForge();persistForge();renderTab()}};
   }
-  else{// BEASTIARY tab
+  else{// BEASTIARY — field guide pages (unlock/journal), NOT the asset paint editor
     renderCodex();
   }
 }
 
+/** Unified left-rail asset list for ENTITIES editor: player, enemies, weapons, items. */
+function entityAssets(){
+  const list=[];
+  list.push({cat:'player',color:'#6fffe2',title:'Swarm Operative',key:'player',path:PLAYER_SPRITE,kind:'player',
+    stats:()=>EDIT.player, statPath:'player'});
+  (EDIT.entities||[]).forEach((e,i)=>list.push({cat:'enemy',color:e.color||'#9ab0b4',title:e.name||e.id,key:entitySpriteKey(e),path:e.sprite||'',kind:'entity',idx:i,
+    stats:()=>EDIT.entities[i], statPath:'entities.'+i}));
+  (EDIT.weapons||[]).forEach((w,i)=>list.push({cat:'weapon',color:w.color||'#ffe066',title:w.name||w.id,key:'weapon:'+w.id,path:'',kind:'weapon',idx:i,
+    stats:()=>EDIT.weapons[i], statPath:'weapons.'+i}));
+  list.push({cat:'item',color:'#8ffff0',title:'Biomatter Orb',key:'item:xp',path:'',kind:'item'});
+  list.push({cat:'item',color:'#ff5f7a',title:'Stim Pack',key:'item:heal',path:'',kind:'item'});
+  return list;
+}
+const BEAST_CAT_COL={player:'#6fffe2',enemy:'#f88',weapon:'#ffe066',item:'#8aff9b',boss:'#c6f',lore:'#9ab'};
+function weaponIconDraw(cv, w){
+  if(!cv||!w)return;
+  const g=cv.getContext('2d');const W=cv.width,H=cv.height;
+  g.clearRect(0,0,W,H);g.fillStyle='#071215';g.fillRect(0,0,W,H);
+  const iconIdx=w.icon|0;
+  const sheet=spriteFor('assets/weapon_icons.png');
+  if(sheet&&sheet.complete&&sheet.naturalWidth){
+    const cell=sheet.naturalHeight||128;
+    const cols=Math.max(1,Math.floor(sheet.naturalWidth/cell));
+    const i=((iconIdx%cols)+cols)%cols;
+    g.imageSmoothingEnabled=false;
+    g.drawImage(sheet,i*cell,0,cell,cell,4,4,W-8,H-8);
+    return;
+  }
+  // fallback procedural gun glyph tinted with weapon color
+  g.fillStyle=w.color||'#6fffe2';g.shadowColor=w.color||'#6fffe2';g.shadowBlur=10;
+  g.fillRect(W*.2,H*.42,W*.55,H*.16);
+  g.fillRect(W*.68,H*.34,W*.12,H*.32);
+  g.beginPath();g.arc(W*.28,H*.5,H*.14,0,7);g.fill();
+  g.shadowBlur=0;
+}
+function pickupIconDraw(cv,w){
+  if(!cv||!w)return;
+  const g=cv.getContext('2d');const W=cv.width,H=cv.height;
+  g.clearRect(0,0,W,H);g.fillStyle='#071215';g.fillRect(0,0,W,H);
+  const col=w.color||'#ffe08a';
+  // Matches in-game weapon pickup: glowing capsule + dark sight
+  g.save();g.translate(W/2,H/2);
+  g.shadowColor='#ffd76a';g.shadowBlur=12;g.fillStyle=col;
+  g.fillRect(-14,-7,28,14);
+  g.fillStyle='#111';g.fillRect(-4,-12,8,6);
+  g.restore();
+}
+function renderEntitiesEditor(){
+  const assets=entityAssets();
+  if(codexSel>=assets.length)codexSel=Math.max(0,assets.length-1);
+  const a=assets[codexSel];
+  let lastCat='', left='';
+  assets.forEach((x,i)=>{
+    if(x.cat!==lastCat){lastCat=x.cat;left+=`<div style="color:${BEAST_CAT_COL[x.cat]||'#8ab'};font:700 10px system-ui;letter-spacing:1px;margin:8px 0 2px;opacity:.9">${x.cat.toUpperCase()}</div>`}
+    left+=`<button type="button" data-pick="${i}" class="${i===codexSel?'on':''}" style="display:block;width:100%;text-align:left;margin:2px 0;border-left:3px solid ${x.color||'#426'}">${CODEX_ICON[x.cat]||'•'} ${esc(x.title)}</button>`;
+  });
+  const ovr=a?SPRITE_OVR[a.key]:null;
+  const ovrUrl=ovrDataURL(ovr);
+  const frames=(ovr&&typeof ovr==='object'&&ovr.frames)||1;
+  const fps=(ovr&&typeof ovr==='object'&&ovr.fps)||8;
+  const thumb=ovrUrl||a.path||'';
+  const isWeapon=a&&a.kind==='weapon';
+  const isSpriteBody=a&&(a.kind==='entity'||a.kind==='player');
+  const statsObj=a&&a.stats?a.stats():null;
+  // hide raw sfx string from numeric fields when we show a dropdown for it
+  let statsForFields=statsObj;
+  if(isWeapon&&statsObj){
+    const {sfx,icon,...rest}=statsObj;
+    statsForFields=rest;
+  }
+  if(a&&a.kind==='entity'&&statsObj){
+    const {sfxIdle,sfxAttack,sfxDie,...rest}=statsObj;
+    statsForFields=rest;
+  }
+  const statsHtml=statsForFields?`<div class="row" style="flex-wrap:wrap">${fields(statsForFields,a.statPath)}</div>`:'<div class="hint">No numeric fields for this entry.</div>';
+  const wepHead=isWeapon&&statsObj?`<div class="wepHead">
+      <canvas class="wepPrev" id="wepIconCv" width="48" height="48" title="Weapon icon (in-game / forge)"></canvas>
+      <canvas class="pickupPrev" id="wepPickupCv" width="48" height="48" title="World pickup appearance"></canvas>
+      <div><b style="color:${a.color}">${esc(a.title)}</b>
+        <div class="hint">icon = HUD/sheet · pickup = floor cache look</div></div>
+    </div>
+    <div class="sfxRow"><label data-tip="Sound played when this weapon fires.">Fire SFX
+      <select id="wepSfx">${sfxOptions(statsObj.sfx||'')}</select></label>
+      <button type="button" id="wepSfxTest">▶ TEST</button>
+      <label data-tip="Cell index in assets/weapon_icons.png (128px tiles).">icon
+      <input type="number" id="wepIcon" value="${statsObj.icon??0}" min="0" max="16" style="width:48px"></label>
+    </div>`:'';
+  const enemySfx=a&&a.kind==='entity'&&statsObj?`<div class="sfxRow">
+      <label data-tip="Optional ambient/idle sample.">Idle <select id="entSfxIdle">${sfxOptions(statsObj.sfxIdle||'')}</select></label>
+      <label data-tip="Plays when this enemy damages the player.">Attack <select id="entSfxAtk">${sfxOptions(statsObj.sfxAttack||'')}</select></label>
+      <label data-tip="Plays on death.">Die <select id="entSfxDie">${sfxOptions(statsObj.sfxDie||'')}</select></label>
+    </div>`:'';
+  const dirGrid=isSpriteBody?`<div class="hint" style="margin-top:10px"><b>WALK DIRECTIONS</b> — click a still to edit it. Import/export per facing.</div>
+      <div class="dirGrid" id="dirGrid"></div>
+      <input type="file" id="dirFile" accept="image/*" style="display:none">`:'';
+  const paintHtml=isSpriteBody?(
+    '<div class="hint" id="paintTargetLab">Editing: <b>'+(paintDir?('walk_'+paintDir):'base sprite')+'</b> - click a walk still below to switch sheets</div>'+
+    '<div class="paintRow"><div class="paintWrap" id="paintWrap"><canvas id="forgePaint" width="128" height="128"></canvas><div id="forgeBrushCur"></div></div>'+
+    '<div class="paintTools">'+
+    '<div class="row">'+
+    '<button id="spToolBrush" class="'+(brush.tool==='brush'&&!brush.erase?'on':'')+'">BRUSH</button>'+
+    '<button id="spToolErase" class="'+(brush.tool==='erase'||brush.erase?'on':'')+'">ERASE</button>'+
+    '<button id="spToolWand" class="'+(brush.tool==='wand'?'on':'')+'">WAND</button>'+
+    '<button id="spUndo">UNDO</button>'+
+    '<button id="spClearSel" class="warn">DEL SEL</button></div>'+
+    '<div class="row">COLOR <input type="color" id="spCol" value="'+brush.col+'">'+
+    ' SIZE <input type="number" id="spSize" value="'+brush.size+'" min="1" max="32" style="width:48px">'+
+    ' ZOOM <input type="range" id="spZoom" min="1" max="8" step="1" value="'+paintZoom+'" style="width:90px">'+
+    ' <b id="spZoomLab">'+paintZoom+'x</b></div>'+
+    '<div class="row">FRAME <button id="spPrev">&lt;</button>'+
+    ' <b id="spFrameLab">'+(beastFrame+1)+'/'+frames+'</b>'+
+    ' <button id="spNext">&gt;</button>'+
+    ' <button id="spAddFrame">+ FRAME</button>'+
+    ' <button id="spDelFrame" class="warn">- FRAME</button>'+
+    ' FPS <input type="number" id="spFps" value="'+fps+'" min="1" max="30" style="width:48px"></div>'+
+    '<div class="frames" id="spThumbs"></div>'+
+    '<div class="row"><button id="spSave">SAVE</button>'+
+    ' <button id="spImp">IMPORT</button>'+
+    ' <button id="spExpFrame">EXPORT FRAME</button>'+
+    ' <button id="spExpSheet">EXPORT CHAR SHEET</button>'+
+    ' <button id="spExpAll">EXPORT ALL SHEETS</button>'+
+    ' <button id="spRev" class="warn">REVERT</button>'+
+    ' <input type="file" id="spFile" accept="image/*" style="display:none"></div>'+
+    '<div class="hint">Circle brush cursor scales with SIZE. Wand: click magenta then DEL SEL. EXPORT CHAR SHEET = all 8 walk dirs for this unit. EXPORT ALL SHEETS = every cast member (download pack).</div>'+
+    (thumb?'<img src="'+esc(thumb)+'" alt="" style="max-width:96px;max-height:64px;border:1px solid #245;margin-top:4px;object-fit:contain">':'')+
+    '</div></div>'+dirGrid
+  ):(isWeapon?'<div class="hint">Weapons use procedural/icon art + color. Tune stats above; fire SFX via dropdown.</div>':'');
+
+  body.innerHTML='<div class="hint"><b>ENTITIES</b> - all assets by category (player, enemies, <b>weapons</b>, items). Weapon stats + fire SFX live here (the separate WEAPONS tab was removed). Hover field labels for explanations. Field-guide pages are on <b>BEASTIARY</b>.</div>'+
+    '<div class="entSplit">'+
+      '<div class="entLeft">'+left+
+        '<button id="entAddEnemy" style="width:100%;margin-top:8px">+ ADD ENEMY</button>'+
+        '<button id="entAddWep" style="width:100%;margin-top:4px">+ ADD WEAPON</button></div>'+
+      '<div class="entRight">'+(a?
+        '<div class="row"><b style="color:'+a.color+'">'+esc(a.title)+'</b><span class="hint">'+esc(a.key)+'</span>'+
+          '<span class="hint" style="color:'+(BEAST_CAT_COL[a.cat]||'#8ab')+'">'+a.cat+'</span></div>'+
+        wepHead+
+        statsHtml+
+        enemySfx+
+        paintHtml
+      :'<div class="hint">Select an entry.</div>')+'</div></div>';
+
+  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;beastFrame=0;paintDir=null;paintUndo=[];paintSelMask=null;renderEntitiesEditor()});
+  const addE=body.querySelector('#entAddEnemy');
+  if(addE)addE.onclick=()=>{const n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,scale:1,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1,sprite:'',sfxIdle:'',sfxAttack:'',sfxDie:''});applyForge();persistForge();renderEntitiesEditor()};
+  const addW=body.querySelector('#entAddWep');
+  if(addW)addW.onclick=()=>{EDIT.weapons.push({id:'weapon.custom'+(EDIT.weapons.length+1),name:'Custom',kind:'bullet',damage:12,rate:.2,speed:700,shots:1,pierce:1,color:'#b7fff5',range:700,dropWeight:1,sfx:''});persistForge();renderEntitiesEditor()};
+  if(!a)return;
+  bindInputs();
+  if(isWeapon&&statsObj){
+    weaponIconDraw(body.querySelector('#wepIconCv'),statsObj);
+    pickupIconDraw(body.querySelector('#wepPickupCv'),statsObj);
+    const sfxSel=body.querySelector('#wepSfx');
+    if(sfxSel)sfxSel.onchange=()=>{EDIT.weapons[a.idx].sfx=sfxSel.value;persistForge()};
+    const tbtn=body.querySelector('#wepSfxTest');
+    if(tbtn)tbtn.onclick=()=>{const f=EDIT.weapons[a.idx].sfx;if(f)sfxFile(f,.3);else sfx('fire',.25)};
+    const ic=body.querySelector('#wepIcon');
+    if(ic)ic.oninput=()=>{EDIT.weapons[a.idx].icon=Math.max(0,+ic.value||0);persistForge();weaponIconDraw(body.querySelector('#wepIconCv'),EDIT.weapons[a.idx])};
+  }
+  if(a.kind==='entity'&&statsObj){
+    const bindS=(id,key)=>{const el=body.querySelector(id);if(!el)return;el.onchange=()=>{EDIT.entities[a.idx][key]=el.value;applyForge();persistForge()}};
+    bindS('#entSfxIdle','sfxIdle');bindS('#entSfxAtk','sfxAttack');bindS('#entSfxDie','sfxDie');
+  }
+  // Direction walk matrix (player + enemies)
+  if(isSpriteBody){
+    const grid=body.querySelector('#dirGrid');
+    const basePath=a.path||(a.kind==='player'?PLAYER_SPRITE:'');
+    let pendingDir=null;
+    const dirFile=body.querySelector('#dirFile');
+    FACE_SFX8.forEach(dir=>{
+      const walkPath=basePath?String(basePath).replace(/\.png$/,'')+'_walk_'+dir+'.png':'';
+      const idlePath=basePath?String(basePath).replace(/\.png$/,'')+'_'+dir+'.png':basePath;
+      const ovrKey=walkPath;
+      const ovrD=SPRITE_OVR[ovrKey]||SPRITE_OVR['path:'+walkPath];
+      const src=ovrDataURL(ovrD)||walkPath||idlePath||'';
+      const cell=document.createElement('div');cell.className='dirCell';
+      cell.innerHTML=`<b>${dir}</b><canvas width="48" height="48" data-dir-cv="${dir}"></canvas>
+        <div class="row" style="justify-content:center">
+          <button type="button" data-dir-imp="${dir}" style="padding:3px 6px">⬆</button>
+          <button type="button" data-dir-exp="${dir}" style="padding:3px 6px">⬇</button>
+          <button type="button" data-dir-rev="${dir}" class="warn" style="padding:3px 6px">✕</button>
+        </div>
+        <div class="hint" style="font-size:9px;opacity:.7">walk_${dir}</div>`;
+      grid.appendChild(cell);
+      const cv=cell.querySelector('canvas');
+      const g=cv.getContext('2d');
+      const im=new Image();im.crossOrigin='anonymous';
+      im.onload=()=>{
+        g.clearRect(0,0,48,48);
+        // show first frame of strip if wide
+        const nf=im.naturalWidth>=im.naturalHeight*1.6?Math.max(1,Math.round(im.naturalWidth/im.naturalHeight)):1;
+        const fw=im.naturalWidth/nf;
+        g.imageSmoothingEnabled=false;
+        g.drawImage(im,0,0,fw,im.naturalHeight,0,0,48,48);
+      };
+      im.onerror=()=>{g.fillStyle='#1a1010';g.fillRect(0,0,48,48);g.fillStyle='#844';g.font='10px system-ui';g.fillText('—',18,28)};
+      if(src)im.src=src;
+      if(paintDir===dir)cell.classList.add('sel');
+      const openDir=()=>{paintDir=dir;beastFrame=0;paintUndo=[];paintSelMask=null;renderEntitiesEditor()};
+      cell.querySelector('canvas').onclick=e=>{e.stopPropagation();openDir()};
+      cell.querySelector('b').onclick=e=>{e.stopPropagation();openDir()};
+    });
+    grid.querySelectorAll('[data-dir-imp]').forEach(b=>b.onclick=e=>{e.stopPropagation();pendingDir=b.dataset.dirImp;dirFile.click()});
+    grid.querySelectorAll('[data-dir-exp]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+      const dir=b.dataset.dirExp;
+      const walkPath=basePath?String(basePath).replace(/\.png$/,'')+'_walk_'+dir+'.png':'';
+      const ovrD=SPRITE_OVR[walkPath]||SPRITE_OVR['path:'+walkPath];
+      const data=ovrDataURL(ovrD);
+      if(data){const ael=document.createElement('a');ael.href=data;ael.download=(a.key||'sprite')+'_walk_'+dir+'.png';ael.click();return}
+      // export shipped path via canvas fetch
+      const im=spriteFor(walkPath);if(!im||!im.complete||!im.naturalWidth){alert('No walk_'+dir+' sheet to export yet.');return}
+      const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext('2d').drawImage(im,0,0);
+      const ael=document.createElement('a');ael.href=c.toDataURL('image/png');ael.download=(a.key||'sprite')+'_walk_'+dir+'.png';ael.click();
+    });
+    grid.querySelectorAll('[data-dir-rev]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+      const dir=b.dataset.dirRev;
+      const walkPath=basePath?String(basePath).replace(/\.png$/,'')+'_walk_'+dir+'.png':'';
+      delete SPRITE_OVR[walkPath];delete SPRITE_OVR['path:'+walkPath];
+      saveSpriteMedia(walkPath).then(()=>saveSpriteMedia('path:'+walkPath)).then(()=>renderEntitiesEditor());
+    });
+    if(dirFile)dirFile.onchange=e=>{
+      const f=e.target.files[0];e.target.value='';if(!f||!pendingDir)return;
+      const dir=pendingDir;pendingDir=null;
+      const walkPath=basePath?String(basePath).replace(/\.png$/,'')+'_walk_'+dir+'.png':'';
+      const rd=new FileReader();
+      rd.onload=()=>{
+        SPRITE_OVR[walkPath]={data:rd.result,frames:1,fps:8};
+        SPRITE_OVR['path:'+walkPath]={data:rd.result,frames:1,fps:8};
+        // also try detect multi-frame strip
+        const im=new Image();im.onload=()=>{
+          const nf=im.naturalWidth>=im.naturalHeight*1.6?Math.max(1,Math.round(im.naturalWidth/im.naturalHeight)):1;
+          SPRITE_OVR[walkPath]={data:rd.result,frames:nf,fps:8};
+          SPRITE_OVR['path:'+walkPath]={data:rd.result,frames:nf,fps:8};
+          saveSpriteMedia(walkPath).then(()=>saveSpriteMedia('path:'+walkPath)).then(()=>renderEntitiesEditor());
+        };
+        im.onerror=()=>saveSpriteMedia(walkPath).then(()=>renderEntitiesEditor());
+        im.src=rd.result;
+      };
+      rd.readAsDataURL(f);
+    };
+  }
+  if(!isSpriteBody)return;
+  const cv=body.querySelector('#forgePaint'); if(!cv)return;
+  const pctx=cv.getContext('2d',{willReadFrequently:true});
+  work=document.createElement('canvas');
+  const CELL=128;
+  const basePathA=a.path||(a.kind==='player'?PLAYER_SPRITE:'');
+  function activePaintPaths(){
+    if(paintDir){
+      const walkPath=basePathA?String(basePathA).replace(/\.png$/,'')+'_walk_'+paintDir+'.png':'';
+      return {key:walkPath,path:walkPath,label:'walk_'+paintDir};
+    }
+    return {key:a.key,path:a.path||'',label:'base sprite'};
+  }
+  function applyPaintZoom(){
+    const z=Math.max(1,Math.min(8,paintZoom|0));
+    cv.style.width=(CELL*z)+'px';cv.style.height=(CELL*z)+'px';
+    const lab=body.querySelector('#spZoomLab');if(lab)lab.textContent=z+'\u00d7';
+  }
+  function pushUndo(){if(!work)return;try{paintUndo.push(work.toDataURL('image/png'));if(paintUndo.length>30)paintUndo.shift()}catch(_){}}
+  function popUndo(){
+    if(!paintUndo.length||!work)return;
+    const data=paintUndo.pop(),im=new Image();
+    im.onload=()=>{const g=work.getContext('2d');g.clearRect(0,0,work.width,work.height);g.drawImage(im,0,0);paintSelMask=null;drawFrame();renderThumbs()};
+    im.src=data;
+  }
+  function ensureStrip(n){
+    const fr=Math.max(1,n|0);
+    const nw=document.createElement('canvas');nw.width=CELL*fr;nw.height=CELL;
+    const g=nw.getContext('2d');if(work&&work.width)g.drawImage(work,0,0);work=nw;
+  }
+  function loadStrip(src,nFrames){
+    ensureStrip(nFrames||1);
+    const g=work.getContext('2d');g.clearRect(0,0,work.width,work.height);
+    if(!src){drawFrame();return}
+    const im=new Image();im.crossOrigin='anonymous';
+    im.onload=()=>{
+      const nf=nFrames||(im.naturalWidth>=im.naturalHeight*1.6?Math.max(1,Math.round(im.naturalWidth/im.naturalHeight)):1);
+      ensureStrip(nf);
+      const gg=work.getContext('2d');gg.clearRect(0,0,work.width,work.height);
+      const fw=im.naturalWidth/nf;
+      for(let i=0;i<nf;i++)gg.drawImage(im,i*fw,0,fw,im.naturalHeight,i*CELL,0,CELL,CELL);
+      beastFrame=Math.min(beastFrame,nf-1);drawFrame();renderThumbs();
+    };
+    im.onerror=()=>drawFrame();im.src=src;
+  }
+  function frameCount(){return Math.max(1,Math.round(work.width/CELL))}
+  function drawFrame(){
+    pctx.clearRect(0,0,CELL,CELL);
+    if(work)pctx.drawImage(work,beastFrame*CELL,0,CELL,CELL,0,0,CELL,CELL);
+    if(paintSelMask&&paintSelMask.length===CELL*CELL){
+      const id=pctx.getImageData(0,0,CELL,CELL),d=id.data;
+      for(let i=0;i<paintSelMask.length;i++)if(paintSelMask[i]){d[i*4]=0;d[i*4+1]=255;d[i*4+2]=200;d[i*4+3]=Math.min(180,(d[i*4+3]||80)+70)}
+      pctx.putImageData(id,0,0);
+    }
+    const lab=body.querySelector('#spFrameLab');if(lab)lab.textContent=(beastFrame+1)+'/'+frameCount();
+  }
+  function renderThumbs(){
+    const el=body.querySelector('#spThumbs');if(!el||!work)return;
+    el.innerHTML='';
+    for(let i=0;i<frameCount();i++){
+      const t=document.createElement('canvas');t.width=36;t.height=36;t.className=i===beastFrame?'sel':'';
+      t.getContext('2d').drawImage(work,i*CELL,0,CELL,CELL,0,0,36,36);
+      t.onclick=()=>{beastFrame=i;paintSelMask=null;drawFrame();renderThumbs()};
+      el.appendChild(t);
+    }
+  }
+  (function initLoad(){
+    if(paintDir){
+      const tgt=activePaintPaths();
+      const ovrD=SPRITE_OVR[tgt.path]||SPRITE_OVR['path:'+tgt.path];
+      loadStrip(ovrDataURL(ovrD)||tgt.path||'',(ovrD&&typeof ovrD==='object'&&ovrD.frames)||0);
+    }else loadStrip(ovrUrl||a.path,frames);
+  })();
+  applyPaintZoom();
+  let painting=false;
+  function colorNear(r,g,b,a,tr,tg,tb,tol){if(a<10)return false;return Math.abs(r-tr)<=tol&&Math.abs(g-tg)<=tol&&Math.abs(b-tb)<=tol}
+  function hexToRgb(hex){const h=String(hex||'#ff00ff').replace('#','');const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}}
+  function wandSelect(px,py){
+    if(!work)return;
+    const g=work.getContext('2d',{willReadFrequently:true});
+    const ox=beastFrame*CELL;
+    const id=g.getImageData(ox,0,CELL,CELL),d=id.data;
+    const o0=(py*CELL+px)*4;if(o0<0||o0>=d.length)return;
+    let tr=d[o0],tg=d[o0+1],tb=d[o0+2],ta=d[o0+3];
+    // empty pixel: seed from brush color (magenta key-out workflow)
+    if(ta<10){const k=hexToRgb(brush.col);tr=k.r;tg=k.g;tb=k.b}
+    const tol=52;
+    paintSelMask=new Uint8Array(CELL*CELL);
+    const q=[[px,py]],seen=new Uint8Array(CELL*CELL);
+    while(q.length){
+      const [x,y]=q.pop();
+      if(x<0||y<0||x>=CELL||y>=CELL)continue;
+      const i=y*CELL+x;if(seen[i])continue;seen[i]=1;
+      const o=i*4;
+      if(!colorNear(d[o],d[o+1],d[o+2],d[o+3],tr,tg,tb,tol))continue;
+      paintSelMask[i]=1;
+      q.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+    drawFrame();
+  }
+  function clearSelection(){
+    if(!paintSelMask||!work)return;
+    pushUndo();
+    const g=work.getContext('2d');const ox=beastFrame*CELL;
+    const id=g.getImageData(ox,0,CELL,CELL),d=id.data;
+    for(let i=0;i<paintSelMask.length;i++)if(paintSelMask[i])d[i*4+3]=0;
+    g.putImageData(id,ox,0);paintSelMask=null;drawFrame();renderThumbs();
+  }
+  // Circular stamp — diameter = brush.size (same units as SIZE control)
+  function stampCircle(px,py){
+    const g=work.getContext('2d');const ox=beastFrame*CELL;
+    const r=Math.max(0.5,brush.size/2);
+    g.save();
+    g.beginPath();g.arc(ox+px+0.5,py+0.5,r,0,Math.PI*2);
+    if(brush.tool==='erase'||brush.erase){g.globalCompositeOperation='destination-out';g.fillStyle='#000';g.fill()}
+    else{g.fillStyle=brush.col;g.fill()}
+    g.restore();
+  }
+  const brushCur=body.querySelector('#forgeBrushCur');
+  function updateBrushCursor(ev){
+    if(!brushCur)return;
+    const wrap=body.querySelector('#paintWrap')||cv.parentElement;
+    if(!wrap)return;
+    const rect=cv.getBoundingClientRect(),wrect=wrap.getBoundingClientRect();
+    const z=Math.max(1,paintZoom|0);
+    const diam=Math.max(2,brush.size*z);
+    brushCur.style.width=diam+'px';brushCur.style.height=diam+'px';
+    brushCur.classList.toggle('erase',brush.tool==='erase'||brush.erase);
+    brushCur.classList.toggle('wand',brush.tool==='wand');
+    if(ev){
+      const inside=ev.clientX>=rect.left&&ev.clientX<=rect.right&&ev.clientY>=rect.top&&ev.clientY<=rect.bottom;
+      brushCur.style.display=inside?'block':'none';
+      if(inside){brushCur.style.left=(ev.clientX-wrect.left+wrap.scrollLeft)+'px';brushCur.style.top=(ev.clientY-wrect.top+wrap.scrollTop)+'px'}
+    }
+  }
+  function paintAt(ev){
+    const rect=cv.getBoundingClientRect(),x=Math.floor((ev.clientX-rect.left)/rect.width*CELL),y=Math.floor((ev.clientY-rect.top)/rect.height*CELL);
+    if(x<0||y<0||x>=CELL||y>=CELL)return;
+    if(brush.tool==='wand'){wandSelect(x,y);return}
+    stampCircle(x,y);
+    drawFrame();
+  }
+  cv.onpointerdown=e=>{
+    updateBrushCursor(e);
+    if(brush.tool==='wand'){paintAt(e);return}
+    pushUndo();painting=true;cv.setPointerCapture(e.pointerId);paintAt(e);
+  };
+  cv.onpointermove=e=>{updateBrushCursor(e);if(painting)paintAt(e)};
+  cv.onpointerup=()=>{painting=false;renderThumbs()};
+  cv.onpointerleave=()=>{if(brushCur)brushCur.style.display='none'};
+  cv.onpointerenter=e=>updateBrushCursor(e);
+  body.querySelector('#spCol').oninput=e=>{brush.col=e.target.value;if(brush.tool!=='wand'){brush.tool='brush';brush.erase=false}};
+  body.querySelector('#spSize').oninput=e=>{brush.size=Math.max(1,Math.min(32,+e.target.value||4));updateBrushCursor()};
+  const zEl=body.querySelector('#spZoom');
+  if(zEl)zEl.oninput=()=>{paintZoom=+zEl.value||2;applyPaintZoom();updateBrushCursor()};
+  const setTool=t=>{brush.tool=t;brush.erase=(t==='erase');renderEntitiesEditor()};
+  body.querySelector('#spToolBrush').onclick=()=>setTool('brush');
+  body.querySelector('#spToolErase').onclick=()=>setTool('erase');
+  body.querySelector('#spToolWand').onclick=()=>setTool('wand');
+  body.querySelector('#spUndo').onclick=()=>popUndo();
+  body.querySelector('#spClearSel').onclick=()=>clearSelection();
+  body.querySelector('#spPrev').onclick=()=>{beastFrame=(beastFrame-1+frameCount())%frameCount();paintSelMask=null;drawFrame();renderThumbs()};
+  body.querySelector('#spNext').onclick=()=>{beastFrame=(beastFrame+1)%frameCount();paintSelMask=null;drawFrame();renderThumbs()};
+  body.querySelector('#spAddFrame').onclick=()=>{
+    pushUndo();const n=frameCount();const nw=document.createElement('canvas');nw.width=CELL*(n+1);nw.height=CELL;
+    nw.getContext('2d').drawImage(work,0,0);work=nw;beastFrame=n;paintSelMask=null;drawFrame();renderThumbs();
+  };
+  body.querySelector('#spDelFrame').onclick=()=>{
+    const n=frameCount();if(n<=1)return;pushUndo();
+    const nw=document.createElement('canvas');nw.width=CELL*(n-1);nw.height=CELL;const g=nw.getContext('2d');
+    let di=0;for(let i=0;i<n;i++){if(i===beastFrame)continue;g.drawImage(work,i*CELL,0,CELL,CELL,di*CELL,0,CELL,CELL);di++}
+    work=nw;beastFrame=Math.min(beastFrame,n-2);paintSelMask=null;drawFrame();renderThumbs();
+  };
+  body.querySelector('#spSave').onclick=()=>{
+    const data=work.toDataURL('image/png');
+    const nf=frameCount(),fp=Math.max(1,Math.min(30,+(body.querySelector('#spFps').value)||8));
+    const tgt=activePaintPaths();
+    SPRITE_OVR[tgt.key]={data,frames:nf,fps:fp};
+    if(tgt.path)SPRITE_OVR['path:'+tgt.path]={data,frames:nf,fps:fp};
+    if(!paintDir){SPRITE_OVR[a.key]={data,frames:nf,fps:fp};if(a.path)SPRITE_OVR['path:'+a.path]={data,frames:nf,fps:fp}}
+    delete SPRITES[data];
+    const k=paintDir?tgt.key:a.key;
+    saveSpriteMedia(k).then(()=>(tgt.path||a.path)?saveSpriteMedia('path:'+(tgt.path||a.path)):null)
+      .then(()=>alert('Saved '+nf+' frame(s) → '+tgt.label)).catch(()=>alert('IndexedDB save failed.'));
+  };
+  body.querySelector('#spRev').onclick=()=>{
+    const tgt=activePaintPaths();
+    if(paintDir){
+      delete SPRITE_OVR[tgt.path];delete SPRITE_OVR['path:'+tgt.path];
+      saveSpriteMedia(tgt.path).then(()=>saveSpriteMedia('path:'+tgt.path)).then(()=>{beastFrame=0;paintUndo=[];renderEntitiesEditor()});
+    }else{
+      delete SPRITE_OVR[a.key];if(a.path)delete SPRITE_OVR['path:'+a.path];
+      saveSpriteMedia(a.key).then(()=>a.path?saveSpriteMedia('path:'+a.path):null).then(()=>{beastFrame=0;paintUndo=[];renderEntitiesEditor()});
+    }
+  };
+  body.querySelector('#spImp').onclick=()=>body.querySelector('#spFile').click();
+  body.querySelector('#spFile').onchange=e=>{const f=e.target.files[0];if(!f)return;pushUndo();const rd=new FileReader();rd.onload=()=>loadStrip(rd.result,0);rd.readAsDataURL(f)};
+  const expF=body.querySelector('#spExpFrame');
+  if(expF)expF.onclick=()=>{
+    const c=document.createElement('canvas');c.width=CELL;c.height=CELL;
+    c.getContext('2d').drawImage(work,beastFrame*CELL,0,CELL,CELL,0,0,CELL,CELL);
+    const ael=document.createElement('a');ael.href=c.toDataURL('image/png');ael.download=(a.key||'frame')+(paintDir?('_walk_'+paintDir):'')+'_f'+(beastFrame+1)+'.png';ael.click();
+  };
+  // Build a labeled atlas for one character: idle 8-dir row + walk strips below
+  async function buildCharSheet(stem,basePath){
+    const dirs=FACE_SFX8.slice();
+    const cell=128,cols=8,rows=3; // row0 idle dirs, row1 walk frame0, row2 labels area unused
+    const c=document.createElement('canvas');c.width=cell*cols;c.height=cell*2+28;
+    const g=c.getContext('2d');g.fillStyle='#1a1018';g.fillRect(0,0,c.width,c.height);
+    g.fillStyle='#6fffe2';g.font='11px monospace';g.fillText(stem+' — idle row / walk row (first frame)',6,14);
+    function loadImg(src){return new Promise(res=>{if(!src)return res(null);const im=new Image();im.crossOrigin='anonymous';
+      im.onload=()=>res(im);im.onerror=()=>res(null);
+      const ovr=SPRITE_OVR[src]||SPRITE_OVR['path:'+src];const u=ovrDataURL(ovr)||src;im.src=u})}
+    for(let i=0;i<dirs.length;i++){
+      const d=dirs[i];
+      const idle=basePath?String(basePath).replace(/\.png$/,'')+'_'+d+'.png':basePath;
+      const walk=basePath?String(basePath).replace(/\.png$/,'')+'_walk_'+d+'.png':basePath;
+      const imI=await loadImg(idle||basePath), imW=await loadImg(walk);
+      g.fillStyle='#333';g.fillRect(i*cell,20,cell,cell);g.fillRect(i*cell,20+cell,cell,cell);
+      g.fillStyle='#8ab';g.font='10px monospace';g.fillText(d,i*cell+4,18);
+      if(imI){const nf=imI.naturalWidth>=imI.naturalHeight*1.6?Math.max(1,Math.round(imI.naturalWidth/imI.naturalHeight)):1;
+        g.drawImage(imI,0,0,imI.naturalWidth/nf,imI.naturalHeight,i*cell,20,cell,cell)}
+      if(imW){const nf=imW.naturalWidth>=imW.naturalHeight*1.6?Math.max(1,Math.round(imW.naturalWidth/imW.naturalHeight)):1;
+        g.drawImage(imW,0,0,imW.naturalWidth/nf,imW.naturalHeight,i*cell,20+cell,cell,cell)}
+    }
+    return c;
+  }
+  function downloadCanvas(c,name){const ael=document.createElement('a');ael.href=c.toDataURL('image/png');ael.download=name;ael.click()}
+  const expSheet=body.querySelector('#spExpSheet');
+  if(expSheet)expSheet.onclick=async()=>{
+    const stem=(basePathA||a.key||'char').replace(/^.*\//,'').replace(/\.png$/,'');
+    const c=await buildCharSheet(stem,basePathA||a.path||'');
+    downloadCanvas(c,'hiveswarm_'+stem+'_sheet.png');
+  };
+  const expAll=body.querySelector('#spExpAll');
+  if(expAll)expAll.onclick=async()=>{
+    const stems=['player','shambler','runner','crawler','necro_node','brute','armored_dead','mutant_enforcer','zombie_colossus'];
+    expAll.disabled=true;expAll.textContent='EXPORTING…';
+    try{
+      for(const stem of stems){
+        const path='art_src/topdown_v1/'+stem+'.png';
+        const c=await buildCharSheet(stem,path);
+        downloadCanvas(c,'hiveswarm_'+stem+'_sheet.png');
+        await new Promise(r=>setTimeout(r,180)); // stagger downloads so browsers don't drop files
+      }
+      alert('Downloaded '+stems.length+' character sheets.\nAlso see art_src/topdown_v1/ and the pre-magenta backup folder for full originals.');
+    }finally{expAll.disabled=false;expAll.textContent='EXPORT ALL SHEETS'}
+  };
+  if(!window.__swarmPaintKeys){
+    window.__swarmPaintKeys=1;
+    addEventListener('keydown',e=>{
+      if((e.ctrlKey||e.metaKey)&&(e.key==='z'||e.key==='Z')){
+        if(!document.getElementById('forge')?.classList.contains('open')||tab!==0)return;
+        e.preventDefault();document.getElementById('spUndo')?.click();
+      }
+      if(e.key==='Delete'||e.key==='Backspace'){
+        if(!document.getElementById('forge')?.classList.contains('open')||tab!==0)return;
+        const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'))return;
+        e.preventDefault();document.getElementById('spClearSel')?.click();
+      }
+    });
+  }
+
+}
+
+/** Field-guide BEASTIARY (journal pages / unlock keys) — restored 2026-08-07. */
 function renderCodex(){
   const pages=codexPages();
   if(codexSel>=pages.length)codexSel=Math.max(0,pages.length-1);
   const pg=pages[codexSel];
-  const list=pages.map((p,i)=>`<button type="button" data-pick="${i}" class="${i===codexSel?'on':''}" style="display:block;width:100%;text-align:left;margin:2px 0">${CODEX_ICON[p.cat]||'•'} ${esc(p.title)||'(untitled)'}</button>`).join('');
+  const list=pages.map((p,i)=>`<button type="button" data-pick="${i}" class="${i===codexSel?'on':''}" style="display:block;width:100%;text-align:left;margin:2px 0;border-left:3px solid ${BEAST_CAT_COL[p.cat]||'#426'}">${CODEX_ICON[p.cat]||'•'} ${esc(p.title)||'(untitled)'}</button>`).join('');
   const img=pg?CODEX_IMG[pg.id]:null;
-  body.innerHTML=`<div class="hint">Field guide. Pages unlock in-game on first sighting (spawn). Progress is per save slot. Word is <b>BEASTIARY</b>.</div>
-    <div style="display:flex;gap:12px;align-items:flex-start">
-      <div style="flex:0 0 200px;max-height:60vh;overflow:auto">${list||'<div class="hint">No pages.</div>'}
+  body.innerHTML=`<div class="hint">Field guide. Pages unlock in-game on first sighting. Progress is per save slot. Asset paint tools are on the <b>ENTITIES</b> tab.</div>
+    <div class="entSplit">
+      <div class="entLeft">${list||'<div class="hint">No pages.</div>'}
         <button id="cxAdd" style="width:100%;margin-top:8px">+ ADD PAGE</button>
         <button id="cxReset" class="warn" style="width:100%;margin-top:4px">RESET DEFAULT PAGES</button>
         <button id="cxRelock" class="warn" style="width:100%;margin-top:4px">RE-LOCK ALL (this slot)</button></div>
-      <div style="flex:1">${pg?`
+      <div class="entRight">${pg?`
         <div class="row">CATEGORY <select id="cxCat">${CODEX_CATS.map(c=>`<option value="${c}" ${c===pg.cat?'selected':''}>${c}</option>`).join('')}</select></div>
-        <div class="row">TITLE <input type="text" id="cxTitle" value="${esc(pg.title)}" style="width:220px"></div>
-        <div class="row">SUBTITLE <input type="text" id="cxSub" value="${esc(pg.subtitle)}" style="width:220px"></div>
-        <div class="row">UNLOCK KEY <input type="text" id="cxLink" value="${esc(pg.link)}" placeholder="enemy:enemy.shambler" style="width:200px">
+        <div class="row">TITLE <input type="text" id="cxTitle" value="${esc(pg.title)}" style="width:min(220px,100%)"></div>
+        <div class="row">SUBTITLE <input type="text" id="cxSub" value="${esc(pg.subtitle)}" style="width:min(220px,100%)"></div>
+        <div class="row">UNLOCK KEY <input type="text" id="cxLink" value="${esc(pg.link)}" placeholder="enemy:enemy.shambler" style="width:min(200px,100%)">
           <span class="hint">${pg.link?(META.codexSeen&&META.codexSeen[pg.link]!==undefined?'<b style="color:#6f6">UNLOCKED</b>':'<b style="color:#f84">LOCKED</b>')+' slot '+currentSlot():'<b style="color:#6f6">ALWAYS VISIBLE</b>'}</span></div>
         <div class="row">BODY <textarea id="cxBody">${esc(pg.body)}</textarea></div>
         <div class="row"><button id="cxPick">🖼 UPLOAD IMAGE</button>
           <button id="cxClr" class="warn" ${img?'':'disabled'}>REMOVE IMAGE</button>
           <input type="file" id="cxFile" accept="image/*" style="display:none"></div>
-        <div class="row">${img?`<img src="${img}" alt="" style="max-width:220px;max-height:160px;border:1px solid #245">`:'<span class="hint">No image yet.</span>'}</div>
+        <div class="row">${img?`<img src="${img}" alt="" style="max-width:min(220px,100%);max-height:140px;border:1px solid #245">`:'<span class="hint">No image yet.</span>'}</div>
         <div class="row"><button id="cxDel" class="warn">DELETE PAGE</button></div>`:'<div class="hint">Add a page.</div>'}</div></div>`;
   body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;renderCodex()});
   body.querySelector('#cxAdd').onclick=()=>{codexPages().push({id:codexNewId(),cat:'enemy',title:'New Entry',subtitle:'',body:'',link:''});codexSel=codexPages().length-1;persistForge();renderCodex()};
@@ -926,52 +2406,6 @@ function renderCodex(){
   body.querySelector('#cxFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{CODEX_IMG[pg.id]=rd.result;saveCodexMedia(pg.id).then(()=>renderCodex()).catch(()=>alert('Could not store image in IndexedDB.'))};rd.readAsDataURL(f)};
   body.querySelector('#cxClr').onclick=()=>{delete CODEX_IMG[pg.id];saveCodexMedia(pg.id).then(()=>renderCodex())};
   body.querySelector('#cxDel').onclick=()=>{if(!confirm('Delete "'+(pg.title||'untitled')+'"?'))return;delete CODEX_IMG[pg.id];saveCodexMedia(pg.id).catch(()=>{});codexPages().splice(codexSel,1);codexSel=Math.max(0,codexSel-1);persistForge();renderCodex()};
-}
-
-function renderSprites(){
-  const list=EDIT.entities.map((e,i)=>({key:entitySpriteKey(e),name:e.name||e.id,path:e.sprite||'',idx:i}));
-  if(spriteSel<0){
-    body.innerHTML=`<div class="hint">Paint or import a PNG per enemy. Overrides live in IndexedDB (<code>sprite:</code> prefix) and apply immediately in-game.</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
-      ${list.map((r,i)=>`<button data-sp="${i}" style="padding:8px;background:#13262a;border:1px solid #426862;border-radius:6px;cursor:pointer;color:#dff">
-        <img class="kthumb" src="${esc(SPRITE_OVR[r.key]||r.path)}" onerror="this.style.opacity=.25" style="display:block;margin:0 auto 6px"><b>${esc(r.name)}</b></button>`).join('')}
-      </div>`;
-    body.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{spriteSel=+b.dataset.sp;renderSprites()});
-    return;
-  }
-  const r=list[spriteSel]; if(!r){spriteSel=-1;renderSprites();return}
-  const src=SPRITE_OVR[r.key]||r.path||'';
-  body.innerHTML=`<div class="row"><button id="spBack">← BACK</button><b style="color:#6fffe2">${esc(r.name)}</b><span class="hint">${esc(r.key)}</span></div>
-    <div class="row"><canvas id="forgePaint" width="128" height="128"></canvas>
-      <div><div class="row">COLOR <input type="color" id="spCol" value="${brush.col}"> SIZE <input type="number" id="spSize" value="${brush.size}" min="1" max="32" style="width:48px">
-        <button id="spErase">${brush.erase?'ERASE ON':'ERASE'}</button></div>
-        <div class="row"><button id="spSave">💾 SAVE</button><button id="spImp">⇧ IMPORT PNG</button>
-          <button id="spRev" class="warn">REVERT</button><input type="file" id="spFile" accept="image/*" style="display:none"></div>
-        <div class="hint">Paint then SAVE. REVERT clears the IndexedDB override and restores the shipped path.</div></div></div>`;
-  const cv=body.querySelector('#forgePaint'), cx=cv.getContext('2d');
-  work=document.createElement('canvas');work.width=128;work.height=128;const wg=work.getContext('2d');
-  function loadInto(){wg.clearRect(0,0,128,128);if(!src){drawPaint();return}const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{wg.drawImage(im,0,0,128,128);drawPaint()};im.onerror=()=>drawPaint();im.src=src}
-  function drawPaint(){cx.clearRect(0,0,128,128);cx.drawImage(work,0,0)}
-  loadInto();
-  let painting=false;
-  function paintAt(ev){const rect=cv.getBoundingClientRect(),x=Math.floor((ev.clientX-rect.left)/rect.width*128),y=Math.floor((ev.clientY-rect.top)/rect.height*128);
-    wg.fillStyle=brush.erase?'rgba(0,0,0,0)':brush.col;if(brush.erase){wg.clearRect(x-brush.size/2,y-brush.size/2,brush.size,brush.size)}
-    else{wg.fillRect(x-brush.size/2,y-brush.size/2,brush.size,brush.size)}drawPaint()}
-  cv.onpointerdown=e=>{painting=true;cv.setPointerCapture(e.pointerId);paintAt(e)};
-  cv.onpointermove=e=>{if(painting)paintAt(e)};
-  cv.onpointerup=()=>{painting=false};
-  body.querySelector('#spCol').oninput=e=>{brush.col=e.target.value;brush.erase=false};
-  body.querySelector('#spSize').oninput=e=>{brush.size=Math.max(1,Math.min(32,+e.target.value||4))};
-  body.querySelector('#spErase').onclick=()=>{brush.erase=!brush.erase;renderSprites()};
-  body.querySelector('#spBack').onclick=()=>{spriteSel=-1;renderSprites()};
-  body.querySelector('#spSave').onclick=()=>{const data=work.toDataURL('image/png');SPRITE_OVR[r.key]=data;delete SPRITES[data];
-    // also map path for quick lookups
-    if(r.path)SPRITE_OVR['path:'+r.path]=data;
-    saveSpriteMedia(r.key).then(()=>{if(r.path)return saveSpriteMedia('path:'+r.path)}).then(()=>alert('Sprite saved.')).catch(()=>alert('IndexedDB save failed.'))};
-  body.querySelector('#spRev').onclick=()=>{delete SPRITE_OVR[r.key];if(r.path)delete SPRITE_OVR['path:'+r.path];
-    saveSpriteMedia(r.key).then(()=>r.path?saveSpriteMedia('path:'+r.path):null).then(()=>{spriteSel=-1;renderSprites()})};
-  body.querySelector('#spImp').onclick=()=>body.querySelector('#spFile').click();
-  body.querySelector('#spFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{wg.clearRect(0,0,128,128);wg.drawImage(im,0,0,128,128);drawPaint()};im.src=rd.result};rd.readAsDataURL(f)};
 }
 
 window.__hiveSwarmForge=()=>copy(EDIT);
