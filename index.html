@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.2.2';
+const GAME_VERSION='0.2.3';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -868,7 +868,7 @@ if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active
   ctx.save();ctx.globalAlpha=STICK.active?.34:.16;ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
   ctx.beginPath();ctx.arc(bx,by,STICK.radius,0,7);ctx.stroke();
   ctx.globalAlpha=STICK.active?.5:.22;ctx.fillStyle='#6fffe2';ctx.beginPath();ctx.arc(kx,ky,26,0,7);ctx.fill();ctx.restore()}
-if(state==='title'||state==='dead'){ctx.fillStyle='rgba(3,8,10,.72)';ctx.fillRect(0,0,VIEW.w,VIEW.h);ctx.textAlign='center';ctx.fillStyle='#e4fff8';ctx.font='700 34px system-ui';ctx.fillText(state==='dead'?'RUN ENDED':'HiVE SWARM',VIEW.w/2,VIEW.h/2-80);ctx.save();ctx.font='12px system-ui';ctx.fillStyle='rgba(150,200,190,.55)';ctx.fillText('v'+GAME_VERSION,VIEW.w/2,VIEW.h/2-58);ctx.restore();ctx.font='16px system-ui';ctx.fillStyle='#b3cbc7';ctx.fillText(state==='dead'?'Score '+score+' · survived '+formatTime(elapsed):'Open arena · HiVE brand art v2',VIEW.w/2,VIEW.h/2-30);ctx.fillStyle='#8ab';ctx.font='14px system-ui';ctx.fillText('SLOT '+currentSlot()+'  ·  '+ (META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),VIEW.w/2,VIEW.h/2-6);ctx.fillStyle='#6fffe2';ctx.font='16px system-ui';ctx.fillText('Click or press Enter to deploy',VIEW.w/2,VIEW.h/2+28);ctx.textAlign='left'}
+if(state==='title'||state==='dead')drawTitleOrDead()
 // First-sighting toast
 if(newCodexT>0&&newCodexTitle){const a=Math.min(1,newCodexT/.5);ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';
   ctx.fillStyle='rgba(60,20,90,.82)';ctx.fillRect(VIEW.w/2-170,96,340,52);ctx.strokeStyle='#c6f';ctx.strokeRect(VIEW.w/2-170,96,340,52);
@@ -877,6 +877,105 @@ if(newCodexT>0&&newCodexTitle){const a=Math.min(1,newCodexT/.5);ctx.save();ctx.g
 if(typeof ensureTitleChrome==='function')ensureTitleChrome();
 }
 function formatTime(t){return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0')}
+/** Title / game-over screen: arena mood + cast lineup + wordmark (Eric 2026-08-08). */
+function drawTitleOrDead(){
+  const W=VIEW.w,H=VIEW.h,cx=W/2,t=performance.now()/1000;
+  // Night arena sky
+  const g0=ctx.createLinearGradient(0,0,0,H);
+  g0.addColorStop(0,'#050b14');g0.addColorStop(.45,'#0a1a22');g0.addColorStop(1,'#061018');
+  ctx.fillStyle=g0;ctx.fillRect(0,0,W,H);
+  // Subtle grid floor (same language as gameplay)
+  ctx.save();ctx.globalAlpha=.22;ctx.strokeStyle='#1a4a55';ctx.lineWidth=1;
+  const grid=48,ox=(t*12)%grid;
+  for(let x=-grid+ox;x<W;x+=grid){ctx.beginPath();ctx.moveTo(x,H*.55);ctx.lineTo(x+40,H);ctx.stroke()}
+  for(let y=H*.55;y<H;y+=grid*.7){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+  ctx.restore();
+  // Ambient glow orbs
+  for(let i=0;i<6;i++){
+    const px=(Math.sin(t*.4+i*1.7)*.5+.5)*W, py=H*.25+Math.cos(t*.3+i)*40;
+    const rg=ctx.createRadialGradient(px,py,0,px,py,80);
+    rg.addColorStop(0,'rgba(111,255,226,.12)');rg.addColorStop(1,'rgba(111,255,226,0)');
+    ctx.fillStyle=rg;ctx.beginPath();ctx.arc(px,py,80,0,7);ctx.fill();
+  }
+  // Cast lineup — real game sprites (player sphere + enemies)
+  const lineup=[
+    {kind:'player'},
+    {path:'art_src/topdown_v1/shambler.png'},
+    {path:'art_src/topdown_v1/runner.png'},
+    {path:'art_src/topdown_v1/crawler.png'},
+    {path:'art_src/topdown_v1/brute.png'},
+    {path:'art_src/topdown_v1/armored_dead.png'},
+    {path:'art_src/topdown_v1/mutant_enforcer.png'},
+    {path:'art_src/topdown_v1/zombie_colossus.png'}
+  ];
+  const rowY=H*.42, n=lineup.length, span=Math.min(W*.88,n*78), startX=cx-span/2;
+  for(let i=0;i<n;i++){
+    const x=startX+(i+.5)*(span/n), bob=Math.sin(t*2.2+i*.7)*5;
+    const sz=i===n-1?86:i===0?62:58;
+    if(lineup[i].kind==='player'){
+      ctx.save();ctx.translate(x,rowY+bob);ctx.shadowColor='#6fffe2';ctx.shadowBlur=18;
+      ctx.fillStyle='#6fffe2';ctx.beginPath();ctx.arc(0,0,sz*.32,0,7);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle='#dff';ctx.fillRect(sz*.12,-sz*.1,sz*.42,sz*.18);
+      ctx.restore();
+    }else{
+      const im=spriteFor(lineup[i].path);
+      if(im&&im.complete&&im.naturalWidth){
+        ctx.save();ctx.globalAlpha=.95;ctx.shadowColor='#000';ctx.shadowBlur=12;
+        // first frame of strip if wide
+        const nf=im.naturalWidth>=im.naturalHeight*1.6?Math.max(1,Math.round(im.naturalWidth/im.naturalHeight)):1;
+        const fw=im.naturalWidth/nf;
+        ctx.drawImage(im,0,0,fw,im.naturalHeight,x-sz/2,rowY+bob-sz/2,sz,sz);
+        ctx.restore();
+      }else{
+        ctx.fillStyle='#4a6670';ctx.beginPath();ctx.arc(x,rowY+bob,sz*.28,0,7);ctx.fill();
+      }
+    }
+  }
+  // Vignette
+  const vig=ctx.createRadialGradient(cx,H*.4,W*.15,cx,H*.45,W*.7);
+  vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,.55)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+  // Wordmark
+  ctx.textAlign='center';
+  if(state==='dead'){
+    ctx.fillStyle='#ff8a9a';ctx.font='700 36px system-ui';ctx.shadowColor='#400';ctx.shadowBlur=12;
+    ctx.fillText('RUN ENDED',cx,H*.18);ctx.shadowBlur=0;
+    ctx.fillStyle='#b3cbc7';ctx.font='16px system-ui';
+    ctx.fillText('Score '+score+' · survived '+formatTime(elapsed),cx,H*.18+32);
+  }else{
+    ctx.save();
+    ctx.font='800 44px system-ui';
+    ctx.shadowColor='#6fffe2';ctx.shadowBlur=22;
+    ctx.fillStyle='#e4fff8';
+    ctx.fillText('HiVE SWARM',cx,H*.16);
+    ctx.shadowBlur=0;
+    // cyan underline accent
+    ctx.strokeStyle='#6fffe2';ctx.lineWidth=3;ctx.globalAlpha=.7;
+    ctx.beginPath();ctx.moveTo(cx-90,H*.16+10);ctx.lineTo(cx+90,H*.16+10);ctx.stroke();
+    ctx.globalAlpha=1;
+    ctx.font='600 13px system-ui';ctx.fillStyle='#7ecfc0';
+    ctx.fillText('OPEN ARENA  ·  AUTO-FIRE  ·  SURVIVE THE SWARM',cx,H*.16+34);
+    ctx.restore();
+    ctx.fillStyle='rgba(150,200,190,.55)';ctx.font='12px system-ui';
+    ctx.fillText('v'+GAME_VERSION,cx,H*.16+54);
+  }
+  // Footer CTA card
+  const cardY=H*.72, cardW=Math.min(360,W*.86), cardH=108;
+  ctx.fillStyle='rgba(8,24,28,.82)';ctx.strokeStyle='#3a6a62';ctx.lineWidth=1.5;
+  roundRectPath(ctx,cx-cardW/2,cardY,cardW,cardH,12);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#8ab';ctx.font='14px system-ui';
+  ctx.fillText('SLOT '+currentSlot()+'  ·  '+(META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),cx,cardY+32);
+  const pulse=.75+.25*Math.sin(t*3.5);
+  ctx.fillStyle='rgba(111,255,226,'+pulse+')';ctx.font='700 17px system-ui';
+  ctx.fillText(state==='dead'?'Click or Enter — deploy again':'Click or press Enter to deploy',cx,cardY+64);
+  ctx.fillStyle='#5a8a84';ctx.font='12px system-ui';
+  ctx.fillText('WASD / stick · weapons fire automatically',cx,cardY+88);
+  ctx.textAlign='left';
+}
+function roundRectPath(c,x,y,w,h,r){
+  c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();
+}
 function tryDeploy(){if(state==='title'||state==='dead'){setPaused(false);reset()}}
 addEventListener('keydown',e=>{
   if(e.key==='Enter')tryDeploy();
