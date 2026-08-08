@@ -19,18 +19,21 @@
 #forge .entLeft{flex:0 0 170px;overflow:auto;min-height:0;max-height:100%}
 #forge .entRight{flex:1;min-width:0;overflow:auto;min-height:0;max-height:100%}
 #forge .paintRow{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
-#forgePaint{width:128px;height:128px;max-width:100%;flex:0 0 auto;border:1px solid #62d9c7;border-radius:6px;background:repeating-conic-gradient(#222 0 25%,#333 0 50%) 0 0/16px 16px;touch-action:none;cursor:crosshair;image-rendering:pixelated}
+#forge .paintWrap{flex:0 0 auto;overflow:auto;max-width:100%;max-height:min(420px,50vh);border:1px solid #3a6a62;border-radius:6px;background:#071215;padding:4px}
+#forgePaint{width:256px;height:256px;max-width:none;flex:0 0 auto;border:1px solid #62d9c7;border-radius:4px;background:repeating-conic-gradient(#222 0 25%,#333 0 50%) 0 0/16px 16px;touch-action:none;cursor:crosshair;image-rendering:pixelated;display:block}
 #forge .paintTools{flex:1;min-width:160px;max-width:100%}
 #forge .frames{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0;max-height:90px;overflow:auto}#forge .frames canvas{border:1px solid #333;border-radius:4px;cursor:pointer;background:#111;image-rendering:pixelated;width:36px;height:36px}#forge .frames canvas.sel{border-color:#6fffe2}
 #forge label .tipMark{opacity:.55;font-size:10px;cursor:help;margin-left:3px;color:#6fffe2}
+/* Single themed tooltip only — never also set title= on these labels (avoids yellow browser tip). */
 #forge label[data-tip]:hover::after{content:attr(data-tip);position:absolute;z-index:80;left:0;top:100%;margin-top:4px;max-width:280px;white-space:normal;background:#0a2024;border:1px solid #6fffe2;color:#e4fff8;padding:8px 10px;border-radius:6px;font:11px system-ui;line-height:1.35;box-shadow:0 8px 24px #000a;pointer-events:none}
 #forge label{position:relative}
 #forge .wepHead{display:flex;align-items:center;gap:10px;margin:0 0 8px;flex-wrap:wrap}
 #forge .wepPrev,#forge .pickupPrev{width:48px;height:48px;border:1px solid #3a6a62;border-radius:6px;background:#071215;image-rendering:pixelated;flex:0 0 auto}
 #forge .dirGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0;max-height:240px;overflow:auto}
-#forge .dirCell{background:#0a181b;border:1px solid #2a4a46;border-radius:6px;padding:4px;text-align:center}
-#forge .dirCell b{display:block;color:#78efdb;font:700 10px system-ui;margin-bottom:2px;text-transform:uppercase}
-#forge .dirCell canvas,#forge .dirCell img{width:48px;height:48px;object-fit:contain;border:1px solid #333;background:#111;image-rendering:pixelated}
+#forge .dirCell{background:#0a181b;border:1px solid #2a4a46;border-radius:6px;padding:4px;text-align:center;cursor:pointer}
+#forge .dirCell.sel{border-color:#6fffe2;box-shadow:0 0 0 1px #6fffe2}
+#forge .dirCell b{display:block;color:#78efdb;font:700 10px system-ui;margin-bottom:2px;text-transform:uppercase;cursor:pointer}
+#forge .dirCell canvas,#forge .dirCell img{width:48px;height:48px;object-fit:contain;border:1px solid #333;background:#111;image-rendering:pixelated;cursor:pointer}
 #forge .sfxRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
 #forge .sfxRow select{min-width:140px;max-width:100%}
 .overlay{position:fixed;inset:0;z-index:10;background:#061014e8;display:grid;place-content:center;gap:10px;padding:24px;text-align:center;overflow:auto}
@@ -41,7 +44,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.2.0';
+const GAME_VERSION='0.2.1';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -1039,7 +1042,9 @@ if(/[?&]forge=1/.test(location.search))setTimeout(()=>{const m=location.search.m
   head.addEventListener('pointerup',()=>drag=false)})();
 
 const TABS=['ENTITIES','PLAYER','WAVES','WORLD','STAGES','AUDIO','DATA','BEASTIARY'];
-let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false}, codexSel=0, beastFrame=0;
+let tab=0, spriteSel=-1, work=null, brush={col:'#ff00ff',size:4,erase:false,tool:'brush'}, codexSel=0, beastFrame=0;
+// paintDir null = base sprite; 'e'..'ne' = walk sheet. paintZoom scales CSS paint display (pixel edit).
+let paintDir=null, paintZoom=2, paintUndo=[], paintSelMask=null;
 TABS.forEach((t,i)=>{const d=document.createElement('button');d.type='button';d.textContent=t;d.id='forgeTab'+i;d.onclick=()=>{tab=i;spriteSel=-1;renderTab()};tabsEl.appendChild(d)});
 function getP(p){return p.split('.').reduce((o,k)=>o[k],EDIT)}
 function setP(p,v){const ks=p.split('.'),last=ks.pop();ks.reduce((o,k)=>o[k],EDIT)[last]=v}
@@ -1111,7 +1116,7 @@ const FIELD_HELP={
 };
 function fieldTip(k){return FIELD_HELP[k]||''}
 function fields(obj,path){return Object.entries(obj).filter(([,v])=>typeof v==='number'||typeof v==='string').map(([k,v])=>{
-  const tip=fieldTip(k);const tipAttr=tip?` data-tip="${esc(tip)}" title="${esc(tip)}"`:'';
+  const tip=fieldTip(k);const tipAttr=tip?` data-tip="${esc(tip)}"`:'';
   return `<label${tipAttr}><span>${k}${tip?'<span class="tipMark" aria-hidden="true">?</span>':''}</span><input data-p="${path}.${k}" value="${v}" ${typeof v==='number'?'type="number" step="any"':''}></label>`}).join('')}
 function bindInputs(){body.querySelectorAll('input[data-p]').forEach(input=>{input.oninput=()=>{const p=input.dataset.p;const old=getP(p);let value=typeof old==='number'?Number(input.value):input.value;if(typeof old==='number'&&!Number.isFinite(value))return;setP(p,value);applyForge();persistForge()}})}
 function bgHex(v){return /^#[0-9a-fA-F]{6}$/.test(v||'')?v:'#000000'}
@@ -1167,11 +1172,11 @@ function renderTab(){
       <span class="hint">Library: ${SFX_FILES.length} samples</span></div>
       ${(EDIT.entities||[]).map((e,i)=>`<article style="background:#13262a;padding:10px;border-radius:7px;margin:8px 0">
         <h3 style="margin:0 0 6px;color:${esc(e.color||'#78efdb')}">${esc(e.name||e.id)}</h3>
-        <div class="sfxRow"><label data-tip="Optional loop/ambient cue when this type is on screen (reserved)." title="Optional ambient cue">Idle
+        <div class="sfxRow"><label data-tip="Optional loop/ambient cue when this type is on screen (reserved).">Idle
           <select data-esfx="${i}.sfxIdle">${sfxOptions(e.sfxIdle||'')}</select></label>
-          <label data-tip="Plays when this enemy damages the player." title="On player contact damage">Attack
+          <label data-tip="Plays when this enemy damages the player.">Attack
           <select data-esfx="${i}.sfxAttack">${sfxOptions(e.sfxAttack||'')}</select></label>
-          <label data-tip="Plays when this enemy dies." title="On death">Die
+          <label data-tip="Plays when this enemy dies.">Die
           <select data-esfx="${i}.sfxDie">${sfxOptions(e.sfxDie||'')}</select></label>
           <button type="button" data-sfx-test="${i}">▶ TEST DIE</button>
         </div>
@@ -1281,54 +1286,66 @@ function renderEntitiesEditor(){
       <div><b style="color:${a.color}">${esc(a.title)}</b>
         <div class="hint">icon = HUD/sheet · pickup = floor cache look</div></div>
     </div>
-    <div class="sfxRow"><label data-tip="Sound played when this weapon fires." title="Fire SFX">Fire SFX
+    <div class="sfxRow"><label data-tip="Sound played when this weapon fires.">Fire SFX
       <select id="wepSfx">${sfxOptions(statsObj.sfx||'')}</select></label>
       <button type="button" id="wepSfxTest">▶ TEST</button>
-      <label data-tip="Cell index in assets/weapon_icons.png (128px tiles)." title="Icon index">icon
+      <label data-tip="Cell index in assets/weapon_icons.png (128px tiles).">icon
       <input type="number" id="wepIcon" value="${statsObj.icon??0}" min="0" max="16" style="width:48px"></label>
     </div>`:'';
   const enemySfx=a&&a.kind==='entity'&&statsObj?`<div class="sfxRow">
-      <label data-tip="Optional ambient/idle sample." title="Idle SFX">Idle <select id="entSfxIdle">${sfxOptions(statsObj.sfxIdle||'')}</select></label>
-      <label data-tip="Plays when this enemy damages the player." title="Attack SFX">Attack <select id="entSfxAtk">${sfxOptions(statsObj.sfxAttack||'')}</select></label>
-      <label data-tip="Plays on death." title="Die SFX">Die <select id="entSfxDie">${sfxOptions(statsObj.sfxDie||'')}</select></label>
+      <label data-tip="Optional ambient/idle sample.">Idle <select id="entSfxIdle">${sfxOptions(statsObj.sfxIdle||'')}</select></label>
+      <label data-tip="Plays when this enemy damages the player.">Attack <select id="entSfxAtk">${sfxOptions(statsObj.sfxAttack||'')}</select></label>
+      <label data-tip="Plays on death.">Die <select id="entSfxDie">${sfxOptions(statsObj.sfxDie||'')}</select></label>
     </div>`:'';
-  const dirGrid=isSpriteBody?`<div class="hint" style="margin-top:10px"><b>WALK DIRECTIONS</b> — all 8 facings. Import/export each walk sheet independently.</div>
+  const dirGrid=isSpriteBody?`<div class="hint" style="margin-top:10px"><b>WALK DIRECTIONS</b> — click a still to edit it. Import/export per facing.</div>
       <div class="dirGrid" id="dirGrid"></div>
       <input type="file" id="dirFile" accept="image/*" style="display:none">`:'';
-  body.innerHTML=`<div class="hint"><b>ENTITIES</b> — all assets by category (player, enemies, <b>weapons</b>, items). Weapon stats + fire SFX live here (the separate WEAPONS tab was removed). Hover field labels for explanations. Field-guide pages are on <b>BEASTIARY</b>.</div>
-    <div class="entSplit">
-      <div class="entLeft">${left}
-        <button id="entAddEnemy" style="width:100%;margin-top:8px">+ ADD ENEMY</button>
-        <button id="entAddWep" style="width:100%;margin-top:4px">+ ADD WEAPON</button></div>
-      <div class="entRight">${a?`
-        <div class="row"><b style="color:${a.color}">${esc(a.title)}</b><span class="hint">${esc(a.key)}</span>
-          <span class="hint" style="color:${BEAST_CAT_COL[a.cat]}">${a.cat}</span></div>
-        ${wepHead}
-        ${statsHtml}
-        ${enemySfx}
-        ${isSpriteBody?`<div class="paintRow"><canvas id="forgePaint" width="128" height="128"></canvas>
-          <div class="paintTools">
-            <div class="row">COLOR <input type="color" id="spCol" value="${brush.col}">
-              SIZE <input type="number" id="spSize" value="${brush.size}" min="1" max="32" style="width:48px">
-              <button id="spErase" class="${brush.erase?'on':''}">${brush.erase?'ERASE ON':'ERASE'}</button></div>
-            <div class="row">FRAME <button id="spPrev">◀</button>
-              <b id="spFrameLab">${beastFrame+1}/${frames}</b>
-              <button id="spNext">▶</button>
-              <button id="spAddFrame">+ FRAME</button>
-              <button id="spDelFrame" class="warn">− FRAME</button>
-              FPS <input type="number" id="spFps" value="${fps}" min="1" max="30" style="width:48px"></div>
-            <div class="frames" id="spThumbs"></div>
-            <div class="row"><button id="spSave">💾 SAVE</button>
-              <button id="spImp">⇧ IMPORT PNG/STRIP</button>
-              <button id="spExpFrame">⬇ EXPORT FRAME</button>
-              <button id="spRev" class="warn">REVERT</button>
-              <input type="file" id="spFile" accept="image/*" style="display:none"></div>
-            <div class="hint">Paint/import overrides live in IndexedDB. REVERT drops override. Use the direction grid below for per-facing walk sheets.</div>
-            ${thumb?`<img src="${esc(thumb)}" alt="" style="max-width:96px;max-height:64px;border:1px solid #245;margin-top:4px;object-fit:contain">`:''}
-          </div>
-        </div>${dirGrid}`:(isWeapon?'<div class="hint">Weapons use procedural/icon art + color. Tune stats above; fire SFX via dropdown.</div>':'')}
-        `:'<div class="hint">Select an entry.</div>'}</div></div>`;
-  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;beastFrame=0;renderEntitiesEditor()});
+  const paintHtml=isSpriteBody?(
+    '<div class="hint" id="paintTargetLab">Editing: <b>'+(paintDir?('walk_'+paintDir):'base sprite')+'</b> - click a walk still below to switch sheets</div>'+
+    '<div class="paintRow"><div class="paintWrap"><canvas id="forgePaint" width="128" height="128"></canvas></div>'+
+    '<div class="paintTools">'+
+    '<div class="row">'+
+    '<button id="spToolBrush" class="'+(brush.tool==='brush'&&!brush.erase?'on':'')+'">BRUSH</button>'+
+    '<button id="spToolErase" class="'+(brush.tool==='erase'||brush.erase?'on':'')+'">ERASE</button>'+
+    '<button id="spToolWand" class="'+(brush.tool==='wand'?'on':'')+'">WAND</button>'+
+    '<button id="spUndo">UNDO</button>'+
+    '<button id="spClearSel" class="warn">DEL SEL</button></div>'+
+    '<div class="row">COLOR <input type="color" id="spCol" value="'+brush.col+'">'+
+    ' SIZE <input type="number" id="spSize" value="'+brush.size+'" min="1" max="32" style="width:48px">'+
+    ' ZOOM <input type="range" id="spZoom" min="1" max="8" step="1" value="'+paintZoom+'" style="width:90px">'+
+    ' <b id="spZoomLab">'+paintZoom+'x</b></div>'+
+    '<div class="row">FRAME <button id="spPrev">&lt;</button>'+
+    ' <b id="spFrameLab">'+(beastFrame+1)+'/'+frames+'</b>'+
+    ' <button id="spNext">&gt;</button>'+
+    ' <button id="spAddFrame">+ FRAME</button>'+
+    ' <button id="spDelFrame" class="warn">- FRAME</button>'+
+    ' FPS <input type="number" id="spFps" value="'+fps+'" min="1" max="30" style="width:48px"></div>'+
+    '<div class="frames" id="spThumbs"></div>'+
+    '<div class="row"><button id="spSave">SAVE</button>'+
+    ' <button id="spImp">IMPORT</button>'+
+    ' <button id="spExpFrame">EXPORT FRAME</button>'+
+    ' <button id="spRev" class="warn">REVERT</button>'+
+    ' <input type="file" id="spFile" accept="image/*" style="display:none"></div>'+
+    '<div class="hint">Wand: click connected color (magenta) then DEL SEL. Zoom for pixels. UNDO / Ctrl+Z. Save writes active sheet.</div>'+
+    (thumb?'<img src="'+esc(thumb)+'" alt="" style="max-width:96px;max-height:64px;border:1px solid #245;margin-top:4px;object-fit:contain">':'')+
+    '</div></div>'+dirGrid
+  ):(isWeapon?'<div class="hint">Weapons use procedural/icon art + color. Tune stats above; fire SFX via dropdown.</div>':'');
+
+  body.innerHTML='<div class="hint"><b>ENTITIES</b> - all assets by category (player, enemies, <b>weapons</b>, items). Weapon stats + fire SFX live here (the separate WEAPONS tab was removed). Hover field labels for explanations. Field-guide pages are on <b>BEASTIARY</b>.</div>'+
+    '<div class="entSplit">'+
+      '<div class="entLeft">'+left+
+        '<button id="entAddEnemy" style="width:100%;margin-top:8px">+ ADD ENEMY</button>'+
+        '<button id="entAddWep" style="width:100%;margin-top:4px">+ ADD WEAPON</button></div>'+
+      '<div class="entRight">'+(a?
+        '<div class="row"><b style="color:'+a.color+'">'+esc(a.title)+'</b><span class="hint">'+esc(a.key)+'</span>'+
+          '<span class="hint" style="color:'+(BEAST_CAT_COL[a.cat]||'#8ab')+'">'+a.cat+'</span></div>'+
+        wepHead+
+        statsHtml+
+        enemySfx+
+        paintHtml
+      :'<div class="hint">Select an entry.</div>')+'</div></div>';
+
+  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;beastFrame=0;paintDir=null;paintUndo=[];paintSelMask=null;renderEntitiesEditor()});
   const addE=body.querySelector('#entAddEnemy');
   if(addE)addE.onclick=()=>{const n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,scale:1,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1,sprite:'',sfxIdle:'',sfxAttack:'',sfxDie:''});applyForge();persistForge();renderEntitiesEditor()};
   const addW=body.querySelector('#entAddWep');
@@ -1383,9 +1400,13 @@ function renderEntitiesEditor(){
       };
       im.onerror=()=>{g.fillStyle='#1a1010';g.fillRect(0,0,48,48);g.fillStyle='#844';g.font='10px system-ui';g.fillText('—',18,28)};
       if(src)im.src=src;
+      if(paintDir===dir)cell.classList.add('sel');
+      const openDir=()=>{paintDir=dir;beastFrame=0;paintUndo=[];paintSelMask=null;renderEntitiesEditor()};
+      cell.querySelector('canvas').onclick=e=>{e.stopPropagation();openDir()};
+      cell.querySelector('b').onclick=e=>{e.stopPropagation();openDir()};
     });
-    grid.querySelectorAll('[data-dir-imp]').forEach(b=>b.onclick=()=>{pendingDir=b.dataset.dirImp;dirFile.click()});
-    grid.querySelectorAll('[data-dir-exp]').forEach(b=>b.onclick=()=>{
+    grid.querySelectorAll('[data-dir-imp]').forEach(b=>b.onclick=e=>{e.stopPropagation();pendingDir=b.dataset.dirImp;dirFile.click()});
+    grid.querySelectorAll('[data-dir-exp]').forEach(b=>b.onclick=e=>{e.stopPropagation();
       const dir=b.dataset.dirExp;
       const walkPath=basePath?String(basePath).replace(/\.png$/,'')+'_walk_'+dir+'.png':'';
       const ovrD=SPRITE_OVR[walkPath]||SPRITE_OVR['path:'+walkPath];
@@ -1396,7 +1417,7 @@ function renderEntitiesEditor(){
       const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext('2d').drawImage(im,0,0);
       const ael=document.createElement('a');ael.href=c.toDataURL('image/png');ael.download=(a.key||'sprite')+'_walk_'+dir+'.png';ael.click();
     });
-    grid.querySelectorAll('[data-dir-rev]').forEach(b=>b.onclick=()=>{
+    grid.querySelectorAll('[data-dir-rev]').forEach(b=>b.onclick=e=>{e.stopPropagation();
       const dir=b.dataset.dirRev;
       const walkPath=basePath?String(basePath).replace(/\.png$/,'')+'_walk_'+dir+'.png':'';
       delete SPRITE_OVR[walkPath];delete SPRITE_OVR['path:'+walkPath];
@@ -1425,15 +1446,33 @@ function renderEntitiesEditor(){
   }
   if(!isSpriteBody)return;
   const cv=body.querySelector('#forgePaint'); if(!cv)return;
-  const pctx=cv.getContext('2d');
+  const pctx=cv.getContext('2d',{willReadFrequently:true});
   work=document.createElement('canvas');
   const CELL=128;
+  const basePathA=a.path||(a.kind==='player'?PLAYER_SPRITE:'');
+  function activePaintPaths(){
+    if(paintDir){
+      const walkPath=basePathA?String(basePathA).replace(/\.png$/,'')+'_walk_'+paintDir+'.png':'';
+      return {key:walkPath,path:walkPath,label:'walk_'+paintDir};
+    }
+    return {key:a.key,path:a.path||'',label:'base sprite'};
+  }
+  function applyPaintZoom(){
+    const z=Math.max(1,Math.min(8,paintZoom|0));
+    cv.style.width=(CELL*z)+'px';cv.style.height=(CELL*z)+'px';
+    const lab=body.querySelector('#spZoomLab');if(lab)lab.textContent=z+'\u00d7';
+  }
+  function pushUndo(){if(!work)return;try{paintUndo.push(work.toDataURL('image/png'));if(paintUndo.length>30)paintUndo.shift()}catch(_){}}
+  function popUndo(){
+    if(!paintUndo.length||!work)return;
+    const data=paintUndo.pop(),im=new Image();
+    im.onload=()=>{const g=work.getContext('2d');g.clearRect(0,0,work.width,work.height);g.drawImage(im,0,0);paintSelMask=null;drawFrame();renderThumbs()};
+    im.src=data;
+  }
   function ensureStrip(n){
     const fr=Math.max(1,n|0);
     const nw=document.createElement('canvas');nw.width=CELL*fr;nw.height=CELL;
-    const g=nw.getContext('2d');
-    if(work&&work.width){g.drawImage(work,0,0)}
-    work=nw;
+    const g=nw.getContext('2d');if(work&&work.width)g.drawImage(work,0,0);work=nw;
   }
   function loadStrip(src,nFrames){
     ensureStrip(nFrames||1);
@@ -1454,6 +1493,11 @@ function renderEntitiesEditor(){
   function drawFrame(){
     pctx.clearRect(0,0,CELL,CELL);
     if(work)pctx.drawImage(work,beastFrame*CELL,0,CELL,CELL,0,0,CELL,CELL);
+    if(paintSelMask&&paintSelMask.length===CELL*CELL){
+      const id=pctx.getImageData(0,0,CELL,CELL),d=id.data;
+      for(let i=0;i<paintSelMask.length;i++)if(paintSelMask[i]){d[i*4]=0;d[i*4+1]=255;d[i*4+2]=200;d[i*4+3]=Math.min(180,(d[i*4+3]||80)+70)}
+      pctx.putImageData(id,0,0);
+    }
     const lab=body.querySelector('#spFrameLab');if(lab)lab.textContent=(beastFrame+1)+'/'+frameCount();
   }
   function renderThumbs(){
@@ -1462,58 +1506,134 @@ function renderEntitiesEditor(){
     for(let i=0;i<frameCount();i++){
       const t=document.createElement('canvas');t.width=36;t.height=36;t.className=i===beastFrame?'sel':'';
       t.getContext('2d').drawImage(work,i*CELL,0,CELL,CELL,0,0,36,36);
-      t.onclick=()=>{beastFrame=i;drawFrame();renderThumbs()};
+      t.onclick=()=>{beastFrame=i;paintSelMask=null;drawFrame();renderThumbs()};
       el.appendChild(t);
     }
   }
-  loadStrip(ovrUrl||a.path,frames);
+  (function initLoad(){
+    if(paintDir){
+      const tgt=activePaintPaths();
+      const ovrD=SPRITE_OVR[tgt.path]||SPRITE_OVR['path:'+tgt.path];
+      loadStrip(ovrDataURL(ovrD)||tgt.path||'',(ovrD&&typeof ovrD==='object'&&ovrD.frames)||0);
+    }else loadStrip(ovrUrl||a.path,frames);
+  })();
+  applyPaintZoom();
   let painting=false;
+  function colorNear(r,g,b,a,tr,tg,tb,tol){if(a<10)return false;return Math.abs(r-tr)<=tol&&Math.abs(g-tg)<=tol&&Math.abs(b-tb)<=tol}
+  function hexToRgb(hex){const h=String(hex||'#ff00ff').replace('#','');const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}}
+  function wandSelect(px,py){
+    if(!work)return;
+    const g=work.getContext('2d',{willReadFrequently:true});
+    const ox=beastFrame*CELL;
+    const id=g.getImageData(ox,0,CELL,CELL),d=id.data;
+    const o0=(py*CELL+px)*4;if(o0<0||o0>=d.length)return;
+    let tr=d[o0],tg=d[o0+1],tb=d[o0+2],ta=d[o0+3];
+    // empty pixel: seed from brush color (magenta key-out workflow)
+    if(ta<10){const k=hexToRgb(brush.col);tr=k.r;tg=k.g;tb=k.b}
+    const tol=52;
+    paintSelMask=new Uint8Array(CELL*CELL);
+    const q=[[px,py]],seen=new Uint8Array(CELL*CELL);
+    while(q.length){
+      const [x,y]=q.pop();
+      if(x<0||y<0||x>=CELL||y>=CELL)continue;
+      const i=y*CELL+x;if(seen[i])continue;seen[i]=1;
+      const o=i*4;
+      if(!colorNear(d[o],d[o+1],d[o+2],d[o+3],tr,tg,tb,tol))continue;
+      paintSelMask[i]=1;
+      q.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+    drawFrame();
+  }
+  function clearSelection(){
+    if(!paintSelMask||!work)return;
+    pushUndo();
+    const g=work.getContext('2d');const ox=beastFrame*CELL;
+    const id=g.getImageData(ox,0,CELL,CELL),d=id.data;
+    for(let i=0;i<paintSelMask.length;i++)if(paintSelMask[i])d[i*4+3]=0;
+    g.putImageData(id,ox,0);paintSelMask=null;drawFrame();renderThumbs();
+  }
   function paintAt(ev){
     const rect=cv.getBoundingClientRect(),x=Math.floor((ev.clientX-rect.left)/rect.width*CELL),y=Math.floor((ev.clientY-rect.top)/rect.height*CELL);
+    if(x<0||y<0||x>=CELL||y>=CELL)return;
+    if(brush.tool==='wand'){wandSelect(x,y);return}
     const g=work.getContext('2d');const ox=beastFrame*CELL;
-    if(brush.erase)g.clearRect(ox+x-brush.size/2,y-brush.size/2,brush.size,brush.size);
+    if(brush.tool==='erase'||brush.erase)g.clearRect(ox+x-brush.size/2,y-brush.size/2,brush.size,brush.size);
     else{g.fillStyle=brush.col;g.fillRect(ox+x-brush.size/2,y-brush.size/2,brush.size,brush.size)}
     drawFrame();
   }
-  cv.onpointerdown=e=>{painting=true;cv.setPointerCapture(e.pointerId);paintAt(e)};
+  cv.onpointerdown=e=>{
+    if(brush.tool==='wand'){paintAt(e);return}
+    pushUndo();painting=true;cv.setPointerCapture(e.pointerId);paintAt(e);
+  };
   cv.onpointermove=e=>{if(painting)paintAt(e)};
   cv.onpointerup=()=>{painting=false;renderThumbs()};
-  body.querySelector('#spCol').oninput=e=>{brush.col=e.target.value;brush.erase=false};
+  body.querySelector('#spCol').oninput=e=>{brush.col=e.target.value;if(brush.tool!=='wand'){brush.tool='brush';brush.erase=false}};
   body.querySelector('#spSize').oninput=e=>{brush.size=Math.max(1,Math.min(32,+e.target.value||4))};
-  body.querySelector('#spErase').onclick=()=>{brush.erase=!brush.erase;renderEntitiesEditor()};
-  body.querySelector('#spPrev').onclick=()=>{beastFrame=(beastFrame-1+frameCount())%frameCount();drawFrame();renderThumbs()};
-  body.querySelector('#spNext').onclick=()=>{beastFrame=(beastFrame+1)%frameCount();drawFrame();renderThumbs()};
+  const zEl=body.querySelector('#spZoom');
+  if(zEl)zEl.oninput=()=>{paintZoom=+zEl.value||2;applyPaintZoom()};
+  const setTool=t=>{brush.tool=t;brush.erase=(t==='erase');renderEntitiesEditor()};
+  body.querySelector('#spToolBrush').onclick=()=>setTool('brush');
+  body.querySelector('#spToolErase').onclick=()=>setTool('erase');
+  body.querySelector('#spToolWand').onclick=()=>setTool('wand');
+  body.querySelector('#spUndo').onclick=()=>popUndo();
+  body.querySelector('#spClearSel').onclick=()=>clearSelection();
+  body.querySelector('#spPrev').onclick=()=>{beastFrame=(beastFrame-1+frameCount())%frameCount();paintSelMask=null;drawFrame();renderThumbs()};
+  body.querySelector('#spNext').onclick=()=>{beastFrame=(beastFrame+1)%frameCount();paintSelMask=null;drawFrame();renderThumbs()};
   body.querySelector('#spAddFrame').onclick=()=>{
-    const n=frameCount();const nw=document.createElement('canvas');nw.width=CELL*(n+1);nw.height=CELL;
-    const g=nw.getContext('2d');g.drawImage(work,0,0);work=nw;beastFrame=n;drawFrame();renderThumbs();
+    pushUndo();const n=frameCount();const nw=document.createElement('canvas');nw.width=CELL*(n+1);nw.height=CELL;
+    nw.getContext('2d').drawImage(work,0,0);work=nw;beastFrame=n;paintSelMask=null;drawFrame();renderThumbs();
   };
   body.querySelector('#spDelFrame').onclick=()=>{
-    const n=frameCount();if(n<=1)return;
+    const n=frameCount();if(n<=1)return;pushUndo();
     const nw=document.createElement('canvas');nw.width=CELL*(n-1);nw.height=CELL;const g=nw.getContext('2d');
     let di=0;for(let i=0;i<n;i++){if(i===beastFrame)continue;g.drawImage(work,i*CELL,0,CELL,CELL,di*CELL,0,CELL,CELL);di++}
-    work=nw;beastFrame=Math.min(beastFrame,n-2);drawFrame();renderThumbs();
+    work=nw;beastFrame=Math.min(beastFrame,n-2);paintSelMask=null;drawFrame();renderThumbs();
   };
   body.querySelector('#spSave').onclick=()=>{
     const data=work.toDataURL('image/png');
-    const nf=frameCount(), fp=Math.max(1,Math.min(30,+(body.querySelector('#spFps').value)||8));
-    SPRITE_OVR[a.key]={data,frames:nf,fps:fp};
-    if(a.path)SPRITE_OVR['path:'+a.path]={data,frames:nf,fps:fp};
+    const nf=frameCount(),fp=Math.max(1,Math.min(30,+(body.querySelector('#spFps').value)||8));
+    const tgt=activePaintPaths();
+    SPRITE_OVR[tgt.key]={data,frames:nf,fps:fp};
+    if(tgt.path)SPRITE_OVR['path:'+tgt.path]={data,frames:nf,fps:fp};
+    if(!paintDir){SPRITE_OVR[a.key]={data,frames:nf,fps:fp};if(a.path)SPRITE_OVR['path:'+a.path]={data,frames:nf,fps:fp}}
     delete SPRITES[data];
-    saveSpriteMedia(a.key).then(()=>a.path?saveSpriteMedia('path:'+a.path):null)
-      .then(()=>alert('Saved '+nf+' frame(s).')).catch(()=>alert('IndexedDB save failed.'));
+    const k=paintDir?tgt.key:a.key;
+    saveSpriteMedia(k).then(()=>(tgt.path||a.path)?saveSpriteMedia('path:'+(tgt.path||a.path)):null)
+      .then(()=>alert('Saved '+nf+' frame(s) → '+tgt.label)).catch(()=>alert('IndexedDB save failed.'));
   };
   body.querySelector('#spRev').onclick=()=>{
-    delete SPRITE_OVR[a.key];if(a.path)delete SPRITE_OVR['path:'+a.path];
-    saveSpriteMedia(a.key).then(()=>a.path?saveSpriteMedia('path:'+a.path):null).then(()=>{beastFrame=0;renderEntitiesEditor()});
+    const tgt=activePaintPaths();
+    if(paintDir){
+      delete SPRITE_OVR[tgt.path];delete SPRITE_OVR['path:'+tgt.path];
+      saveSpriteMedia(tgt.path).then(()=>saveSpriteMedia('path:'+tgt.path)).then(()=>{beastFrame=0;paintUndo=[];renderEntitiesEditor()});
+    }else{
+      delete SPRITE_OVR[a.key];if(a.path)delete SPRITE_OVR['path:'+a.path];
+      saveSpriteMedia(a.key).then(()=>a.path?saveSpriteMedia('path:'+a.path):null).then(()=>{beastFrame=0;paintUndo=[];renderEntitiesEditor()});
+    }
   };
   body.querySelector('#spImp').onclick=()=>body.querySelector('#spFile').click();
-  body.querySelector('#spFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>loadStrip(rd.result,0);rd.readAsDataURL(f)};
+  body.querySelector('#spFile').onchange=e=>{const f=e.target.files[0];if(!f)return;pushUndo();const rd=new FileReader();rd.onload=()=>loadStrip(rd.result,0);rd.readAsDataURL(f)};
   const expF=body.querySelector('#spExpFrame');
   if(expF)expF.onclick=()=>{
     const c=document.createElement('canvas');c.width=CELL;c.height=CELL;
     c.getContext('2d').drawImage(work,beastFrame*CELL,0,CELL,CELL,0,0,CELL,CELL);
-    const ael=document.createElement('a');ael.href=c.toDataURL('image/png');ael.download=(a.key||'frame')+'_f'+(beastFrame+1)+'.png';ael.click();
+    const ael=document.createElement('a');ael.href=c.toDataURL('image/png');ael.download=(a.key||'frame')+(paintDir?('_walk_'+paintDir):'')+'_f'+(beastFrame+1)+'.png';ael.click();
   };
+  if(!window.__swarmPaintKeys){
+    window.__swarmPaintKeys=1;
+    addEventListener('keydown',e=>{
+      if((e.ctrlKey||e.metaKey)&&(e.key==='z'||e.key==='Z')){
+        if(!document.getElementById('forge')?.classList.contains('open')||tab!==0)return;
+        e.preventDefault();document.getElementById('spUndo')?.click();
+      }
+      if(e.key==='Delete'||e.key==='Backspace'){
+        if(!document.getElementById('forge')?.classList.contains('open')||tab!==0)return;
+        const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'))return;
+        e.preventDefault();document.getElementById('spClearSel')?.click();
+      }
+    });
+  }
+
 }
 
 /** Field-guide BEASTIARY (journal pages / unlock keys) — restored 2026-08-07. */
