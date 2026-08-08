@@ -9,13 +9,19 @@
 #forge{position:fixed;left:24px;top:24px;z-index:50;width:min(720px,92vw);height:82vh;min-width:320px;min-height:280px;resize:both;overflow:hidden;display:none;flex-direction:column;background:#0d1a1d;border:1px solid #62d9c7;border-radius:12px;box-shadow:0 16px 60px #000c;color:#dce9e7;font:13px system-ui,sans-serif}
 #forge.open{display:flex}#forgeHead{cursor:move;padding:10px 14px;border-bottom:1px solid #3a6a62;display:flex;align-items:center;gap:10px;background:#102326}#forgeHead b{color:#6fffe2;font-size:16px}#forgeHead small{color:#9ebbb6;font-size:10px;letter-spacing:1px}#forgeHead .x{margin-left:auto;cursor:pointer;color:#f88;font-weight:900;font-size:16px;padding:0 6px}
 #forgeTabs{display:flex;flex-wrap:wrap;gap:2px;padding:6px 10px 0}#forgeTabs button{padding:6px 10px;cursor:pointer;border:1px solid #3a6a62;border-bottom:none;border-radius:8px 8px 0 0;background:#0a181b;color:#8ab;letter-spacing:.5px;font-size:11px;font-weight:700}#forgeTabs button.on{background:#16383a;color:#6fffe2}
-#forgeBody{overflow:auto;padding:12px 14px;flex:1}#forge .hint{color:#9ebbb6;font-size:11px;margin:4px 0 10px}#forge .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
-#forge label{display:grid;grid-template-columns:1fr 76px;gap:7px;margin:4px 0;color:#cce1dd;min-width:200px}#forge input,#forge select,#forge textarea{background:#071215;color:#e9fffa;border:1px solid #426862;border-radius:3px;padding:3px 5px;font:12px monospace}#forge input[type=number]{width:76px}#forge input[type=text]{width:160px}#forge textarea{width:min(420px,70vw);height:90px}
+#forgeBody{overflow:auto;padding:12px 14px;flex:1;min-height:0}#forge .hint{color:#9ebbb6;font-size:11px;margin:4px 0 10px}#forge .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+#forge label{display:grid;grid-template-columns:1fr 76px;gap:7px;margin:4px 0;color:#cce1dd;min-width:140px}#forge input,#forge select,#forge textarea{background:#071215;color:#e9fffa;border:1px solid #426862;border-radius:3px;padding:3px 5px;font:12px monospace}#forge input[type=number]{width:64px}#forge input[type=text]{width:140px;max-width:100%}#forge textarea{width:100%;max-width:100%;height:72px;box-sizing:border-box}
 #forge button{background:#1f5e57;color:#eff;border:0;border-radius:5px;padding:6px 10px;cursor:pointer;font-weight:700;font-size:11px;margin:2px}#forge button.warn{background:#5e1f2a}#forge button.on{outline:1px solid #6fffe2}
 #forge table{width:100%;border-collapse:collapse;font-size:12px}#forge th{color:#78efdb;text-align:left;padding:4px;border-bottom:1px solid #3a6a62}#forge td{padding:4px;border-bottom:1px solid #1a3034;vertical-align:middle}
 #forge .kthumb{width:40px;height:40px;object-fit:contain;border:1px solid #3a6a62;border-radius:4px;background:#071215;image-rendering:pixelated}
-#forgePaint{border:1px solid #62d9c7;border-radius:6px;background:repeating-conic-gradient(#222 0 25%,#333 0 50%) 0 0/16px 16px;touch-action:none;cursor:crosshair;image-rendering:pixelated}
-#forge .frames{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0}#forge .frames canvas{border:1px solid #333;border-radius:4px;cursor:pointer;background:#111;image-rendering:pixelated}#forge .frames canvas.sel{border-color:#6fffe2}
+/* Sprite editor layout must stay inside #forgeBody (Eric 2026-08-07 overflow fix) */
+#forge .entSplit{display:flex;gap:10px;align-items:stretch;min-height:0;max-height:calc(82vh - 120px)}
+#forge .entLeft{flex:0 0 170px;overflow:auto;min-height:0;max-height:100%}
+#forge .entRight{flex:1;min-width:0;overflow:auto;min-height:0;max-height:100%}
+#forge .paintRow{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+#forgePaint{width:128px;height:128px;max-width:100%;flex:0 0 auto;border:1px solid #62d9c7;border-radius:6px;background:repeating-conic-gradient(#222 0 25%,#333 0 50%) 0 0/16px 16px;touch-action:none;cursor:crosshair;image-rendering:pixelated}
+#forge .paintTools{flex:1;min-width:160px;max-width:100%}
+#forge .frames{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0;max-height:90px;overflow:auto}#forge .frames canvas{border:1px solid #333;border-radius:4px;cursor:pointer;background:#111;image-rendering:pixelated;width:36px;height:36px}#forge .frames canvas.sel{border-color:#6fffe2}
 .overlay{position:fixed;inset:0;z-index:10;background:#061014e8;display:grid;place-content:center;gap:10px;padding:24px;text-align:center;overflow:auto}
 .overlay h2{margin:0;color:#e4fff8}.overlay .slot{width:min(420px,90vw);padding:14px;background:#13262a;border:1px solid #426862;border-radius:8px;text-align:left;cursor:pointer}.overlay .slot.on{border-color:#6fffe2}.overlay .slot button{float:right;background:#5e1f2a;color:#fcc;border:0;border-radius:4px;padding:4px 8px;cursor:pointer}
 .toast{position:fixed;left:50%;top:90px;transform:translateX(-50%);z-index:12;background:rgba(40,20,60,.9);border:1px solid #c6f;border-radius:8px;padding:10px 22px;text-align:center;pointer-events:none;color:#e8d8ff}
@@ -24,7 +30,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.1.8';
+const GAME_VERSION='0.1.9';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -462,7 +468,7 @@ function fire(){
     if(kind==='chain'){
       let cur=wTarget, hit=new Set(), jumps=w.jumps||4, from={x:player.x,y:player.y};
       for(let j=0;j<jumps&&cur;j++){
-        beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:.12,w:3,chain:1});
+        beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:.2,w:3,chain:1});
         const jd=dmg*(1-j*0.12);cur.hp-=jd;cur.hit=.12;spawnDmgNum(cur.x,cur.y-cur.r,jd);hit.add(cur);
         // Direction = away from `from` (the arc's immediate source: the player on jump 0, the
         // previous link after that) rather than away from the player — a chain can zig-zag several
@@ -673,8 +679,34 @@ function draw(){
 for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-100||ox2>VIEW.w+100||oy2<-100||oy2>VIEW.h+100)continue;const oImg=spriteFor(o.art||OBSTACLE_SPRITE);const oS=o.r*2.8*(o.scale||1);ctx.save();ctx.globalAlpha=.28;ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(ox2,oy2+oS*0.28,oS*0.42,oS*0.16,0,0,7);ctx.fill();ctx.restore();if(oImg&&oImg.complete&&oImg.naturalWidth){ctx.globalAlpha=.98;ctx.drawImage(oImg,ox2-oS/2,oy2-oS/2,oS,oS);ctx.globalAlpha=1}else{ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.beginPath();ctx.arc(0,0,o.r,0,7);ctx.fill();ctx.restore()}}
 // beams (laser + chain) under projectiles
 for(const b of beams){
-  if(b.chain){ctx.save();ctx.globalAlpha=Math.min(1,b.life*10);ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=18;ctx.lineWidth=b.w||4;ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(sx(b.x1),sy(b.y1));const mx=(b.x1+b.x2)/2+rand(-8,8),my=(b.y1+b.y2)/2+rand(-8,8);ctx.lineTo(sx(mx),sy(my));ctx.lineTo(sx(b.x2),sy(b.y2));ctx.stroke();ctx.restore();continue}
+  if(b.chain){
+    // Storm Arc lightning: multi-jag path along the segment (follows the hit chain)
+    const x1=sx(b.x1),y1=sy(b.y1),x2=sx(b.x2),y2=sy(b.y2);
+    const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len;
+    const segs=Math.max(5,Math.min(14,Math.round(len/28)));
+    const pts=[{x:x1,y:y1}];
+    for(let i=1;i<segs;i++){
+      const t=i/segs, baseX=x1+dx*t, baseY=y1+dy*t;
+      // deterministic-ish jitter that still animates: seed from endpoints + frame
+      const j=(Math.sin(elapsed*48+i*2.7+b.x1*.01+b.y2*.01)*0.5+Math.sin(i*7.1+elapsed*22))*Math.min(18,len*0.08);
+      pts.push({x:baseX+nx*j,y:baseY+ny*j});
+    }
+    pts.push({x:x2,y:y2});
+    const alpha=Math.min(1,b.life*10);
+    ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';ctx.lineJoin='round';
+    // outer glow
+    ctx.globalAlpha=alpha*.35;ctx.strokeStyle=b.color||'#d7a6ff';ctx.shadowColor=b.color||'#d7a6ff';ctx.shadowBlur=22;ctx.lineWidth=10;
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();
+    // mid bolt
+    ctx.globalAlpha=alpha*.75;ctx.shadowBlur=14;ctx.lineWidth=4;ctx.stroke();
+    // hot core
+    ctx.globalAlpha=alpha;ctx.strokeStyle='#f4e8ff';ctx.shadowBlur=6;ctx.lineWidth=1.6;ctx.stroke();
+    // spark nodes along path
+    for(let i=1;i<pts.length-1;i+=2){
+      ctx.globalAlpha=alpha*.9;ctx.fillStyle='#fff';ctx.shadowBlur=10;
+      ctx.beginPath();ctx.arc(pts[i].x,pts[i].y,1.8+Math.random()*1.2,0,7);ctx.fill();
+    }
+    ctx.restore();continue}
   // Breach Laser — layered beam: wide low-alpha glow, mid core, hot near-white inner core,
   // plus a shimmering intensity and a bright muzzle flash at the emitter. One path, three
   // strokes reusing it (cheap) instead of separate particle systems.
@@ -949,28 +981,8 @@ function bgHex(v){return /^#[0-9a-fA-F]{6}$/.test(v||'')?v:'#000000'}
 
 function renderTab(){
   tabsEl.querySelectorAll('button').forEach((d,i)=>d.classList.toggle('on',i===tab));
-  if(tab===0){// ENTITIES
-    body.innerHTML=`<div class="hint">Enemy roster. Numbers, names, colours and sprite paths apply live. Behaviours stay in code.</div>
-      <table><tr><th></th><th>ID</th><th>NAME</th><th>HP</th><th>SPD</th><th>DMG</th><th>R</th><th>SCALE</th><th>W</th><th>WAVE</th><th></th></tr>
-      ${EDIT.entities.map((e,i)=>`<tr>
-        <td><img class="kthumb" src="${esc(spriteSrcForEntity(e)||e.sprite||'')}" onerror="this.style.opacity=.2"></td>
-        <td><input data-p="entities.${i}.id" value="${esc(e.id)}" style="width:110px"></td>
-        <td><input data-p="entities.${i}.name" value="${esc(e.name)}" style="width:100px"></td>
-        <td><input type="number" data-p="entities.${i}.hp" value="${e.hp}" style="width:56px"></td>
-        <td><input type="number" data-p="entities.${i}.speed" value="${e.speed}" style="width:56px"></td>
-        <td><input type="number" data-p="entities.${i}.damage" value="${e.damage}" style="width:48px"></td>
-        <td><input type="number" step="any" data-p="entities.${i}.r" value="${e.r||12}" style="width:48px"></td>
-        <td><input type="number" step="0.05" min="0.2" max="4" data-p="entities.${i}.scale" value="${e.scale??1}" style="width:56px" title="size scale"></td>
-        <td><input type="number" data-p="entities.${i}.weight" value="${e.weight}" style="width:44px"></td>
-        <td><input type="number" data-p="entities.${i}.unlockWave" value="${e.unlockWave||1}" style="width:48px"></td>
-        <td><button data-del="${i}" class="warn">✕</button></td></tr>`).join('')}</table>
-      <div class="row"><button id="addEnemy">+ ADD ENEMY</button></div>`;
-    bindInputs();
-    body.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(EDIT.entities.length>1){EDIT.entities.splice(+b.dataset.del,1);applyForge();persistForge();renderTab()}});
-    body.querySelector('#addEnemy').onclick=()=>{const n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,scale:1,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1,sprite:''});applyForge();persistForge();renderTab()};
-    if(!body.querySelector('#exportForgeFile')){const row=body.querySelector('.row');if(row)row.insertAdjacentHTML('beforeend',' <button id="exportForgeFile">⬇ SAVE FORGE JSON</button> <label style="display:inline-flex;gap:6px;align-items:center">⬆ LOAD<input type="file" id="importForgeFile" accept="application/json,.json" style="width:auto"></label>');}
-    const exp=body.querySelector('#exportForgeFile');if(exp)exp.onclick=()=>{const blob=new Blob([JSON.stringify(EDIT,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hiveswarm_forge_'+GAME_VERSION+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2e3)};
-    const imp=body.querySelector('#importForgeFile');if(imp)imp.onchange=async ev=>{const f=ev.target.files&&ev.target.files[0];if(!f)return;try{EDIT=forgeMerge(FORGE_BASE,JSON.parse(await f.text()));applyForge();persistForge();genObstacles();renderTab()}catch(err){alert('Bad forge file: '+err.message)}};
+  if(tab===0){// ENTITIES — asset browser + paint editor (was mistakenly on BEASTIARY)
+    renderEntitiesEditor();
   }
   else if(tab===1){// PLAYER
     body.innerHTML=`<div class="hint">Player combat knobs. <b>scale</b> multiplies the base hit radius once (1=default, max 3). Visual size matches hit radius — no double scale. Player draws as a teal sphere.</div>
@@ -1040,13 +1052,13 @@ function renderTab(){
       renderTab()}catch(err){alert('Bad pack: '+err.message)}};
     body.querySelector('#forgeReset').onclick=()=>{if(confirm('Restore shipped Forge values?')){EDIT=copy(FORGE_BASE);EDIT.codexPages=codexDefaults();applyForge();persistForge();renderTab()}};
   }
-  else{// BEASTIARY — left list (all assets by category) + right edit/paint (HiVE WAR style)
-    renderBeastiary();
+  else{// BEASTIARY — field guide pages (unlock/journal), NOT the asset paint editor
+    renderCodex();
   }
 }
 
-/** Unified left-rail asset list for BEASTIARY: player, enemies, weapons, items (color-coded). */
-function beastiaryAssets(){
+/** Unified left-rail asset list for ENTITIES editor: player, enemies, weapons, items. */
+function entityAssets(){
   const list=[];
   list.push({cat:'player',color:'#6fffe2',title:'Swarm Operative',key:'player',path:PLAYER_SPRITE,kind:'player',
     stats:()=>EDIT.player, statPath:'player'});
@@ -1059,11 +1071,10 @@ function beastiaryAssets(){
   return list;
 }
 const BEAST_CAT_COL={player:'#6fffe2',enemy:'#f88',weapon:'#ffe066',item:'#8aff9b',boss:'#c6f',lore:'#9ab'};
-function renderBeastiary(){
-  const assets=beastiaryAssets();
+function renderEntitiesEditor(){
+  const assets=entityAssets();
   if(codexSel>=assets.length)codexSel=Math.max(0,assets.length-1);
   const a=assets[codexSel];
-  // Group headers by category
   let lastCat='', left='';
   assets.forEach((x,i)=>{
     if(x.cat!==lastCat){lastCat=x.cat;left+=`<div style="color:${BEAST_CAT_COL[x.cat]||'#8ab'};font:700 10px system-ui;letter-spacing:1px;margin:8px 0 2px;opacity:.9">${x.cat.toUpperCase()}</div>`}
@@ -1075,15 +1086,16 @@ function renderBeastiary(){
   const fps=(ovr&&typeof ovr==='object'&&ovr.fps)||8;
   const thumb=ovrUrl||a.path||'';
   const statsHtml=a&&a.stats?`<div class="row" style="flex-wrap:wrap">${fields(a.stats(),a.statPath)}</div>`:'<div class="hint">No numeric fields for this entry.</div>';
-  body.innerHTML=`<div class="hint"><b>BEASTIARY</b> — all game assets. Click left to edit stats + paint frames (erase / paint / add frames / import), same spirit as HiVE WAR sprites. Overrides live in IndexedDB.</div>
-    <div style="display:flex;gap:12px;align-items:flex-start">
-      <div style="flex:0 0 200px;max-height:62vh;overflow:auto">${left}</div>
-      <div style="flex:1">${a?`
+  body.innerHTML=`<div class="hint"><b>ENTITIES</b> — all assets by category. Click left → edit stats + paint frames (erase / add frames / import). Field-guide unlock pages live on the <b>BEASTIARY</b> tab.</div>
+    <div class="entSplit">
+      <div class="entLeft">${left}
+        <button id="entAddEnemy" style="width:100%;margin-top:8px">+ ADD ENEMY</button></div>
+      <div class="entRight">${a?`
         <div class="row"><b style="color:${a.color}">${esc(a.title)}</b><span class="hint">${esc(a.key)}</span>
           <span class="hint" style="color:${BEAST_CAT_COL[a.cat]}">${a.cat}</span></div>
         ${statsHtml}
-        <div class="row"><canvas id="forgePaint" width="128" height="128"></canvas>
-          <div>
+        <div class="paintRow"><canvas id="forgePaint" width="128" height="128"></canvas>
+          <div class="paintTools">
             <div class="row">COLOR <input type="color" id="spCol" value="${brush.col}">
               SIZE <input type="number" id="spSize" value="${brush.size}" min="1" max="32" style="width:48px">
               <button id="spErase" class="${brush.erase?'on':''}">${brush.erase?'ERASE ON':'ERASE'}</button></div>
@@ -1098,17 +1110,18 @@ function renderBeastiary(){
               <button id="spImp">⇧ IMPORT PNG/STRIP</button>
               <button id="spRev" class="warn">REVERT</button>
               <input type="file" id="spFile" accept="image/*" style="display:none"></div>
-            <div class="hint">Paint on the active frame. Multi-frame strips save as a horizontal sheet (War-style). REVERT drops the override.</div>
-            ${thumb?`<img src="${esc(thumb)}" alt="" style="max-width:120px;max-height:80px;border:1px solid #245;margin-top:6px">`:''}
+            <div class="hint">All angle sprites are kept — paint/import only overrides via IndexedDB. REVERT drops override.</div>
+            ${thumb?`<img src="${esc(thumb)}" alt="" style="max-width:96px;max-height:64px;border:1px solid #245;margin-top:4px;object-fit:contain">`:''}
           </div>
         </div>`:'<div class="hint">Select an entry.</div>'}</div></div>`;
-  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;beastFrame=0;renderBeastiary()});
+  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;beastFrame=0;renderEntitiesEditor()});
+  const addE=body.querySelector('#entAddEnemy');
+  if(addE)addE.onclick=()=>{const n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,scale:1,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1,sprite:''});applyForge();persistForge();renderEntitiesEditor()};
   if(!a)return;
   bindInputs();
-  // ---- multi-frame paint canvas (HiVE WAR–style) ----
   const cv=body.querySelector('#forgePaint'); if(!cv)return;
   const pctx=cv.getContext('2d');
-  work=document.createElement('canvas'); // full strip
+  work=document.createElement('canvas');
   const CELL=128;
   function ensureStrip(n){
     const fr=Math.max(1,n|0);
@@ -1142,8 +1155,8 @@ function renderBeastiary(){
     const el=body.querySelector('#spThumbs');if(!el||!work)return;
     el.innerHTML='';
     for(let i=0;i<frameCount();i++){
-      const t=document.createElement('canvas');t.width=40;t.height=40;t.className=i===beastFrame?'sel':'';
-      t.getContext('2d').drawImage(work,i*CELL,0,CELL,CELL,0,0,40,40);
+      const t=document.createElement('canvas');t.width=36;t.height=36;t.className=i===beastFrame?'sel':'';
+      t.getContext('2d').drawImage(work,i*CELL,0,CELL,CELL,0,0,36,36);
       t.onclick=()=>{beastFrame=i;drawFrame();renderThumbs()};
       el.appendChild(t);
     }
@@ -1162,7 +1175,7 @@ function renderBeastiary(){
   cv.onpointerup=()=>{painting=false;renderThumbs()};
   body.querySelector('#spCol').oninput=e=>{brush.col=e.target.value;brush.erase=false};
   body.querySelector('#spSize').oninput=e=>{brush.size=Math.max(1,Math.min(32,+e.target.value||4))};
-  body.querySelector('#spErase').onclick=()=>{brush.erase=!brush.erase;renderBeastiary()};
+  body.querySelector('#spErase').onclick=()=>{brush.erase=!brush.erase;renderEntitiesEditor()};
   body.querySelector('#spPrev').onclick=()=>{beastFrame=(beastFrame-1+frameCount())%frameCount();drawFrame();renderThumbs()};
   body.querySelector('#spNext').onclick=()=>{beastFrame=(beastFrame+1)%frameCount();drawFrame();renderThumbs()};
   body.querySelector('#spAddFrame').onclick=()=>{
@@ -1186,10 +1199,49 @@ function renderBeastiary(){
   };
   body.querySelector('#spRev').onclick=()=>{
     delete SPRITE_OVR[a.key];if(a.path)delete SPRITE_OVR['path:'+a.path];
-    saveSpriteMedia(a.key).then(()=>a.path?saveSpriteMedia('path:'+a.path):null).then(()=>{beastFrame=0;renderBeastiary()});
+    saveSpriteMedia(a.key).then(()=>a.path?saveSpriteMedia('path:'+a.path):null).then(()=>{beastFrame=0;renderEntitiesEditor()});
   };
   body.querySelector('#spImp').onclick=()=>body.querySelector('#spFile').click();
   body.querySelector('#spFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>loadStrip(rd.result,0);rd.readAsDataURL(f)};
+}
+
+/** Field-guide BEASTIARY (journal pages / unlock keys) — restored 2026-08-07. */
+function renderCodex(){
+  const pages=codexPages();
+  if(codexSel>=pages.length)codexSel=Math.max(0,pages.length-1);
+  const pg=pages[codexSel];
+  const list=pages.map((p,i)=>`<button type="button" data-pick="${i}" class="${i===codexSel?'on':''}" style="display:block;width:100%;text-align:left;margin:2px 0;border-left:3px solid ${BEAST_CAT_COL[p.cat]||'#426'}">${CODEX_ICON[p.cat]||'•'} ${esc(p.title)||'(untitled)'}</button>`).join('');
+  const img=pg?CODEX_IMG[pg.id]:null;
+  body.innerHTML=`<div class="hint">Field guide. Pages unlock in-game on first sighting. Progress is per save slot. Asset paint tools are on the <b>ENTITIES</b> tab.</div>
+    <div class="entSplit">
+      <div class="entLeft">${list||'<div class="hint">No pages.</div>'}
+        <button id="cxAdd" style="width:100%;margin-top:8px">+ ADD PAGE</button>
+        <button id="cxReset" class="warn" style="width:100%;margin-top:4px">RESET DEFAULT PAGES</button>
+        <button id="cxRelock" class="warn" style="width:100%;margin-top:4px">RE-LOCK ALL (this slot)</button></div>
+      <div class="entRight">${pg?`
+        <div class="row">CATEGORY <select id="cxCat">${CODEX_CATS.map(c=>`<option value="${c}" ${c===pg.cat?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="row">TITLE <input type="text" id="cxTitle" value="${esc(pg.title)}" style="width:min(220px,100%)"></div>
+        <div class="row">SUBTITLE <input type="text" id="cxSub" value="${esc(pg.subtitle)}" style="width:min(220px,100%)"></div>
+        <div class="row">UNLOCK KEY <input type="text" id="cxLink" value="${esc(pg.link)}" placeholder="enemy:enemy.shambler" style="width:min(200px,100%)">
+          <span class="hint">${pg.link?(META.codexSeen&&META.codexSeen[pg.link]!==undefined?'<b style="color:#6f6">UNLOCKED</b>':'<b style="color:#f84">LOCKED</b>')+' slot '+currentSlot():'<b style="color:#6f6">ALWAYS VISIBLE</b>'}</span></div>
+        <div class="row">BODY <textarea id="cxBody">${esc(pg.body)}</textarea></div>
+        <div class="row"><button id="cxPick">🖼 UPLOAD IMAGE</button>
+          <button id="cxClr" class="warn" ${img?'':'disabled'}>REMOVE IMAGE</button>
+          <input type="file" id="cxFile" accept="image/*" style="display:none"></div>
+        <div class="row">${img?`<img src="${img}" alt="" style="max-width:min(220px,100%);max-height:140px;border:1px solid #245">`:'<span class="hint">No image yet.</span>'}</div>
+        <div class="row"><button id="cxDel" class="warn">DELETE PAGE</button></div>`:'<div class="hint">Add a page.</div>'}</div></div>`;
+  body.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{codexSel=+b.dataset.pick;renderCodex()});
+  body.querySelector('#cxAdd').onclick=()=>{codexPages().push({id:codexNewId(),cat:'enemy',title:'New Entry',subtitle:'',body:'',link:''});codexSel=codexPages().length-1;persistForge();renderCodex()};
+  body.querySelector('#cxRelock').onclick=()=>{if(!confirm('Re-lock every beastiary page in save slot '+currentSlot()+'?'))return;META.codexSeen={};saveMeta();renderCodex()};
+  body.querySelector('#cxReset').onclick=()=>{if(!confirm('Replace ALL beastiary pages with shipped defaults?'))return;EDIT.codexPages=codexDefaults();codexSel=0;persistForge();renderCodex()};
+  if(!pg)return;
+  const bind=(sel,key)=>{const el=body.querySelector(sel);if(!el)return;el.oninput=()=>{pg[key]=el.value;persistForge()}};
+  bind('#cxTitle','title');bind('#cxSub','subtitle');bind('#cxBody','body');bind('#cxLink','link');
+  body.querySelector('#cxCat').onchange=e=>{pg.cat=e.target.value;persistForge();renderCodex()};
+  body.querySelector('#cxPick').onclick=()=>body.querySelector('#cxFile').click();
+  body.querySelector('#cxFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{CODEX_IMG[pg.id]=rd.result;saveCodexMedia(pg.id).then(()=>renderCodex()).catch(()=>alert('Could not store image in IndexedDB.'))};rd.readAsDataURL(f)};
+  body.querySelector('#cxClr').onclick=()=>{delete CODEX_IMG[pg.id];saveCodexMedia(pg.id).then(()=>renderCodex())};
+  body.querySelector('#cxDel').onclick=()=>{if(!confirm('Delete "'+(pg.title||'untitled')+'"?'))return;delete CODEX_IMG[pg.id];saveCodexMedia(pg.id).catch(()=>{});codexPages().splice(codexSel,1);codexSel=Math.max(0,codexSel-1);persistForge();renderCodex()};
 }
 
 window.__hiveSwarmForge=()=>copy(EDIT);
