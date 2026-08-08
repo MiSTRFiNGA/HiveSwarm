@@ -1,0 +1,5189 @@
+{
+  "sprite_dir": "D:\\Dev\\HiveSwarm\\art_src\\topdown_v1",
+  "hash_method": "average-hash 8x8 of alpha-bbox content resized to 64x64, composited on mid-gray",
+  "thresholds": {
+    "HASH_HARD_OUTLIER": 22,
+    "COLOR_HARD_OUTLIER": 55.0,
+    "ASPECT_HARD_OUTLIER": 0.45,
+    "CLUSTER_COMBINED_SPLIT": 0.55,
+    "CLUSTER_HASH_LINK": 18,
+    "SPLIT_INTER_HASH_MIN": 20
+  },
+  "enemies": {
+    "shambler": {
+      "dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "walk_dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "missing": [],
+      "has_base": true,
+      "has_walk_base": true,
+      "outliers": [
+        {
+          "dir": "walk_e",
+          "reason": "[walk] hash vs median=25 (\u226522); mean hash-to-peers=26.1 (z=2.28)",
+          "distance": 0.817
+        },
+        {
+          "dir": "walk_w",
+          "reason": "[walk] hash vs median=24 (\u226522); mean hash-to-peers=25.6 (z=2.18)",
+          "distance": 0.7991
+        }
+      ],
+      "clusters": [
+        {
+          "id": "A",
+          "dirs": [
+            "e",
+            "se",
+            "s",
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne"
+          ],
+          "representative": "n"
+        }
+      ],
+      "recommendation": "keep",
+      "split_proposal": null,
+      "notes": "idle: directions consistent with single subject identity | walk: 2 soft outlier(s) but not enough evidence for identity split (inter-hash=0.0); likely pose/angle variation \u2014 keep",
+      "idle_stats": {
+        "hash_median": 16.5,
+        "hash_stdev": 5.72,
+        "hash_max": 26,
+        "color_median": 9.49,
+        "aspect_median": 0.0546,
+        "inter_cluster_hash_median": 0.0
+      },
+      "walk_stats": {
+        "hash_median": 11.5,
+        "hash_stdev": 9.45,
+        "hash_max": 29,
+        "color_median": 14.37,
+        "aspect_median": 0.0616,
+        "inter_cluster_hash_median": 0.0
+      },
+      "idle_per_dir": {
+        "e": {
+          "file": "shambler_e.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            78,
+            20,
+            179,
+            247
+          ],
+          "content_size": [
+            101,
+            227
+          ],
+          "aspect": 0.4449,
+          "opaque_count": 7343,
+          "mean_rgb": [
+            48.31,
+            67.85,
+            57.81
+          ],
+          "ahash_hex": "ffc9c3e3e3c38fff"
+        },
+        "se": {
+          "file": "shambler_se.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            66,
+            18,
+            189,
+            248
+          ],
+          "content_size": [
+            123,
+            230
+          ],
+          "aspect": 0.5348,
+          "opaque_count": 12755,
+          "mean_rgb": [
+            40.79,
+            63.11,
+            56.6
+          ],
+          "ahash_hex": "f3c3cb432381c3e7"
+        },
+        "s": {
+          "file": "shambler_s.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            247
+          ],
+          "content_size": [
+            102,
+            229
+          ],
+          "aspect": 0.4454,
+          "opaque_count": 8333,
+          "mean_rgb": [
+            48.58,
+            68.91,
+            58.14
+          ],
+          "ahash_hex": "ffc3c3410383e7ff"
+        },
+        "sw": {
+          "file": "shambler_sw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            64,
+            18,
+            191,
+            248
+          ],
+          "content_size": [
+            127,
+            230
+          ],
+          "aspect": 0.5522,
+          "opaque_count": 12319,
+          "mean_rgb": [
+            36.13,
+            56.62,
+            50.68
+          ],
+          "ahash_hex": "2307c78f81c7c3f3"
+        },
+        "w": {
+          "file": "shambler_w.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            83,
+            47,
+            179,
+            222
+          ],
+          "content_size": [
+            96,
+            175
+          ],
+          "aspect": 0.5486,
+          "opaque_count": 7122,
+          "mean_rgb": [
+            47.6,
+            66.15,
+            57.35
+          ],
+          "ahash_hex": "2307c78f8ec7c3f3"
+        },
+        "nw": {
+          "file": "shambler_nw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            71,
+            18,
+            186,
+            248
+          ],
+          "content_size": [
+            115,
+            230
+          ],
+          "aspect": 0.5,
+          "opaque_count": 13365,
+          "mean_rgb": [
+            37.36,
+            57.41,
+            52.06
+          ],
+          "ahash_hex": "e3e3c3420381e1f3"
+        },
+        "n": {
+          "file": "shambler_n.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 8731,
+          "mean_rgb": [
+            49.19,
+            66.73,
+            56.3
+          ],
+          "ahash_hex": "ffc7c30181c3e7ff"
+        },
+        "ne": {
+          "file": "shambler_ne.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            70,
+            18,
+            185,
+            248
+          ],
+          "content_size": [
+            115,
+            230
+          ],
+          "aspect": 0.5,
+          "opaque_count": 13365,
+          "mean_rgb": [
+            37.36,
+            57.41,
+            52.06
+          ],
+          "ahash_hex": "c7c7c342c08187cf"
+        }
+      },
+      "walk_per_dir": {
+        "e": {
+          "file": "shambler_walk_e.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            33,
+            18,
+            990,
+            248
+          ],
+          "content_size": [
+            957,
+            230
+          ],
+          "aspect": 4.1609,
+          "opaque_count": 43325,
+          "mean_rgb": [
+            36.38,
+            69.73,
+            61.29
+          ],
+          "ahash_hex": "ffff02a22a005455"
+        },
+        "se": {
+          "file": "shambler_walk_se.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            66,
+            15,
+            957,
+            251
+          ],
+          "content_size": [
+            891,
+            236
+          ],
+          "aspect": 3.7754,
+          "opaque_count": 44764,
+          "mean_rgb": [
+            41.18,
+            64.68,
+            57.48
+          ],
+          "ahash_hex": "7f5a5a4a524a5aff"
+        },
+        "s": {
+          "file": "shambler_walk_s.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            77,
+            19,
+            945,
+            247
+          ],
+          "content_size": [
+            868,
+            228
+          ],
+          "aspect": 3.807,
+          "opaque_count": 32412,
+          "mean_rgb": [
+            50.49,
+            70.8,
+            59.64
+          ],
+          "ahash_hex": "ff5a5a525252ffff"
+        },
+        "sw": {
+          "file": "shambler_walk_sw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            64,
+            15,
+            959,
+            251
+          ],
+          "content_size": [
+            895,
+            236
+          ],
+          "aspect": 3.7924,
+          "opaque_count": 44508,
+          "mean_rgb": [
+            36.91,
+            58.09,
+            51.84
+          ],
+          "ahash_hex": "5a5252525a525aff"
+        },
+        "w": {
+          "file": "shambler_walk_w.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            33,
+            18,
+            990,
+            248
+          ],
+          "content_size": [
+            957,
+            230
+          ],
+          "aspect": 4.1609,
+          "opaque_count": 43325,
+          "mean_rgb": [
+            36.38,
+            69.73,
+            61.29
+          ],
+          "ahash_hex": "ffff405554002aaa"
+        },
+        "nw": {
+          "file": "shambler_walk_nw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            71,
+            15,
+            954,
+            251
+          ],
+          "content_size": [
+            883,
+            236
+          ],
+          "aspect": 3.7415,
+          "opaque_count": 46144,
+          "mean_rgb": [
+            37.3,
+            58.24,
+            52.3
+          ],
+          "ahash_hex": "ff5a5a4a5a5a5aff"
+        },
+        "n": {
+          "file": "shambler_walk_n.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            77,
+            19,
+            947,
+            248
+          ],
+          "content_size": [
+            870,
+            229
+          ],
+          "aspect": 3.7991,
+          "opaque_count": 34852,
+          "mean_rgb": [
+            49.29,
+            66.12,
+            55.81
+          ],
+          "ahash_hex": "ff5a5a42425a7eff"
+        },
+        "ne": {
+          "file": "shambler_walk_ne.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            70,
+            15,
+            953,
+            251
+          ],
+          "content_size": [
+            883,
+            236
+          ],
+          "aspect": 3.7415,
+          "opaque_count": 46144,
+          "mean_rgb": [
+            37.3,
+            58.24,
+            52.3
+          ],
+          "ahash_hex": "ff5e5a525a5a5aff"
+        }
+      },
+      "idle_pairwise_top": [
+        {
+          "a": "e",
+          "b": "w",
+          "hash_hamming": 26,
+          "color_dist": 1.9,
+          "aspect_diff": 0.1036
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 25,
+          "color_dist": 14.47,
+          "aspect_diff": 0.0486
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 24,
+          "color_dist": 18.04,
+          "aspect_diff": 0.1072
+        },
+        {
+          "a": "s",
+          "b": "w",
+          "hash_hamming": 24,
+          "color_dist": 3.03,
+          "aspect_diff": 0.1032
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 23,
+          "color_dist": 2.01,
+          "aspect_diff": 0.0522
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 22,
+          "color_dist": 7.5,
+          "aspect_diff": 0.0138
+        },
+        {
+          "a": "s",
+          "b": "sw",
+          "hash_hamming": 22,
+          "color_dist": 19.02,
+          "aspect_diff": 0.1068
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 21,
+          "color_dist": 16.19,
+          "aspect_diff": 0.0551
+        },
+        {
+          "a": "w",
+          "b": "nw",
+          "hash_hamming": 21,
+          "color_dist": 14.47,
+          "aspect_diff": 0.0486
+        },
+        {
+          "a": "w",
+          "b": "n",
+          "hash_hamming": 21,
+          "color_dist": 1.99,
+          "aspect_diff": 0.1051
+        },
+        {
+          "a": "se",
+          "b": "sw",
+          "hash_hamming": 20,
+          "color_dist": 9.95,
+          "aspect_diff": 0.0174
+        },
+        {
+          "a": "sw",
+          "b": "nw",
+          "hash_hamming": 19,
+          "color_dist": 2.01,
+          "aspect_diff": 0.0522
+        }
+      ],
+      "walk_pairwise_top": [
+        {
+          "a": "e",
+          "b": "w",
+          "hash_hamming": 29,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 28,
+          "color_dist": 15.0,
+          "aspect_diff": 0.3685
+        },
+        {
+          "a": "e",
+          "b": "s",
+          "hash_hamming": 27,
+          "color_dist": 14.24,
+          "aspect_diff": 0.3539
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 27,
+          "color_dist": 15.0,
+          "aspect_diff": 0.3685
+        },
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 26,
+          "color_dist": 7.94,
+          "aspect_diff": 0.3854
+        },
+        {
+          "a": "w",
+          "b": "nw",
+          "hash_hamming": 26,
+          "color_dist": 14.61,
+          "aspect_diff": 0.4193
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 25,
+          "color_dist": 14.61,
+          "aspect_diff": 0.4193
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 25,
+          "color_dist": 7.94,
+          "aspect_diff": 0.3854
+        },
+        {
+          "a": "w",
+          "b": "n",
+          "hash_hamming": 25,
+          "color_dist": 14.49,
+          "aspect_diff": 0.3617
+        },
+        {
+          "a": "e",
+          "b": "n",
+          "hash_hamming": 24,
+          "color_dist": 14.49,
+          "aspect_diff": 0.3617
+        },
+        {
+          "a": "e",
+          "b": "ne",
+          "hash_hamming": 24,
+          "color_dist": 14.61,
+          "aspect_diff": 0.4193
+        },
+        {
+          "a": "s",
+          "b": "w",
+          "hash_hamming": 24,
+          "color_dist": 14.24,
+          "aspect_diff": 0.3539
+        }
+      ]
+    },
+    "runner": {
+      "dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "walk_dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "missing": [],
+      "has_base": true,
+      "has_walk_base": true,
+      "outliers": [],
+      "clusters": [
+        {
+          "id": "A",
+          "dirs": [
+            "e",
+            "se",
+            "s",
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne"
+          ],
+          "representative": "sw"
+        }
+      ],
+      "recommendation": "keep",
+      "split_proposal": null,
+      "notes": "idle: directions consistent with single subject identity | walk: directions consistent with single subject identity",
+      "idle_stats": {
+        "hash_median": 21.0,
+        "hash_stdev": 5.25,
+        "hash_max": 28,
+        "color_median": 12.75,
+        "aspect_median": 0.1879,
+        "inter_cluster_hash_median": 0.0
+      },
+      "walk_stats": {
+        "hash_median": 12.0,
+        "hash_stdev": 3.52,
+        "hash_max": 21,
+        "color_median": 17.91,
+        "aspect_median": 0.1316,
+        "inter_cluster_hash_median": 0.0
+      },
+      "idle_per_dir": {
+        "e": {
+          "file": "runner_e.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            74,
+            18,
+            185,
+            224
+          ],
+          "content_size": [
+            111,
+            206
+          ],
+          "aspect": 0.5388,
+          "opaque_count": 7258,
+          "mean_rgb": [
+            68.03,
+            77.1,
+            61.03
+          ],
+          "ahash_hex": "3f80c38287ffffff"
+        },
+        "se": {
+          "file": "runner_se.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            25,
+            18,
+            231,
+            248
+          ],
+          "content_size": [
+            206,
+            230
+          ],
+          "aspect": 0.8957,
+          "opaque_count": 17021,
+          "mean_rgb": [
+            57.63,
+            56.52,
+            55.78
+          ],
+          "ahash_hex": "9fdac0e38043c7df"
+        },
+        "s": {
+          "file": "runner_s.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            67,
+            18,
+            189,
+            243
+          ],
+          "content_size": [
+            122,
+            225
+          ],
+          "aspect": 0.5422,
+          "opaque_count": 7471,
+          "mean_rgb": [
+            69.0,
+            78.89,
+            61.33
+          ],
+          "ahash_hex": "efc7c70087cfffff"
+        },
+        "sw": {
+          "file": "runner_sw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            23,
+            18,
+            232,
+            248
+          ],
+          "content_size": [
+            209,
+            230
+          ],
+          "aspect": 0.9087,
+          "opaque_count": 14029,
+          "mean_rgb": [
+            57.8,
+            59.96,
+            58.86
+          ],
+          "ahash_hex": "fd5b03c743c2e3fb"
+        },
+        "w": {
+          "file": "runner_w.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            67,
+            18,
+            189,
+            241
+          ],
+          "content_size": [
+            122,
+            223
+          ],
+          "aspect": 0.5471,
+          "opaque_count": 5924,
+          "mean_rgb": [
+            63.74,
+            64.73,
+            61.02
+          ],
+          "ahash_hex": "f991878583fbffff"
+        },
+        "nw": {
+          "file": "runner_nw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            39,
+            18,
+            217,
+            248
+          ],
+          "content_size": [
+            178,
+            230
+          ],
+          "aspect": 0.7739,
+          "opaque_count": 15806,
+          "mean_rgb": [
+            53.91,
+            49.26,
+            53.88
+          ],
+          "ahash_hex": "fc4903c741c1e1fd"
+        },
+        "n": {
+          "file": "runner_n.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            61,
+            18,
+            196,
+            234
+          ],
+          "content_size": [
+            135,
+            216
+          ],
+          "aspect": 0.625,
+          "opaque_count": 8789,
+          "mean_rgb": [
+            58.99,
+            59.21,
+            57.67
+          ],
+          "ahash_hex": "cfc6c6c70387e7ff"
+        },
+        "ne": {
+          "file": "runner_ne.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            39,
+            18,
+            217,
+            248
+          ],
+          "content_size": [
+            178,
+            230
+          ],
+          "aspect": 0.7739,
+          "opaque_count": 15806,
+          "mean_rgb": [
+            53.91,
+            49.26,
+            53.88
+          ],
+          "ahash_hex": "3f92c0e3828387bf"
+        }
+      },
+      "walk_per_dir": {
+        "e": {
+          "file": "runner_walk_e.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            28,
+            18,
+            992,
+            248
+          ],
+          "content_size": [
+            964,
+            230
+          ],
+          "aspect": 4.1913,
+          "opaque_count": 61475,
+          "mean_rgb": [
+            73.9,
+            73.46,
+            69.18
+          ],
+          "ahash_hex": "ff6f020242527eff"
+        },
+        "se": {
+          "file": "runner_walk_se.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            25,
+            15,
+            999,
+            251
+          ],
+          "content_size": [
+            974,
+            236
+          ],
+          "aspect": 4.1271,
+          "opaque_count": 63004,
+          "mean_rgb": [
+            59.11,
+            58.38,
+            57.39
+          ],
+          "ahash_hex": "ff2e0a6a02007eff"
+        },
+        "s": {
+          "file": "runner_walk_s.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            66,
+            18,
+            956,
+            244
+          ],
+          "content_size": [
+            890,
+            226
+          ],
+          "aspect": 3.9381,
+          "opaque_count": 27822,
+          "mean_rgb": [
+            66.19,
+            75.86,
+            59.53
+          ],
+          "ahash_hex": "ff5a524252ffffff"
+        },
+        "sw": {
+          "file": "runner_walk_sw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            23,
+            20,
+            1000,
+            251
+          ],
+          "content_size": [
+            977,
+            231
+          ],
+          "aspect": 4.2294,
+          "opaque_count": 47980,
+          "mean_rgb": [
+            58.53,
+            60.85,
+            59.53
+          ],
+          "ahash_hex": "ff5e405654007aff"
+        },
+        "w": {
+          "file": "runner_walk_w.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            32,
+            18,
+            995,
+            248
+          ],
+          "content_size": [
+            963,
+            230
+          ],
+          "aspect": 4.187,
+          "opaque_count": 61475,
+          "mean_rgb": [
+            73.9,
+            73.46,
+            69.18
+          ],
+          "ahash_hex": "fff64040424a7eff"
+        },
+        "nw": {
+          "file": "runner_walk_nw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            39,
+            15,
+            985,
+            251
+          ],
+          "content_size": [
+            946,
+            236
+          ],
+          "aspect": 4.0085,
+          "opaque_count": 58180,
+          "mean_rgb": [
+            55.41,
+            51.63,
+            55.54
+          ],
+          "ahash_hex": "ff5e425a4242faff"
+        },
+        "n": {
+          "file": "runner_walk_n.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            56,
+            19,
+            968,
+            248
+          ],
+          "content_size": [
+            912,
+            229
+          ],
+          "aspect": 3.9825,
+          "opaque_count": 37656,
+          "mean_rgb": [
+            56.53,
+            56.8,
+            56.06
+          ],
+          "ahash_hex": "ff5a52524252ffff"
+        },
+        "ne": {
+          "file": "runner_walk_ne.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            39,
+            15,
+            985,
+            251
+          ],
+          "content_size": [
+            946,
+            236
+          ],
+          "aspect": 4.0085,
+          "opaque_count": 58180,
+          "mean_rgb": [
+            55.41,
+            51.63,
+            55.54
+          ],
+          "ahash_hex": "ff6e425a425256ff"
+        }
+      },
+      "idle_pairwise_top": [
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 28,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 27,
+          "color_dist": 32.02,
+          "aspect_diff": 0.2351
+        },
+        {
+          "a": "s",
+          "b": "nw",
+          "hash_hamming": 27,
+          "color_dist": 34.08,
+          "aspect_diff": 0.2317
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 26,
+          "color_dist": 20.07,
+          "aspect_diff": 0.3699
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 26,
+          "color_dist": 11.5,
+          "aspect_diff": 0.3486
+        },
+        {
+          "a": "se",
+          "b": "s",
+          "hash_hamming": 25,
+          "color_dist": 25.7,
+          "aspect_diff": 0.3534
+        },
+        {
+          "a": "s",
+          "b": "ne",
+          "hash_hamming": 25,
+          "color_dist": 34.08,
+          "aspect_diff": 0.2317
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 24,
+          "color_dist": 8.38,
+          "aspect_diff": 0.1217
+        },
+        {
+          "a": "s",
+          "b": "sw",
+          "hash_hamming": 24,
+          "color_dist": 22.13,
+          "aspect_diff": 0.3665
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 24,
+          "color_dist": 19.68,
+          "aspect_diff": 0.2268
+        },
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 23,
+          "color_dist": 23.65,
+          "aspect_diff": 0.3568
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 23,
+          "color_dist": 12.43,
+          "aspect_diff": 0.1348
+        }
+      ],
+      "walk_pairwise_top": [
+        {
+          "a": "se",
+          "b": "s",
+          "hash_hamming": 21,
+          "color_dist": 18.98,
+          "aspect_diff": 0.1891
+        },
+        {
+          "a": "s",
+          "b": "sw",
+          "hash_hamming": 18,
+          "color_dist": 16.85,
+          "aspect_diff": 0.2914
+        },
+        {
+          "a": "se",
+          "b": "n",
+          "hash_hamming": 16,
+          "color_dist": 3.31,
+          "aspect_diff": 0.1446
+        },
+        {
+          "a": "s",
+          "b": "ne",
+          "hash_hamming": 16,
+          "color_dist": 26.82,
+          "aspect_diff": 0.0704
+        },
+        {
+          "a": "e",
+          "b": "s",
+          "hash_hamming": 15,
+          "color_dist": 12.58,
+          "aspect_diff": 0.2533
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 15,
+          "color_dist": 22.09,
+          "aspect_diff": 0.0381
+        },
+        {
+          "a": "se",
+          "b": "sw",
+          "hash_hamming": 15,
+          "color_dist": 3.32,
+          "aspect_diff": 0.1023
+        },
+        {
+          "a": "s",
+          "b": "w",
+          "hash_hamming": 15,
+          "color_dist": 12.58,
+          "aspect_diff": 0.2489
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 14,
+          "color_dist": 24.18,
+          "aspect_diff": 0.0598
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 14,
+          "color_dist": 10.53,
+          "aspect_diff": 0.221
+        },
+        {
+          "a": "s",
+          "b": "nw",
+          "hash_hamming": 13,
+          "color_dist": 26.82,
+          "aspect_diff": 0.0704
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 13,
+          "color_dist": 22.09,
+          "aspect_diff": 0.0425
+        }
+      ]
+    },
+    "crawler": {
+      "dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "walk_dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "missing": [],
+      "has_base": true,
+      "has_walk_base": true,
+      "outliers": [
+        {
+          "dir": "nw",
+          "reason": "mean hash-to-peers=25.0 (z=2.09)",
+          "distance": 0.7812,
+          "hash_vs_median": 17,
+          "color_vs_median": 3.64,
+          "aspect_vs_median": 0.0,
+          "mean_hash_to_peers": 25.0
+        },
+        {
+          "dir": "n",
+          "reason": "aspect vs median=0.596 (\u22650.45)",
+          "distance": 0.5957,
+          "hash_vs_median": 6,
+          "color_vs_median": 6.37,
+          "aspect_vs_median": 0.5957,
+          "mean_hash_to_peers": 15.29
+        },
+        {
+          "dir": "s",
+          "reason": "aspect vs median=0.578 (\u22650.45)",
+          "distance": 0.5783,
+          "hash_vs_median": 11,
+          "color_vs_median": 0.71,
+          "aspect_vs_median": 0.5783,
+          "mean_hash_to_peers": 17.29
+        },
+        {
+          "dir": "w",
+          "reason": "aspect vs median=0.578 (\u22650.45)",
+          "distance": 0.5783,
+          "hash_vs_median": 8,
+          "color_vs_median": 4.84,
+          "aspect_vs_median": 0.5783,
+          "mean_hash_to_peers": 17.29
+        },
+        {
+          "dir": "walk_n",
+          "reason": "[walk] aspect vs median=0.545 (\u22650.45)",
+          "distance": 0.5451
+        },
+        {
+          "dir": "walk_s",
+          "reason": "[walk] aspect vs median=0.519 (\u22650.45)",
+          "distance": 0.519
+        }
+      ],
+      "clusters": [
+        {
+          "id": "A",
+          "dirs": [
+            "e",
+            "se",
+            "s",
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne"
+          ],
+          "representative": "n"
+        }
+      ],
+      "recommendation": "keep",
+      "split_proposal": null,
+      "notes": "idle: 4 soft outlier(s) but not enough evidence for identity split (inter-hash=0.0); likely pose/angle variation \u2014 keep | walk: 2 soft outlier(s) but not enough evidence for identity split (inter-hash=0.0); likely pose/angle variation \u2014 keep",
+      "idle_stats": {
+        "hash_median": 19.5,
+        "hash_stdev": 6.35,
+        "hash_max": 36,
+        "color_median": 5.54,
+        "aspect_median": 0.5783,
+        "inter_cluster_hash_median": 0.0
+      },
+      "walk_stats": {
+        "hash_median": 16.0,
+        "hash_stdev": 4.21,
+        "hash_max": 24,
+        "color_median": 9.54,
+        "aspect_median": 0.2064,
+        "inter_cluster_hash_median": 0.0
+      },
+      "idle_per_dir": {
+        "e": {
+          "file": "crawler_e.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            0,
+            20,
+            256,
+            247
+          ],
+          "content_size": [
+            256,
+            227
+          ],
+          "aspect": 1.1278,
+          "opaque_count": 29758,
+          "mean_rgb": [
+            75.21,
+            83.73,
+            57.56
+          ],
+          "ahash_hex": "996809c1002f7fff"
+        },
+        "se": {
+          "file": "crawler_se.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            0,
+            18,
+            256,
+            248
+          ],
+          "content_size": [
+            256,
+            230
+          ],
+          "aspect": 1.113,
+          "opaque_count": 27898,
+          "mean_rgb": [
+            69.08,
+            76.94,
+            54.94
+          ],
+          "ahash_hex": "d9e90181800fbfff"
+        },
+        "s": {
+          "file": "crawler_s.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            178,
+            248
+          ],
+          "content_size": [
+            101,
+            230
+          ],
+          "aspect": 0.4391,
+          "opaque_count": 4835,
+          "mean_rgb": [
+            72.69,
+            78.13,
+            56.31
+          ],
+          "ahash_hex": "ffffbb0382d7ffff"
+        },
+        "sw": {
+          "file": "crawler_sw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            0,
+            21,
+            256,
+            248
+          ],
+          "content_size": [
+            256,
+            227
+          ],
+          "aspect": 1.1278,
+          "opaque_count": 33386,
+          "mean_rgb": [
+            71.96,
+            75.59,
+            56.31
+          ],
+          "ahash_hex": "9d9a80c100e4feff"
+        },
+        "w": {
+          "file": "crawler_w.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            78,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            101,
+            230
+          ],
+          "aspect": 0.4391,
+          "opaque_count": 4210,
+          "mean_rgb": [
+            76.26,
+            80.62,
+            58.42
+          ],
+          "ahash_hex": "ffff3f0100ffffff"
+        },
+        "nw": {
+          "file": "crawler_nw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            11,
+            18,
+            245,
+            248
+          ],
+          "content_size": [
+            234,
+            230
+          ],
+          "aspect": 1.0174,
+          "opaque_count": 19319,
+          "mean_rgb": [
+            69.0,
+            78.74,
+            54.83
+          ],
+          "ahash_hex": "ef8f01c0e0f0f8fd"
+        },
+        "n": {
+          "file": "crawler_n.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            79,
+            18,
+            176,
+            248
+          ],
+          "content_size": [
+            97,
+            230
+          ],
+          "aspect": 0.4217,
+          "opaque_count": 5752,
+          "mean_rgb": [
+            74.9,
+            84.37,
+            57.78
+          ],
+          "ahash_hex": "ffff030382c7ffff"
+        },
+        "ne": {
+          "file": "crawler_ne.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            11,
+            18,
+            245,
+            248
+          ],
+          "content_size": [
+            234,
+            230
+          ],
+          "aspect": 1.0174,
+          "opaque_count": 19319,
+          "mean_rgb": [
+            69.0,
+            78.74,
+            54.83
+          ],
+          "ahash_hex": "f7f18003070f1fbf"
+        }
+      },
+      "walk_per_dir": {
+        "e": {
+          "file": "crawler_walk_e.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            0,
+            18,
+            1024,
+            248
+          ],
+          "content_size": [
+            1024,
+            230
+          ],
+          "aspect": 4.4522,
+          "opaque_count": 94767,
+          "mean_rgb": [
+            98.98,
+            90.5,
+            88.08
+          ],
+          "ahash_hex": "ffffdd000022eeff"
+        },
+        "se": {
+          "file": "crawler_walk_se.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            0,
+            15,
+            1024,
+            250
+          ],
+          "content_size": [
+            1024,
+            235
+          ],
+          "aspect": 4.3574,
+          "opaque_count": 100104,
+          "mean_rgb": [
+            71.36,
+            79.94,
+            56.65
+          ],
+          "ahash_hex": "ffaa00000055ffff"
+        },
+        "s": {
+          "file": "crawler_walk_s.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            947,
+            248
+          ],
+          "content_size": [
+            870,
+            230
+          ],
+          "aspect": 3.7826,
+          "opaque_count": 18248,
+          "mean_rgb": [
+            67.13,
+            73.1,
+            51.88
+          ],
+          "ahash_hex": "ffff5e4242feffff"
+        },
+        "sw": {
+          "file": "crawler_walk_sw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            0,
+            19,
+            1024,
+            251
+          ],
+          "content_size": [
+            1024,
+            232
+          ],
+          "aspect": 4.4138,
+          "opaque_count": 129136,
+          "mean_rgb": [
+            73.3,
+            77.38,
+            57.31
+          ],
+          "ahash_hex": "ff55000000aaffff"
+        },
+        "w": {
+          "file": "crawler_walk_w.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            0,
+            18,
+            1024,
+            248
+          ],
+          "content_size": [
+            1024,
+            230
+          ],
+          "aspect": 4.4522,
+          "opaque_count": 94706,
+          "mean_rgb": [
+            98.99,
+            90.5,
+            88.09
+          ],
+          "ahash_hex": "ffffbb00004477ff"
+        },
+        "nw": {
+          "file": "crawler_walk_nw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            11,
+            15,
+            1013,
+            251
+          ],
+          "content_size": [
+            1002,
+            236
+          ],
+          "aspect": 4.2458,
+          "opaque_count": 69180,
+          "mean_rgb": [
+            70.73,
+            81.09,
+            56.06
+          ],
+          "ahash_hex": "ff5f0000aaaaebff"
+        },
+        "n": {
+          "file": "crawler_walk_n.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            80,
+            18,
+            944,
+            248
+          ],
+          "content_size": [
+            864,
+            230
+          ],
+          "aspect": 3.7565,
+          "opaque_count": 21810,
+          "mean_rgb": [
+            69.99,
+            80.27,
+            53.86
+          ],
+          "ahash_hex": "ffff5242525affff"
+        },
+        "ne": {
+          "file": "crawler_walk_ne.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            11,
+            15,
+            1013,
+            251
+          ],
+          "content_size": [
+            1002,
+            236
+          ],
+          "aspect": 4.2458,
+          "opaque_count": 69180,
+          "mean_rgb": [
+            70.73,
+            81.09,
+            56.06
+          ],
+          "ahash_hex": "ffae00005555f7ff"
+        }
+      },
+      "idle_pairwise_top": [
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 36,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 28,
+          "color_dist": 8.42,
+          "aspect_diff": 0.1104
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 26,
+          "color_dist": 4.56,
+          "aspect_diff": 0.1104
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 25,
+          "color_dist": 1.8,
+          "aspect_diff": 0.0957
+        },
+        {
+          "a": "e",
+          "b": "s",
+          "hash_hamming": 24,
+          "color_dist": 6.26,
+          "aspect_diff": 0.6886
+        },
+        {
+          "a": "s",
+          "b": "nw",
+          "hash_hamming": 24,
+          "color_dist": 4.02,
+          "aspect_diff": 0.5783
+        },
+        {
+          "a": "w",
+          "b": "nw",
+          "hash_hamming": 23,
+          "color_dist": 8.31,
+          "aspect_diff": 0.5783
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 23,
+          "color_dist": 8.31,
+          "aspect_diff": 0.5783
+        },
+        {
+          "a": "e",
+          "b": "ne",
+          "hash_hamming": 22,
+          "color_dist": 8.42,
+          "aspect_diff": 0.1104
+        },
+        {
+          "a": "s",
+          "b": "sw",
+          "hash_hamming": 22,
+          "color_dist": 2.64,
+          "aspect_diff": 0.6886
+        },
+        {
+          "a": "e",
+          "b": "n",
+          "hash_hamming": 21,
+          "color_dist": 0.75,
+          "aspect_diff": 0.706
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 21,
+          "color_dist": 6.94,
+          "aspect_diff": 0.6886
+        }
+      ],
+      "walk_pairwise_top": [
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 24,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "ne",
+          "hash_hamming": 22,
+          "color_dist": 43.73,
+          "aspect_diff": 0.2064
+        },
+        {
+          "a": "w",
+          "b": "nw",
+          "hash_hamming": 22,
+          "color_dist": 43.74,
+          "aspect_diff": 0.2064
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 20,
+          "color_dist": 1.44,
+          "aspect_diff": 0.1117
+        },
+        {
+          "a": "s",
+          "b": "ne",
+          "hash_hamming": 20,
+          "color_dist": 9.71,
+          "aspect_diff": 0.4632
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 20,
+          "color_dist": 4.68,
+          "aspect_diff": 0.168
+        },
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 18,
+          "color_dist": 43.15,
+          "aspect_diff": 0.0947
+        },
+        {
+          "a": "se",
+          "b": "s",
+          "hash_hamming": 18,
+          "color_dist": 9.36,
+          "aspect_diff": 0.5748
+        },
+        {
+          "a": "s",
+          "b": "nw",
+          "hash_hamming": 18,
+          "color_dist": 9.71,
+          "aspect_diff": 0.4632
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 18,
+          "color_dist": 42.19,
+          "aspect_diff": 0.0384
+        },
+        {
+          "a": "nw",
+          "b": "n",
+          "hash_hamming": 18,
+          "color_dist": 2.47,
+          "aspect_diff": 0.4892
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 16,
+          "color_dist": 43.73,
+          "aspect_diff": 0.2064
+        }
+      ]
+    },
+    "necro_node": {
+      "dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "walk_dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "missing": [],
+      "has_base": true,
+      "has_walk_base": true,
+      "outliers": [
+        {
+          "dir": "ne",
+          "reason": "hash vs median=23 (\u226522)",
+          "distance": 0.3594,
+          "hash_vs_median": 23,
+          "color_vs_median": 6.08,
+          "aspect_vs_median": 0.2478,
+          "mean_hash_to_peers": 23.43
+        }
+      ],
+      "clusters": [
+        {
+          "id": "A",
+          "dirs": [
+            "e",
+            "se",
+            "s",
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne"
+          ],
+          "representative": "s"
+        }
+      ],
+      "recommendation": "keep",
+      "split_proposal": null,
+      "notes": "idle: 1 soft outlier(s) but not enough evidence for identity split (inter-hash=0.0); likely pose/angle variation \u2014 keep | walk: directions consistent with single subject identity",
+      "idle_stats": {
+        "hash_median": 24.0,
+        "hash_stdev": 8.44,
+        "hash_max": 32,
+        "color_median": 13.23,
+        "aspect_median": 0.487,
+        "inter_cluster_hash_median": 0.0
+      },
+      "walk_stats": {
+        "hash_median": 21.0,
+        "hash_stdev": 7.6,
+        "hash_max": 27,
+        "color_median": 12.62,
+        "aspect_median": 0.091,
+        "inter_cluster_hash_median": 0.0
+      },
+      "idle_per_dir": {
+        "e": {
+          "file": "necro_node_e.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            178,
+            248
+          ],
+          "content_size": [
+            101,
+            230
+          ],
+          "aspect": 0.4391,
+          "opaque_count": 5605,
+          "mean_rgb": [
+            120.82,
+            96.98,
+            89.43
+          ],
+          "ahash_hex": "ffffc18004f9ffff"
+        },
+        "se": {
+          "file": "necro_node_se.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            21,
+            18,
+            234,
+            248
+          ],
+          "content_size": [
+            213,
+            230
+          ],
+          "aspect": 0.9261,
+          "opaque_count": 25403,
+          "mean_rgb": [
+            105.21,
+            85.67,
+            86.87
+          ],
+          "ahash_hex": "ffa1c482c826ecfd"
+        },
+        "s": {
+          "file": "necro_node_s.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            78,
+            18,
+            178,
+            248
+          ],
+          "content_size": [
+            100,
+            230
+          ],
+          "aspect": 0.4348,
+          "opaque_count": 6527,
+          "mean_rgb": [
+            121.18,
+            96.33,
+            88.66
+          ],
+          "ahash_hex": "ffffc10081cfffff"
+        },
+        "sw": {
+          "file": "necro_node_sw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            22,
+            18,
+            235,
+            248
+          ],
+          "content_size": [
+            213,
+            230
+          ],
+          "aspect": 0.9261,
+          "opaque_count": 25403,
+          "mean_rgb": [
+            105.21,
+            85.67,
+            86.87
+          ],
+          "ahash_hex": "ff852341136437bf"
+        },
+        "w": {
+          "file": "necro_node_w.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            78,
+            18,
+            178,
+            248
+          ],
+          "content_size": [
+            100,
+            230
+          ],
+          "aspect": 0.4348,
+          "opaque_count": 5635,
+          "mean_rgb": [
+            123.72,
+            98.89,
+            90.82
+          ],
+          "ahash_hex": "ffffbf200183ffff"
+        },
+        "nw": {
+          "file": "necro_node_nw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            21,
+            18,
+            235,
+            248
+          ],
+          "content_size": [
+            214,
+            230
+          ],
+          "aspect": 0.9304,
+          "opaque_count": 25229,
+          "mean_rgb": [
+            108.85,
+            89.06,
+            88.12
+          ],
+          "ahash_hex": "ff85234d136437bf"
+        },
+        "n": {
+          "file": "necro_node_n.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            178,
+            248
+          ],
+          "content_size": [
+            101,
+            230
+          ],
+          "aspect": 0.4391,
+          "opaque_count": 6549,
+          "mean_rgb": [
+            119.63,
+            94.68,
+            87.96
+          ],
+          "ahash_hex": "fffff3a50183ffff"
+        },
+        "ne": {
+          "file": "necro_node_ne.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            21,
+            18,
+            235,
+            248
+          ],
+          "content_size": [
+            214,
+            230
+          ],
+          "aspect": 0.9304,
+          "opaque_count": 25229,
+          "mean_rgb": [
+            108.85,
+            89.06,
+            88.12
+          ],
+          "ahash_hex": "ffa1c4b2c826ecfd"
+        }
+      },
+      "walk_per_dir": {
+        "e": {
+          "file": "necro_node_walk_e.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            24,
+            18,
+            1001,
+            248
+          ],
+          "content_size": [
+            977,
+            230
+          ],
+          "aspect": 4.2478,
+          "opaque_count": 91375,
+          "mean_rgb": [
+            96.4,
+            82.93,
+            47.7
+          ],
+          "ahash_hex": "4202007e5e7fffff"
+        },
+        "se": {
+          "file": "necro_node_walk_se.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            21,
+            15,
+            1002,
+            251
+          ],
+          "content_size": [
+            981,
+            236
+          ],
+          "aspect": 4.1568,
+          "opaque_count": 97568,
+          "mean_rgb": [
+            107.41,
+            87.46,
+            88.41
+          ],
+          "ahash_hex": "ff2a0a0a2a00faff"
+        },
+        "s": {
+          "file": "necro_node_walk_s.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            78,
+            18,
+            946,
+            248
+          ],
+          "content_size": [
+            868,
+            230
+          ],
+          "aspect": 3.7739,
+          "opaque_count": 25928,
+          "mean_rgb": [
+            119.9,
+            94.79,
+            86.78
+          ],
+          "ahash_hex": "ffff5a42425affff"
+        },
+        "sw": {
+          "file": "necro_node_walk_sw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            22,
+            15,
+            1003,
+            251
+          ],
+          "content_size": [
+            981,
+            236
+          ],
+          "aspect": 4.1568,
+          "opaque_count": 97568,
+          "mean_rgb": [
+            107.41,
+            87.46,
+            88.41
+          ],
+          "ahash_hex": "ff5450545400f7ff"
+        },
+        "w": {
+          "file": "necro_node_walk_w.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            22,
+            18,
+            999,
+            248
+          ],
+          "content_size": [
+            977,
+            230
+          ],
+          "aspect": 4.2478,
+          "opaque_count": 91375,
+          "mean_rgb": [
+            96.4,
+            82.93,
+            47.7
+          ],
+          "ahash_hex": "4240007e7afeffff"
+        },
+        "nw": {
+          "file": "necro_node_walk_nw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            21,
+            15,
+            1003,
+            251
+          ],
+          "content_size": [
+            982,
+            236
+          ],
+          "aspect": 4.161,
+          "opaque_count": 97472,
+          "mean_rgb": [
+            111.18,
+            91.18,
+            89.98
+          ],
+          "ahash_hex": "ff5450505000ffff"
+        },
+        "n": {
+          "file": "necro_node_walk_n.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            946,
+            248
+          ],
+          "content_size": [
+            869,
+            230
+          ],
+          "aspect": 3.7783,
+          "opaque_count": 26028,
+          "mean_rgb": [
+            116.56,
+            91.73,
+            85.04
+          ],
+          "ahash_hex": "ffff5a5a425affff"
+        },
+        "ne": {
+          "file": "necro_node_walk_ne.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            21,
+            15,
+            1003,
+            251
+          ],
+          "content_size": [
+            982,
+            236
+          ],
+          "aspect": 4.161,
+          "opaque_count": 97472,
+          "mean_rgb": [
+            111.18,
+            91.18,
+            89.98
+          ],
+          "ahash_hex": "ff2a0a0a0a00ffff"
+        }
+      },
+      "idle_pairwise_top": [
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 32,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 30,
+          "color_dist": 5.13,
+          "aspect_diff": 0.0043
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 30,
+          "color_dist": 5.13,
+          "aspect_diff": 0.0043
+        },
+        {
+          "a": "se",
+          "b": "sw",
+          "hash_hamming": 28,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 27,
+          "color_dist": 14.41,
+          "aspect_diff": 0.4913
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 26,
+          "color_dist": 23.08,
+          "aspect_diff": 0.4913
+        },
+        {
+          "a": "se",
+          "b": "n",
+          "hash_hamming": 26,
+          "color_dist": 17.03,
+          "aspect_diff": 0.487
+        },
+        {
+          "a": "w",
+          "b": "nw",
+          "hash_hamming": 26,
+          "color_dist": 18.03,
+          "aspect_diff": 0.4957
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 26,
+          "color_dist": 18.03,
+          "aspect_diff": 0.4957
+        },
+        {
+          "a": "n",
+          "b": "ne",
+          "hash_hamming": 26,
+          "color_dist": 12.15,
+          "aspect_diff": 0.4913
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 25,
+          "color_dist": 19.45,
+          "aspect_diff": 0.487
+        },
+        {
+          "a": "e",
+          "b": "ne",
+          "hash_hamming": 25,
+          "color_dist": 14.41,
+          "aspect_diff": 0.4913
+        }
+      ],
+      "walk_pairwise_top": [
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 27,
+          "color_dist": 42.41,
+          "aspect_diff": 0.091
+        },
+        {
+          "a": "e",
+          "b": "s",
+          "hash_hamming": 27,
+          "color_dist": 47.12,
+          "aspect_diff": 0.4739
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 27,
+          "color_dist": 42.41,
+          "aspect_diff": 0.091
+        },
+        {
+          "a": "s",
+          "b": "w",
+          "hash_hamming": 27,
+          "color_dist": 47.12,
+          "aspect_diff": 0.4739
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 26,
+          "color_dist": 45.55,
+          "aspect_diff": 0.0868
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 26,
+          "color_dist": 45.55,
+          "aspect_diff": 0.0868
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 25,
+          "color_dist": 42.41,
+          "aspect_diff": 0.091
+        },
+        {
+          "a": "e",
+          "b": "n",
+          "hash_hamming": 25,
+          "color_dist": 43.34,
+          "aspect_diff": 0.4696
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 25,
+          "color_dist": 42.41,
+          "aspect_diff": 0.091
+        },
+        {
+          "a": "w",
+          "b": "n",
+          "hash_hamming": 25,
+          "color_dist": 43.34,
+          "aspect_diff": 0.4696
+        },
+        {
+          "a": "e",
+          "b": "ne",
+          "hash_hamming": 24,
+          "color_dist": 45.55,
+          "aspect_diff": 0.0868
+        },
+        {
+          "a": "se",
+          "b": "sw",
+          "hash_hamming": 24,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        }
+      ]
+    },
+    "brute": {
+      "dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "walk_dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "missing": [],
+      "has_base": true,
+      "has_walk_base": true,
+      "outliers": [],
+      "clusters": [
+        {
+          "id": "A",
+          "dirs": [
+            "e",
+            "se",
+            "s",
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne"
+          ],
+          "representative": "s"
+        }
+      ],
+      "recommendation": "keep",
+      "split_proposal": null,
+      "notes": "idle: directions consistent with single subject identity | walk: directions consistent with single subject identity",
+      "idle_stats": {
+        "hash_median": 19.0,
+        "hash_stdev": 6.23,
+        "hash_max": 32,
+        "color_median": 5.58,
+        "aspect_median": 0.126,
+        "inter_cluster_hash_median": 0.0
+      },
+      "walk_stats": {
+        "hash_median": 17.0,
+        "hash_stdev": 6.83,
+        "hash_max": 30,
+        "color_median": 6.26,
+        "aspect_median": 0.0384,
+        "inter_cluster_hash_median": 0.0
+      },
+      "idle_per_dir": {
+        "e": {
+          "file": "brute_e.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            57,
+            18,
+            228,
+            248
+          ],
+          "content_size": [
+            171,
+            230
+          ],
+          "aspect": 0.7435,
+          "opaque_count": 15778,
+          "mean_rgb": [
+            65.64,
+            61.88,
+            61.4
+          ],
+          "ahash_hex": "e3e38181e1e1f9ff"
+        },
+        "se": {
+          "file": "brute_se.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            29,
+            18,
+            227,
+            248
+          ],
+          "content_size": [
+            198,
+            230
+          ],
+          "aspect": 0.8609,
+          "opaque_count": 24449,
+          "mean_rgb": [
+            59.88,
+            56.12,
+            59.53
+          ],
+          "ahash_hex": "db83c1410181b3bf"
+        },
+        "s": {
+          "file": "brute_s.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            26,
+            18,
+            230,
+            248
+          ],
+          "content_size": [
+            204,
+            230
+          ],
+          "aspect": 0.887,
+          "opaque_count": 21753,
+          "mean_rgb": [
+            65.2,
+            61.86,
+            59.63
+          ],
+          "ahash_hex": "dbc301018181dbff"
+        },
+        "sw": {
+          "file": "brute_sw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            10,
+            18,
+            244,
+            248
+          ],
+          "content_size": [
+            234,
+            230
+          ],
+          "aspect": 1.0174,
+          "opaque_count": 24999,
+          "mean_rgb": [
+            61.53,
+            57.98,
+            60.86
+          ],
+          "ahash_hex": "9f870c0c0307b7f7"
+        },
+        "w": {
+          "file": "brute_w.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            25,
+            18,
+            231,
+            248
+          ],
+          "content_size": [
+            206,
+            230
+          ],
+          "aspect": 0.8957,
+          "opaque_count": 15888,
+          "mean_rgb": [
+            66.2,
+            62.52,
+            62.16
+          ],
+          "ahash_hex": "e7c7c1c1c787cfff"
+        },
+        "nw": {
+          "file": "brute_nw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            11,
+            18,
+            245,
+            248
+          ],
+          "content_size": [
+            234,
+            230
+          ],
+          "aspect": 1.0174,
+          "opaque_count": 24635,
+          "mean_rgb": [
+            60.33,
+            56.52,
+            61.43
+          ],
+          "ahash_hex": "ef8f838404073fbf"
+        },
+        "n": {
+          "file": "brute_n.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            24,
+            18,
+            223,
+            248
+          ],
+          "content_size": [
+            199,
+            230
+          ],
+          "aspect": 0.8652,
+          "opaque_count": 22514,
+          "mean_rgb": [
+            61.11,
+            57.47,
+            57.48
+          ],
+          "ahash_hex": "d3c301018381d3ff"
+        },
+        "ne": {
+          "file": "brute_ne.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            11,
+            18,
+            245,
+            248
+          ],
+          "content_size": [
+            234,
+            230
+          ],
+          "aspect": 1.0174,
+          "opaque_count": 24635,
+          "mean_rgb": [
+            60.33,
+            56.52,
+            61.43
+          ],
+          "ahash_hex": "f7f1c12120e0fcfd"
+        }
+      },
+      "walk_per_dir": {
+        "e": {
+          "file": "brute_walk_e.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            15,
+            18,
+            995,
+            248
+          ],
+          "content_size": [
+            980,
+            230
+          ],
+          "aspect": 4.2609,
+          "opaque_count": 78123,
+          "mean_rgb": [
+            57.61,
+            51.91,
+            51.49
+          ],
+          "ahash_hex": "ff765554404055ff"
+        },
+        "se": {
+          "file": "brute_walk_se.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            29,
+            15,
+            994,
+            251
+          ],
+          "content_size": [
+            965,
+            236
+          ],
+          "aspect": 4.089,
+          "opaque_count": 83384,
+          "mean_rgb": [
+            63.2,
+            59.22,
+            62.68
+          ],
+          "ahash_hex": "ff526a4a4002ffff"
+        },
+        "s": {
+          "file": "brute_walk_s.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            26,
+            18,
+            998,
+            248
+          ],
+          "content_size": [
+            972,
+            230
+          ],
+          "aspect": 4.2261,
+          "opaque_count": 76958,
+          "mean_rgb": [
+            64.59,
+            61.51,
+            59.33
+          ],
+          "ahash_hex": "ff5a02004000ffff"
+        },
+        "sw": {
+          "file": "brute_walk_sw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            10,
+            15,
+            1012,
+            250
+          ],
+          "content_size": [
+            1002,
+            235
+          ],
+          "aspect": 4.2638,
+          "opaque_count": 83088,
+          "mean_rgb": [
+            64.48,
+            60.62,
+            63.65
+          ],
+          "ahash_hex": "ff5504005055ffff"
+        },
+        "w": {
+          "file": "brute_walk_w.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            28,
+            18,
+            1009,
+            248
+          ],
+          "content_size": [
+            981,
+            230
+          ],
+          "aspect": 4.2652,
+          "opaque_count": 78123,
+          "mean_rgb": [
+            57.61,
+            51.91,
+            51.49
+          ],
+          "ahash_hex": "ff6eaa2a020aaaff"
+        },
+        "nw": {
+          "file": "brute_walk_nw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            12,
+            15,
+            1012,
+            251
+          ],
+          "content_size": [
+            1000,
+            236
+          ],
+          "aspect": 4.2373,
+          "opaque_count": 82268,
+          "mean_rgb": [
+            61.11,
+            57.15,
+            62.19
+          ],
+          "ahash_hex": "ff555400005555ff"
+        },
+        "n": {
+          "file": "brute_walk_n.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            40,
+            18,
+            1000,
+            248
+          ],
+          "content_size": [
+            960,
+            230
+          ],
+          "aspect": 4.1739,
+          "opaque_count": 79810,
+          "mean_rgb": [
+            60.66,
+            57.09,
+            57.46
+          ],
+          "ahash_hex": "ff5a020242027aff"
+        },
+        "ne": {
+          "file": "brute_walk_ne.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            12,
+            15,
+            1012,
+            251
+          ],
+          "content_size": [
+            1000,
+            236
+          ],
+          "aspect": 4.2373,
+          "opaque_count": 82268,
+          "mean_rgb": [
+            61.11,
+            57.15,
+            62.19
+          ],
+          "ahash_hex": "ffaa2a0000aaaaff"
+        }
+      },
+      "idle_pairwise_top": [
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 32,
+          "color_dist": 1.97,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 30,
+          "color_dist": 5.68,
+          "aspect_diff": 0.2739
+        },
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 28,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "nw",
+          "b": "n",
+          "hash_hamming": 25,
+          "color_dist": 4.14,
+          "aspect_diff": 0.1522
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 24,
+          "color_dist": 7.54,
+          "aspect_diff": 0.2739
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 24,
+          "color_dist": 6.63,
+          "aspect_diff": 0.1217
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 24,
+          "color_dist": 8.42,
+          "aspect_diff": 0.1217
+        },
+        {
+          "a": "s",
+          "b": "nw",
+          "hash_hamming": 22,
+          "color_dist": 7.44,
+          "aspect_diff": 0.1304
+        },
+        {
+          "a": "se",
+          "b": "ne",
+          "hash_hamming": 21,
+          "color_dist": 1.99,
+          "aspect_diff": 0.1565
+        },
+        {
+          "a": "n",
+          "b": "ne",
+          "hash_hamming": 21,
+          "color_dist": 4.14,
+          "aspect_diff": 0.1522
+        },
+        {
+          "a": "s",
+          "b": "sw",
+          "hash_hamming": 20,
+          "color_dist": 5.48,
+          "aspect_diff": 0.1304
+        },
+        {
+          "a": "s",
+          "b": "ne",
+          "hash_hamming": 20,
+          "color_dist": 7.44,
+          "aspect_diff": 0.1304
+        }
+      ],
+      "walk_pairwise_top": [
+        {
+          "a": "w",
+          "b": "nw",
+          "hash_hamming": 30,
+          "color_dist": 12.42,
+          "aspect_diff": 0.0279
+        },
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 30,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "w",
+          "hash_hamming": 29,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0043
+        },
+        {
+          "a": "e",
+          "b": "ne",
+          "hash_hamming": 29,
+          "color_dist": 12.42,
+          "aspect_diff": 0.0236
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 26,
+          "color_dist": 16.46,
+          "aspect_diff": 0.0014
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 26,
+          "color_dist": 5.05,
+          "aspect_diff": 0.0265
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 21,
+          "color_dist": 2.98,
+          "aspect_diff": 0.1483
+        },
+        {
+          "a": "nw",
+          "b": "n",
+          "hash_hamming": 21,
+          "color_dist": 4.74,
+          "aspect_diff": 0.0634
+        },
+        {
+          "a": "e",
+          "b": "n",
+          "hash_hamming": 20,
+          "color_dist": 8.48,
+          "aspect_diff": 0.087
+        },
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 18,
+          "color_dist": 14.49,
+          "aspect_diff": 0.1719
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 17,
+          "color_dist": 16.46,
+          "aspect_diff": 0.003
+        },
+        {
+          "a": "se",
+          "b": "sw",
+          "hash_hamming": 17,
+          "color_dist": 2.14,
+          "aspect_diff": 0.1748
+        }
+      ]
+    },
+    "armored_dead": {
+      "dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "walk_dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "missing": [],
+      "has_base": true,
+      "has_walk_base": true,
+      "outliers": [],
+      "clusters": [
+        {
+          "id": "A",
+          "dirs": [
+            "e",
+            "se",
+            "s",
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne"
+          ],
+          "representative": "s"
+        }
+      ],
+      "recommendation": "keep",
+      "split_proposal": null,
+      "notes": "idle: directions consistent with single subject identity | walk: directions consistent with single subject identity",
+      "idle_stats": {
+        "hash_median": 16.5,
+        "hash_stdev": 4.64,
+        "hash_max": 26,
+        "color_median": 6.65,
+        "aspect_median": 0.0155,
+        "inter_cluster_hash_median": 0.0
+      },
+      "walk_stats": {
+        "hash_median": 5.5,
+        "hash_stdev": 2.28,
+        "hash_max": 10,
+        "color_median": 10.42,
+        "aspect_median": 0.0933,
+        "inter_cluster_hash_median": 0.0
+      },
+      "idle_per_dir": {
+        "e": {
+          "file": "armored_dead_e.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 8576,
+          "mean_rgb": [
+            57.79,
+            76.45,
+            70.73
+          ],
+          "ahash_hex": "e3e3e3c3c1c187ff"
+        },
+        "se": {
+          "file": "armored_dead_se.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            72,
+            18,
+            184,
+            248
+          ],
+          "content_size": [
+            112,
+            230
+          ],
+          "aspect": 0.487,
+          "opaque_count": 16120,
+          "mean_rgb": [
+            54.53,
+            72.52,
+            68.99
+          ],
+          "ahash_hex": "dbdbc1000089c3ff"
+        },
+        "s": {
+          "file": "armored_dead_s.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            76,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            103,
+            230
+          ],
+          "aspect": 0.4478,
+          "opaque_count": 12669,
+          "mean_rgb": [
+            56.79,
+            75.77,
+            69.94
+          ],
+          "ahash_hex": "dbd3c10001c3c3ff"
+        },
+        "sw": {
+          "file": "armored_dead_sw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 15729,
+          "mean_rgb": [
+            54.98,
+            72.32,
+            68.99
+          ],
+          "ahash_hex": "dfd383820048c3cf"
+        },
+        "w": {
+          "file": "armored_dead_w.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            76,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            103,
+            230
+          ],
+          "aspect": 0.4478,
+          "opaque_count": 8851,
+          "mean_rgb": [
+            55.82,
+            75.58,
+            70.0
+          ],
+          "ahash_hex": "c7c7c7c78383e1ff"
+        },
+        "nw": {
+          "file": "armored_dead_nw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            79,
+            19,
+            177,
+            248
+          ],
+          "content_size": [
+            98,
+            229
+          ],
+          "aspect": 0.4279,
+          "opaque_count": 15122,
+          "mean_rgb": [
+            51.32,
+            67.86,
+            65.0
+          ],
+          "ahash_hex": "f183c1830307c1f7"
+        },
+        "n": {
+          "file": "armored_dead_n.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 12535,
+          "mean_rgb": [
+            51.05,
+            69.4,
+            64.37
+          ],
+          "ahash_hex": "dbd3830081c3c7ff"
+        },
+        "ne": {
+          "file": "armored_dead_ne.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            79,
+            19,
+            177,
+            248
+          ],
+          "content_size": [
+            98,
+            229
+          ],
+          "aspect": 0.4279,
+          "opaque_count": 15122,
+          "mean_rgb": [
+            51.32,
+            67.86,
+            65.0
+          ],
+          "ahash_hex": "8fc183c1c0e083ef"
+        }
+      },
+      "walk_per_dir": {
+        "e": {
+          "file": "armored_dead_walk_e.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            50,
+            18,
+            974,
+            248
+          ],
+          "content_size": [
+            924,
+            230
+          ],
+          "aspect": 4.0174,
+          "opaque_count": 48581,
+          "mean_rgb": [
+            45.32,
+            52.07,
+            49.93
+          ],
+          "ahash_hex": "5f7a5a5a425a56ff"
+        },
+        "se": {
+          "file": "armored_dead_walk_se.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            72,
+            15,
+            952,
+            251
+          ],
+          "content_size": [
+            880,
+            236
+          ],
+          "aspect": 3.7288,
+          "opaque_count": 58736,
+          "mean_rgb": [
+            55.73,
+            74.66,
+            70.95
+          ],
+          "ahash_hex": "5e5a5a4a525a5aff"
+        },
+        "s": {
+          "file": "armored_dead_walk_s.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            76,
+            18,
+            947,
+            248
+          ],
+          "content_size": [
+            871,
+            230
+          ],
+          "aspect": 3.787,
+          "opaque_count": 48428,
+          "mean_rgb": [
+            54.43,
+            73.55,
+            68.37
+          ],
+          "ahash_hex": "7e5a5a42525a5aff"
+        },
+        "sw": {
+          "file": "armored_dead_walk_sw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            77,
+            15,
+            947,
+            251
+          ],
+          "content_size": [
+            870,
+            236
+          ],
+          "aspect": 3.6864,
+          "opaque_count": 59340,
+          "mean_rgb": [
+            55.82,
+            73.74,
+            70.31
+          ],
+          "ahash_hex": "7e5a5a5a5a5a5aff"
+        },
+        "w": {
+          "file": "armored_dead_walk_w.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            50,
+            18,
+            974,
+            248
+          ],
+          "content_size": [
+            924,
+            230
+          ],
+          "aspect": 4.0174,
+          "opaque_count": 48581,
+          "mean_rgb": [
+            45.32,
+            52.07,
+            49.93
+          ],
+          "ahash_hex": "fa5e5a5a425a6aff"
+        },
+        "nw": {
+          "file": "armored_dead_walk_nw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            79,
+            16,
+            945,
+            250
+          ],
+          "content_size": [
+            866,
+            234
+          ],
+          "aspect": 3.7009,
+          "opaque_count": 55492,
+          "mean_rgb": [
+            52.24,
+            69.62,
+            66.65
+          ],
+          "ahash_hex": "7a5a5a5a525a5aff"
+        },
+        "n": {
+          "file": "armored_dead_walk_n.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            76,
+            18,
+            947,
+            248
+          ],
+          "content_size": [
+            871,
+            230
+          ],
+          "aspect": 3.787,
+          "opaque_count": 48508,
+          "mean_rgb": [
+            49.33,
+            67.64,
+            63.14
+          ],
+          "ahash_hex": "5a5a5a425a5a7eff"
+        },
+        "ne": {
+          "file": "armored_dead_walk_ne.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            79,
+            16,
+            945,
+            250
+          ],
+          "content_size": [
+            866,
+            234
+          ],
+          "aspect": 3.7009,
+          "opaque_count": 55492,
+          "mean_rgb": [
+            52.24,
+            69.62,
+            66.65
+          ],
+          "ahash_hex": "5e5a5a5a4a5a5aff"
+        }
+      },
+      "idle_pairwise_top": [
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 26,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 21,
+          "color_dist": 3.52,
+          "aspect_diff": 0.0043
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 20,
+          "color_dist": 5.29,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 20,
+          "color_dist": 3.47,
+          "aspect_diff": 0.0391
+        },
+        {
+          "a": "sw",
+          "b": "nw",
+          "hash_hamming": 20,
+          "color_dist": 7.01,
+          "aspect_diff": 0.0155
+        },
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 19,
+          "color_dist": 5.4,
+          "aspect_diff": 0.0435
+        },
+        {
+          "a": "se",
+          "b": "ne",
+          "hash_hamming": 19,
+          "color_dist": 6.92,
+          "aspect_diff": 0.059
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 19,
+          "color_dist": 10.24,
+          "aspect_diff": 0.0199
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 18,
+          "color_dist": 12.19,
+          "aspect_diff": 0.0155
+        },
+        {
+          "a": "s",
+          "b": "ne",
+          "hash_hamming": 18,
+          "color_dist": 10.82,
+          "aspect_diff": 0.0199
+        },
+        {
+          "a": "nw",
+          "b": "n",
+          "hash_hamming": 18,
+          "color_dist": 1.68,
+          "aspect_diff": 0.0155
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 17,
+          "color_dist": 6.92,
+          "aspect_diff": 0.059
+        }
+      ],
+      "walk_pairwise_top": [
+        {
+          "a": "e",
+          "b": "w",
+          "hash_hamming": 10,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "n",
+          "hash_hamming": 9,
+          "color_dist": 20.81,
+          "aspect_diff": 0.2304
+        },
+        {
+          "a": "w",
+          "b": "n",
+          "hash_hamming": 9,
+          "color_dist": 20.81,
+          "aspect_diff": 0.2304
+        },
+        {
+          "a": "e",
+          "b": "s",
+          "hash_hamming": 8,
+          "color_dist": 29.74,
+          "aspect_diff": 0.2304
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 8,
+          "color_dist": 32.57,
+          "aspect_diff": 0.2886
+        },
+        {
+          "a": "s",
+          "b": "w",
+          "hash_hamming": 8,
+          "color_dist": 29.74,
+          "aspect_diff": 0.2304
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 7,
+          "color_dist": 31.56,
+          "aspect_diff": 0.331
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 7,
+          "color_dist": 25.21,
+          "aspect_diff": 0.3165
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 7,
+          "color_dist": 31.56,
+          "aspect_diff": 0.331
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 7,
+          "color_dist": 25.21,
+          "aspect_diff": 0.3165
+        },
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 6,
+          "color_dist": 32.57,
+          "aspect_diff": 0.2886
+        },
+        {
+          "a": "sw",
+          "b": "n",
+          "hash_hamming": 6,
+          "color_dist": 11.44,
+          "aspect_diff": 0.1005
+        }
+      ]
+    },
+    "mutant_enforcer": {
+      "dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "walk_dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "missing": [],
+      "has_base": true,
+      "has_walk_base": true,
+      "outliers": [],
+      "clusters": [
+        {
+          "id": "A",
+          "dirs": [
+            "e",
+            "se",
+            "s",
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne"
+          ],
+          "representative": "s"
+        }
+      ],
+      "recommendation": "keep",
+      "split_proposal": null,
+      "notes": "idle: directions consistent with single subject identity | walk: directions consistent with single subject identity",
+      "idle_stats": {
+        "hash_median": 20.0,
+        "hash_stdev": 3.42,
+        "hash_max": 26,
+        "color_median": 5.99,
+        "aspect_median": 0.1565,
+        "inter_cluster_hash_median": 0.0
+      },
+      "walk_stats": {
+        "hash_median": 18.0,
+        "hash_stdev": 4.46,
+        "hash_max": 26,
+        "color_median": 9.32,
+        "aspect_median": 0.0965,
+        "inter_cluster_hash_median": 0.0
+      },
+      "idle_per_dir": {
+        "e": {
+          "file": "mutant_enforcer_e.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            40,
+            49,
+            217,
+            248
+          ],
+          "content_size": [
+            177,
+            199
+          ],
+          "aspect": 0.8894,
+          "opaque_count": 16033,
+          "mean_rgb": [
+            58.21,
+            43.75,
+            41.78
+          ],
+          "ahash_hex": "ede1e38103e1c3ef"
+        },
+        "se": {
+          "file": "mutant_enforcer_se.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            20,
+            18,
+            236,
+            248
+          ],
+          "content_size": [
+            216,
+            230
+          ],
+          "aspect": 0.9391,
+          "opaque_count": 24450,
+          "mean_rgb": [
+            55.63,
+            37.78,
+            38.88
+          ],
+          "ahash_hex": "fdfbd96000c0c1f7"
+        },
+        "s": {
+          "file": "mutant_enforcer_s.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            76,
+            18,
+            178,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 6954,
+          "mean_rgb": [
+            57.72,
+            44.54,
+            44.17
+          ],
+          "ahash_hex": "ffffdbc30000dbff"
+        },
+        "sw": {
+          "file": "mutant_enforcer_sw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            28,
+            18,
+            227,
+            248
+          ],
+          "content_size": [
+            199,
+            230
+          ],
+          "aspect": 0.8652,
+          "opaque_count": 23761,
+          "mean_rgb": [
+            56.74,
+            36.72,
+            38.08
+          ],
+          "ahash_hex": "bf978707080183c7"
+        },
+        "w": {
+          "file": "mutant_enforcer_w.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 5357,
+          "mean_rgb": [
+            56.79,
+            41.96,
+            40.95
+          ],
+          "ahash_hex": "ffff878080c3ffff"
+        },
+        "nw": {
+          "file": "mutant_enforcer_nw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            38,
+            18,
+            218,
+            248
+          ],
+          "content_size": [
+            180,
+            230
+          ],
+          "aspect": 0.7826,
+          "opaque_count": 19753,
+          "mean_rgb": [
+            50.82,
+            36.43,
+            37.18
+          ],
+          "ahash_hex": "efef878180040f8f"
+        },
+        "n": {
+          "file": "mutant_enforcer_n.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            42,
+            19,
+            214,
+            248
+          ],
+          "content_size": [
+            172,
+            229
+          ],
+          "aspect": 0.7511,
+          "opaque_count": 19243,
+          "mean_rgb": [
+            55.24,
+            41.23,
+            39.29
+          ],
+          "ahash_hex": "dbdbc3c3812499db"
+        },
+        "ne": {
+          "file": "mutant_enforcer_ne.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            38,
+            18,
+            218,
+            248
+          ],
+          "content_size": [
+            180,
+            230
+          ],
+          "aspect": 0.7826,
+          "opaque_count": 19753,
+          "mean_rgb": [
+            50.82,
+            36.43,
+            37.18
+          ],
+          "ahash_hex": "f7f7e1810120f0f1"
+        }
+      },
+      "walk_per_dir": {
+        "e": {
+          "file": "mutant_enforcer_walk_e.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            25,
+            18,
+            999,
+            248
+          ],
+          "content_size": [
+            974,
+            230
+          ],
+          "aspect": 4.2348,
+          "opaque_count": 79894,
+          "mean_rgb": [
+            57.64,
+            57.38,
+            59.63
+          ],
+          "ahash_hex": "7f5e561000767777"
+        },
+        "se": {
+          "file": "mutant_enforcer_walk_se.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            20,
+            15,
+            1004,
+            251
+          ],
+          "content_size": [
+            984,
+            236
+          ],
+          "aspect": 4.1695,
+          "opaque_count": 90552,
+          "mean_rgb": [
+            57.81,
+            38.82,
+            39.91
+          ],
+          "ahash_hex": "ffffaa0800022aff"
+        },
+        "s": {
+          "file": "mutant_enforcer_walk_s.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            39,
+            10,
+            984,
+            246
+          ],
+          "content_size": [
+            945,
+            236
+          ],
+          "aspect": 4.0042,
+          "opaque_count": 82620,
+          "mean_rgb": [
+            57.54,
+            44.15,
+            44.01
+          ],
+          "ahash_hex": "ff7e5e5a4242427e"
+        },
+        "sw": {
+          "file": "mutant_enforcer_walk_sw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            28,
+            15,
+            995,
+            251
+          ],
+          "content_size": [
+            967,
+            236
+          ],
+          "aspect": 4.0975,
+          "opaque_count": 88280,
+          "mean_rgb": [
+            59.12,
+            37.71,
+            39.15
+          ],
+          "ahash_hex": "ff7f5455000054ff"
+        },
+        "w": {
+          "file": "mutant_enforcer_walk_w.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            25,
+            18,
+            998,
+            248
+          ],
+          "content_size": [
+            973,
+            230
+          ],
+          "aspect": 4.2304,
+          "opaque_count": 79894,
+          "mean_rgb": [
+            57.64,
+            57.38,
+            59.63
+          ],
+          "ahash_hex": "fe6a6a08006eeeee"
+        },
+        "nw": {
+          "file": "mutant_enforcer_walk_nw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            38,
+            15,
+            986,
+            251
+          ],
+          "content_size": [
+            948,
+            236
+          ],
+          "aspect": 4.0169,
+          "opaque_count": 71032,
+          "mean_rgb": [
+            53.52,
+            37.6,
+            38.41
+          ],
+          "ahash_hex": "ffff5f4a00405457"
+        },
+        "n": {
+          "file": "mutant_enforcer_walk_n.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            46,
+            18,
+            982,
+            248
+          ],
+          "content_size": [
+            936,
+            230
+          ],
+          "aspect": 4.0696,
+          "opaque_count": 72704,
+          "mean_rgb": [
+            53.8,
+            39.02,
+            37.45
+          ],
+          "ahash_hex": "ff7e5a7a424242ff"
+        },
+        "ne": {
+          "file": "mutant_enforcer_walk_ne.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            38,
+            15,
+            986,
+            251
+          ],
+          "content_size": [
+            948,
+            236
+          ],
+          "aspect": 4.0169,
+          "opaque_count": 71032,
+          "mean_rgb": [
+            53.52,
+            37.6,
+            38.41
+          ],
+          "ahash_hex": "fffffa5200002aea"
+        }
+      },
+      "idle_pairwise_top": [
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 26,
+          "color_dist": 5.28,
+          "aspect_diff": 0.1565
+        },
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 26,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "e",
+          "b": "n",
+          "hash_hamming": 24,
+          "color_dist": 4.62,
+          "aspect_diff": 0.1384
+        },
+        {
+          "a": "se",
+          "b": "sw",
+          "hash_hamming": 24,
+          "color_dist": 1.74,
+          "aspect_diff": 0.0739
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 24,
+          "color_dist": 5.99,
+          "aspect_diff": 0.0826
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 23,
+          "color_dist": 8.08,
+          "aspect_diff": 0.0242
+        },
+        {
+          "a": "se",
+          "b": "n",
+          "hash_hamming": 23,
+          "color_dist": 3.49,
+          "aspect_diff": 0.188
+        },
+        {
+          "a": "sw",
+          "b": "n",
+          "hash_hamming": 23,
+          "color_dist": 4.91,
+          "aspect_diff": 0.1141
+        },
+        {
+          "a": "w",
+          "b": "n",
+          "hash_hamming": 22,
+          "color_dist": 2.38,
+          "aspect_diff": 0.3076
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 21,
+          "color_dist": 11.37,
+          "aspect_diff": 0.1068
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 21,
+          "color_dist": 5.98,
+          "aspect_diff": 0.4217
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 21,
+          "color_dist": 8.97,
+          "aspect_diff": 0.3391
+        }
+      ],
+      "walk_pairwise_top": [
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 26,
+          "color_dist": 28.43,
+          "aspect_diff": 0.133
+        },
+        {
+          "a": "e",
+          "b": "ne",
+          "hash_hamming": 25,
+          "color_dist": 29.3,
+          "aspect_diff": 0.2178
+        },
+        {
+          "a": "w",
+          "b": "nw",
+          "hash_hamming": 25,
+          "color_dist": 29.3,
+          "aspect_diff": 0.2135
+        },
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 23,
+          "color_dist": 27.08,
+          "aspect_diff": 0.0653
+        },
+        {
+          "a": "e",
+          "b": "w",
+          "hash_hamming": 21,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0043
+        },
+        {
+          "a": "se",
+          "b": "sw",
+          "hash_hamming": 20,
+          "color_dist": 1.87,
+          "aspect_diff": 0.072
+        },
+        {
+          "a": "s",
+          "b": "w",
+          "hash_hamming": 20,
+          "color_dist": 20.47,
+          "aspect_diff": 0.2262
+        },
+        {
+          "a": "w",
+          "b": "n",
+          "hash_hamming": 20,
+          "color_dist": 29.05,
+          "aspect_diff": 0.1609
+        },
+        {
+          "a": "w",
+          "b": "ne",
+          "hash_hamming": 20,
+          "color_dist": 29.3,
+          "aspect_diff": 0.2135
+        },
+        {
+          "a": "e",
+          "b": "n",
+          "hash_hamming": 19,
+          "color_dist": 29.05,
+          "aspect_diff": 0.1652
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 19,
+          "color_dist": 4.71,
+          "aspect_diff": 0.1525
+        },
+        {
+          "a": "nw",
+          "b": "ne",
+          "hash_hamming": 19,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        }
+      ]
+    },
+    "zombie_colossus": {
+      "dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "walk_dirs_present": [
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "n",
+        "ne"
+      ],
+      "missing": [],
+      "has_base": true,
+      "has_walk_base": true,
+      "outliers": [
+        {
+          "dir": "walk_e",
+          "reason": "[walk] color vs median=58.4 (\u226555.0)",
+          "distance": 0.5843
+        },
+        {
+          "dir": "walk_w",
+          "reason": "[walk] color vs median=58.4 (\u226555.0)",
+          "distance": 0.5843
+        }
+      ],
+      "clusters": [
+        {
+          "id": "A",
+          "dirs": [
+            "e",
+            "se",
+            "s",
+            "sw",
+            "w",
+            "nw",
+            "n",
+            "ne"
+          ],
+          "representative": "n"
+        }
+      ],
+      "recommendation": "keep",
+      "split_proposal": null,
+      "notes": "idle: directions consistent with single subject identity | walk: 2 soft outlier(s) but not enough evidence for identity split (inter-hash=0.0); likely pose/angle variation \u2014 keep",
+      "idle_stats": {
+        "hash_median": 23.0,
+        "hash_stdev": 3.68,
+        "hash_max": 30,
+        "color_median": 13.4,
+        "aspect_median": 0.2435,
+        "inter_cluster_hash_median": 0.0
+      },
+      "walk_stats": {
+        "hash_median": 15.0,
+        "hash_stdev": 5.24,
+        "hash_max": 18,
+        "color_median": 28.45,
+        "aspect_median": 0.152,
+        "inter_cluster_hash_median": 0.0
+      },
+      "idle_per_dir": {
+        "e": {
+          "file": "zombie_colossus_e.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 8110,
+          "mean_rgb": [
+            101.91,
+            99.04,
+            89.48
+          ],
+          "ahash_hex": "ff72f3e9e1e9efff"
+        },
+        "se": {
+          "file": "zombie_colossus_se.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            49,
+            18,
+            207,
+            248
+          ],
+          "content_size": [
+            158,
+            230
+          ],
+          "aspect": 0.687,
+          "opaque_count": 23661,
+          "mean_rgb": [
+            108.5,
+            107.29,
+            100.12
+          ],
+          "ahash_hex": "ff939346095debdf"
+        },
+        "s": {
+          "file": "zombie_colossus_s.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 11566,
+          "mean_rgb": [
+            106.07,
+            106.78,
+            93.36
+          ],
+          "ahash_hex": "ff5a24a599dbffff"
+        },
+        "sw": {
+          "file": "zombie_colossus_sw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            49,
+            18,
+            207,
+            248
+          ],
+          "content_size": [
+            158,
+            230
+          ],
+          "aspect": 0.687,
+          "opaque_count": 23661,
+          "mean_rgb": [
+            108.5,
+            107.29,
+            100.12
+          ],
+          "ahash_hex": "ffc9c96290bad7fb"
+        },
+        "w": {
+          "file": "zombie_colossus_w.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 8210,
+          "mean_rgb": [
+            102.28,
+            100.67,
+            89.38
+          ],
+          "ahash_hex": "ff4e8f978797f7ff"
+        },
+        "nw": {
+          "file": "zombie_colossus_nw.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            41,
+            18,
+            215,
+            248
+          ],
+          "content_size": [
+            174,
+            230
+          ],
+          "aspect": 0.7565,
+          "opaque_count": 25014,
+          "mean_rgb": [
+            92.56,
+            92.09,
+            85.99
+          ],
+          "ahash_hex": "8701d1f7c6f3e7ff"
+        },
+        "n": {
+          "file": "zombie_colossus_n.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            179,
+            248
+          ],
+          "content_size": [
+            102,
+            230
+          ],
+          "aspect": 0.4435,
+          "opaque_count": 11820,
+          "mean_rgb": [
+            95.93,
+            94.86,
+            85.71
+          ],
+          "ahash_hex": "ffff420081ffffff"
+        },
+        "ne": {
+          "file": "zombie_colossus_ne.png",
+          "canvas": [
+            256,
+            256
+          ],
+          "bbox": [
+            41,
+            18,
+            215,
+            248
+          ],
+          "content_size": [
+            174,
+            230
+          ],
+          "aspect": 0.7565,
+          "opaque_count": 25014,
+          "mean_rgb": [
+            92.56,
+            92.09,
+            85.99
+          ],
+          "ahash_hex": "e1808bef63cfe7ff"
+        }
+      },
+      "walk_per_dir": {
+        "e": {
+          "file": "zombie_colossus_walk_e.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            37,
+            18,
+            990,
+            248
+          ],
+          "content_size": [
+            953,
+            230
+          ],
+          "aspect": 4.1435,
+          "opaque_count": 71533,
+          "mean_rgb": [
+            57.54,
+            56.05,
+            56.76
+          ],
+          "ahash_hex": "760a5a52525a5eff"
+        },
+        "se": {
+          "file": "zombie_colossus_walk_se.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            49,
+            15,
+            975,
+            251
+          ],
+          "content_size": [
+            926,
+            236
+          ],
+          "aspect": 3.9237,
+          "opaque_count": 91804,
+          "mean_rgb": [
+            109.47,
+            108.28,
+            101.0
+          ],
+          "ahash_hex": "ff5e424240ffffff"
+        },
+        "s": {
+          "file": "zombie_colossus_walk_s.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            947,
+            248
+          ],
+          "content_size": [
+            870,
+            230
+          ],
+          "aspect": 3.7826,
+          "opaque_count": 43686,
+          "mean_rgb": [
+            101.91,
+            103.4,
+            90.58
+          ],
+          "ahash_hex": "ff5a424242ffffff"
+        },
+        "sw": {
+          "file": "zombie_colossus_walk_sw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            49,
+            15,
+            975,
+            251
+          ],
+          "content_size": [
+            926,
+            236
+          ],
+          "aspect": 3.9237,
+          "opaque_count": 91804,
+          "mean_rgb": [
+            109.47,
+            108.28,
+            101.0
+          ],
+          "ahash_hex": "ff5a424202ffffff"
+        },
+        "w": {
+          "file": "zombie_colossus_walk_w.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            33,
+            18,
+            986,
+            248
+          ],
+          "content_size": [
+            953,
+            230
+          ],
+          "aspect": 4.1435,
+          "opaque_count": 71533,
+          "mean_rgb": [
+            57.54,
+            56.05,
+            56.76
+          ],
+          "ahash_hex": "6e505a4a4a5a7aff"
+        },
+        "nw": {
+          "file": "zombie_colossus_walk_nw.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            41,
+            15,
+            983,
+            251
+          ],
+          "content_size": [
+            942,
+            236
+          ],
+          "aspect": 3.9915,
+          "opaque_count": 96164,
+          "mean_rgb": [
+            92.7,
+            92.34,
+            86.1
+          ],
+          "ahash_hex": "54004a7a52ffffff"
+        },
+        "n": {
+          "file": "zombie_colossus_walk_n.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            77,
+            18,
+            947,
+            248
+          ],
+          "content_size": [
+            870,
+            230
+          ],
+          "aspect": 3.7826,
+          "opaque_count": 45450,
+          "mean_rgb": [
+            92.36,
+            92.04,
+            83.5
+          ],
+          "ahash_hex": "ff7f5a4242ffffff"
+        },
+        "ne": {
+          "file": "zombie_colossus_walk_ne.png",
+          "canvas": [
+            1024,
+            256
+          ],
+          "bbox": [
+            41,
+            15,
+            983,
+            251
+          ],
+          "content_size": [
+            942,
+            236
+          ],
+          "aspect": 3.9915,
+          "opaque_count": 96164,
+          "mean_rgb": [
+            92.7,
+            92.34,
+            86.1
+          ],
+          "ahash_hex": "2a00525e42ffffff"
+        }
+      },
+      "idle_pairwise_top": [
+        {
+          "a": "nw",
+          "b": "n",
+          "hash_hamming": 30,
+          "color_dist": 4.37,
+          "aspect_diff": 0.313
+        },
+        {
+          "a": "n",
+          "b": "ne",
+          "hash_hamming": 30,
+          "color_dist": 4.37,
+          "aspect_diff": 0.313
+        },
+        {
+          "a": "s",
+          "b": "nw",
+          "hash_hamming": 28,
+          "color_dist": 21.28,
+          "aspect_diff": 0.313
+        },
+        {
+          "a": "s",
+          "b": "ne",
+          "hash_hamming": 28,
+          "color_dist": 21.28,
+          "aspect_diff": 0.313
+        },
+        {
+          "a": "e",
+          "b": "w",
+          "hash_hamming": 27,
+          "color_dist": 1.68,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 27,
+          "color_dist": 26.17,
+          "aspect_diff": 0.0696
+        },
+        {
+          "a": "sw",
+          "b": "ne",
+          "hash_hamming": 27,
+          "color_dist": 26.17,
+          "aspect_diff": 0.0696
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 26,
+          "color_dist": 14.99,
+          "aspect_diff": 0.2435
+        },
+        {
+          "a": "se",
+          "b": "sw",
+          "hash_hamming": 26,
+          "color_dist": 0.0,
+          "aspect_diff": 0.0
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 25,
+          "color_dist": 14.06,
+          "aspect_diff": 0.2435
+        },
+        {
+          "a": "e",
+          "b": "nw",
+          "hash_hamming": 23,
+          "color_dist": 12.16,
+          "aspect_diff": 0.313
+        },
+        {
+          "a": "se",
+          "b": "s",
+          "hash_hamming": 23,
+          "color_dist": 7.2,
+          "aspect_diff": 0.2435
+        }
+      ],
+      "walk_pairwise_top": [
+        {
+          "a": "e",
+          "b": "se",
+          "hash_hamming": 18,
+          "color_dist": 85.92,
+          "aspect_diff": 0.2197
+        },
+        {
+          "a": "se",
+          "b": "w",
+          "hash_hamming": 18,
+          "color_dist": 85.92,
+          "aspect_diff": 0.2197
+        },
+        {
+          "a": "w",
+          "b": "nw",
+          "hash_hamming": 18,
+          "color_dist": 58.43,
+          "aspect_diff": 0.152
+        },
+        {
+          "a": "e",
+          "b": "sw",
+          "hash_hamming": 17,
+          "color_dist": 85.92,
+          "aspect_diff": 0.2197
+        },
+        {
+          "a": "e",
+          "b": "n",
+          "hash_hamming": 17,
+          "color_dist": 56.77,
+          "aspect_diff": 0.3609
+        },
+        {
+          "a": "e",
+          "b": "ne",
+          "hash_hamming": 17,
+          "color_dist": 58.43,
+          "aspect_diff": 0.152
+        },
+        {
+          "a": "sw",
+          "b": "w",
+          "hash_hamming": 17,
+          "color_dist": 85.92,
+          "aspect_diff": 0.2197
+        },
+        {
+          "a": "w",
+          "b": "n",
+          "hash_hamming": 17,
+          "color_dist": 56.77,
+          "aspect_diff": 0.3609
+        },
+        {
+          "a": "nw",
+          "b": "n",
+          "hash_hamming": 17,
+          "color_dist": 2.64,
+          "aspect_diff": 0.2089
+        },
+        {
+          "a": "e",
+          "b": "s",
+          "hash_hamming": 16,
+          "color_dist": 73.18,
+          "aspect_diff": 0.3609
+        },
+        {
+          "a": "se",
+          "b": "nw",
+          "hash_hamming": 16,
+          "color_dist": 27.53,
+          "aspect_diff": 0.0678
+        },
+        {
+          "a": "s",
+          "b": "w",
+          "hash_hamming": 16,
+          "color_dist": 73.18,
+          "aspect_diff": 0.3609
+        }
+      ]
+    }
+  }
+}

@@ -1,51 +1,3 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HiVE SWARM</title><style>
-*{box-sizing:border-box}html,body{margin:0;background:#050b14;color:#e8f7ff;font:14px system-ui,sans-serif;overflow:hidden}canvas{display:block;width:100vw;height:100vh;touch-action:none}#hint{position:fixed;inset:auto 0 18px;text-align:center;color:#9ec4c0;pointer-events:none;letter-spacing:.05em}#hint b{color:#e4fff8}
-/* 2026-08-05: was left:14px/top:14px, which sat on top of the HUD text (Eric, playtest).
-   Moved to the right edge and lower so it covers nothing. */
-#pauseBtn{position:fixed;right:14px;top:96px;z-index:6;width:48px;height:48px;border-radius:12px;border:1px solid #7cf9ff;background:rgba(8,30,40,.88);color:#7cf9ff;font-size:22px;font-weight:900;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 0 16px rgba(0,255,255,.25)}
-#pauseBtn:active{transform:scale(.96)}#pauseOverlay{position:fixed;inset:0;z-index:7;background:rgba(2,8,16,.72);display:none;place-content:center;text-align:center;color:#e8f7ff;font:700 28px system-ui;pointer-events:none}#pauseOverlay.on{display:grid}
-#forgeBtn{position:fixed;right:14px;top:14px;border:1px solid #6fffe2;background:#102326;color:#bafff2;border-radius:50%;width:38px;height:38px;font-size:20px;z-index:5;cursor:pointer}
-#forge{position:fixed;left:24px;top:24px;z-index:50;width:min(720px,92vw);height:82vh;min-width:320px;min-height:280px;resize:both;overflow:hidden;display:none;flex-direction:column;background:#0d1a1d;border:1px solid #62d9c7;border-radius:12px;box-shadow:0 16px 60px #000c;color:#dce9e7;font:13px system-ui,sans-serif}
-#forge.open{display:flex}#forgeHead{cursor:move;padding:10px 14px;border-bottom:1px solid #3a6a62;display:flex;align-items:center;gap:10px;background:#102326}#forgeHead b{color:#6fffe2;font-size:16px}#forgeHead small{color:#9ebbb6;font-size:10px;letter-spacing:1px}#forgeHead .x{margin-left:auto;cursor:pointer;color:#f88;font-weight:900;font-size:16px;padding:0 6px}
-#forgeTabs{display:flex;flex-wrap:wrap;gap:2px;padding:6px 10px 0}#forgeTabs button{padding:6px 10px;cursor:pointer;border:1px solid #3a6a62;border-bottom:none;border-radius:8px 8px 0 0;background:#0a181b;color:#8ab;letter-spacing:.5px;font-size:11px;font-weight:700}#forgeTabs button.on{background:#16383a;color:#6fffe2}
-#forgeBody{overflow:auto;padding:12px 14px;flex:1;min-height:0}#forge .hint{color:#9ebbb6;font-size:11px;margin:4px 0 10px}#forge .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
-#forge label{display:grid;grid-template-columns:1fr 76px;gap:7px;margin:4px 0;color:#cce1dd;min-width:140px}#forge input,#forge select,#forge textarea{background:#071215;color:#e9fffa;border:1px solid #426862;border-radius:3px;padding:3px 5px;font:12px monospace}#forge input[type=number]{width:64px}#forge input[type=text]{width:140px;max-width:100%}#forge textarea{width:100%;max-width:100%;height:72px;box-sizing:border-box}
-#forge button{background:#1f5e57;color:#eff;border:0;border-radius:5px;padding:6px 10px;cursor:pointer;font-weight:700;font-size:11px;margin:2px}#forge button.warn{background:#5e1f2a}#forge button.on{outline:1px solid #6fffe2}
-#forge table{width:100%;border-collapse:collapse;font-size:12px}#forge th{color:#78efdb;text-align:left;padding:4px;border-bottom:1px solid #3a6a62}#forge td{padding:4px;border-bottom:1px solid #1a3034;vertical-align:middle}
-#forge .kthumb{width:40px;height:40px;object-fit:contain;border:1px solid #3a6a62;border-radius:4px;background:#071215;image-rendering:pixelated}
-/* Sprite editor layout must stay inside #forgeBody (Eric 2026-08-07 overflow fix) */
-#forge .entSplit{display:flex;gap:10px;align-items:stretch;min-height:0;max-height:calc(82vh - 120px)}
-#forge .entLeft{flex:0 0 170px;overflow:auto;min-height:0;max-height:100%}
-#forge .entRight{flex:1;min-width:0;overflow:auto;min-height:0;max-height:100%}
-#forge .paintRow{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
-#forge .paintWrap{position:relative;flex:0 0 auto;overflow:auto;max-width:100%;max-height:min(420px,50vh);border:1px solid #3a6a62;border-radius:6px;background:#071215;padding:4px}
-#forgePaint{width:256px;height:256px;max-width:none;flex:0 0 auto;border:1px solid #62d9c7;border-radius:4px;background:repeating-conic-gradient(#222 0 25%,#333 0 50%) 0 0/16px 16px;touch-action:none;cursor:none;image-rendering:pixelated;display:block}
-/* Circular brush cursor — diameter tracks brush.size * zoom */
-#forgeBrushCur{position:absolute;pointer-events:none;border:1.5px solid #6fffe2;border-radius:50%;box-shadow:0 0 0 1px #000a,0 0 8px #6fffe288;display:none;z-index:5;transform:translate(-50%,-50%);box-sizing:border-box}
-#forgeBrushCur.erase{border-color:#f88;box-shadow:0 0 0 1px #000a,0 0 8px #f888}
-#forgeBrushCur.wand{border-color:#fc6;border-radius:2px}
-#forge .paintTools{flex:1;min-width:160px;max-width:100%}
-#forge .frames{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0;max-height:90px;overflow:auto}#forge .frames canvas{border:1px solid #333;border-radius:4px;cursor:pointer;background:#111;image-rendering:pixelated;width:36px;height:36px}#forge .frames canvas.sel{border-color:#6fffe2}
-#forge label .tipMark{opacity:.55;font-size:10px;cursor:help;margin-left:3px;color:#6fffe2}
-/* Single themed tooltip only — never also set title= on these labels (avoids yellow browser tip). */
-#forge label[data-tip]:hover::after{content:attr(data-tip);position:absolute;z-index:80;left:0;top:100%;margin-top:4px;max-width:280px;white-space:normal;background:#0a2024;border:1px solid #6fffe2;color:#e4fff8;padding:8px 10px;border-radius:6px;font:11px system-ui;line-height:1.35;box-shadow:0 8px 24px #000a;pointer-events:none}
-#forge label{position:relative}
-#forge .wepHead{display:flex;align-items:center;gap:10px;margin:0 0 8px;flex-wrap:wrap}
-#forge .wepPrev,#forge .pickupPrev{width:48px;height:48px;border:1px solid #3a6a62;border-radius:6px;background:#071215;image-rendering:pixelated;flex:0 0 auto}
-#forge .dirGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0;max-height:240px;overflow:auto}
-#forge .dirCell{background:#0a181b;border:1px solid #2a4a46;border-radius:6px;padding:4px;text-align:center;cursor:pointer}
-#forge .dirCell.sel{border-color:#6fffe2;box-shadow:0 0 0 1px #6fffe2}
-#forge .dirCell b{display:block;color:#78efdb;font:700 10px system-ui;margin-bottom:2px;text-transform:uppercase;cursor:pointer}
-#forge .dirCell canvas,#forge .dirCell img{width:48px;height:48px;object-fit:contain;border:1px solid #333;background:#111;image-rendering:pixelated;cursor:pointer}
-#forge .sfxRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
-#forge .sfxRow select{min-width:140px;max-width:100%}
-.overlay{position:fixed;inset:0;z-index:10;background:#061014e8;display:grid;place-content:center;gap:10px;padding:24px;text-align:center;overflow:auto}
-.overlay h2{margin:0;color:#e4fff8}.overlay .slot{width:min(420px,90vw);padding:14px;background:#13262a;border:1px solid #426862;border-radius:8px;text-align:left;cursor:pointer}.overlay .slot.on{border-color:#6fffe2}.overlay .slot button{float:right;background:#5e1f2a;color:#fcc;border:0;border-radius:4px;padding:4px 8px;cursor:pointer}
-.toast{position:fixed;left:50%;top:90px;transform:translateX(-50%);z-index:12;background:rgba(40,20,60,.9);border:1px solid #c6f;border-radius:8px;padding:10px 22px;text-align:center;pointer-events:none;color:#e8d8ff}
-.toast b{display:block;color:#c6f;font-size:12px;letter-spacing:1px}.toast span{font-weight:700;font-size:16px;color:#fff}
-</style></head><body><canvas id="game"></canvas><button type="button" id="pauseBtn" title="Pause (P / Esc)" aria-label="Pause">⏸</button><div id="pauseOverlay">PAUSED<br><span style="font:14px system-ui;font-weight:500;color:#9ec4c0">tap ⏸ or press P / Esc</span></div><div id="hint"><b>WASD / ARROWS</b> or the on-screen stick to move · weapons fire automatically · survive the swarm</div>
-<script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
 const GAME_VERSION='0.3.0';
@@ -2138,4 +2090,3 @@ window.__hiveSwarmForge=()=>copy(EDIT);
 window.__hiveSwarmForgeUI={open:openForge,setTab:v=>{tab=v;renderTab()},html:()=>body.innerHTML,tabs:()=>TABS.slice()};
 }catch(err){console.error('FORGE init failed',err)}
 })();
-</script></body></html>
