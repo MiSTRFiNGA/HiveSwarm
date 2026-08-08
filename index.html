@@ -19,8 +19,12 @@
 #forge .entLeft{flex:0 0 170px;overflow:auto;min-height:0;max-height:100%}
 #forge .entRight{flex:1;min-width:0;overflow:auto;min-height:0;max-height:100%}
 #forge .paintRow{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
-#forge .paintWrap{flex:0 0 auto;overflow:auto;max-width:100%;max-height:min(420px,50vh);border:1px solid #3a6a62;border-radius:6px;background:#071215;padding:4px}
-#forgePaint{width:256px;height:256px;max-width:none;flex:0 0 auto;border:1px solid #62d9c7;border-radius:4px;background:repeating-conic-gradient(#222 0 25%,#333 0 50%) 0 0/16px 16px;touch-action:none;cursor:crosshair;image-rendering:pixelated;display:block}
+#forge .paintWrap{position:relative;flex:0 0 auto;overflow:auto;max-width:100%;max-height:min(420px,50vh);border:1px solid #3a6a62;border-radius:6px;background:#071215;padding:4px}
+#forgePaint{width:256px;height:256px;max-width:none;flex:0 0 auto;border:1px solid #62d9c7;border-radius:4px;background:repeating-conic-gradient(#222 0 25%,#333 0 50%) 0 0/16px 16px;touch-action:none;cursor:none;image-rendering:pixelated;display:block}
+/* Circular brush cursor — diameter tracks brush.size * zoom */
+#forgeBrushCur{position:absolute;pointer-events:none;border:1.5px solid #6fffe2;border-radius:50%;box-shadow:0 0 0 1px #000a,0 0 8px #6fffe288;display:none;z-index:5;transform:translate(-50%,-50%);box-sizing:border-box}
+#forgeBrushCur.erase{border-color:#f88;box-shadow:0 0 0 1px #000a,0 0 8px #f888}
+#forgeBrushCur.wand{border-color:#fc6;border-radius:2px}
 #forge .paintTools{flex:1;min-width:160px;max-width:100%}
 #forge .frames{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0;max-height:90px;overflow:auto}#forge .frames canvas{border:1px solid #333;border-radius:4px;cursor:pointer;background:#111;image-rendering:pixelated;width:36px;height:36px}#forge .frames canvas.sel{border-color:#6fffe2}
 #forge label .tipMark{opacity:.55;font-size:10px;cursor:help;margin-left:3px;color:#6fffe2}
@@ -44,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.2.1';
+const GAME_VERSION='0.2.2';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -1302,7 +1306,7 @@ function renderEntitiesEditor(){
       <input type="file" id="dirFile" accept="image/*" style="display:none">`:'';
   const paintHtml=isSpriteBody?(
     '<div class="hint" id="paintTargetLab">Editing: <b>'+(paintDir?('walk_'+paintDir):'base sprite')+'</b> - click a walk still below to switch sheets</div>'+
-    '<div class="paintRow"><div class="paintWrap"><canvas id="forgePaint" width="128" height="128"></canvas></div>'+
+    '<div class="paintRow"><div class="paintWrap" id="paintWrap"><canvas id="forgePaint" width="128" height="128"></canvas><div id="forgeBrushCur"></div></div>'+
     '<div class="paintTools">'+
     '<div class="row">'+
     '<button id="spToolBrush" class="'+(brush.tool==='brush'&&!brush.erase?'on':'')+'">BRUSH</button>'+
@@ -1324,9 +1328,11 @@ function renderEntitiesEditor(){
     '<div class="row"><button id="spSave">SAVE</button>'+
     ' <button id="spImp">IMPORT</button>'+
     ' <button id="spExpFrame">EXPORT FRAME</button>'+
+    ' <button id="spExpSheet">EXPORT CHAR SHEET</button>'+
+    ' <button id="spExpAll">EXPORT ALL SHEETS</button>'+
     ' <button id="spRev" class="warn">REVERT</button>'+
     ' <input type="file" id="spFile" accept="image/*" style="display:none"></div>'+
-    '<div class="hint">Wand: click connected color (magenta) then DEL SEL. Zoom for pixels. UNDO / Ctrl+Z. Save writes active sheet.</div>'+
+    '<div class="hint">Circle brush cursor scales with SIZE. Wand: click magenta then DEL SEL. EXPORT CHAR SHEET = all 8 walk dirs for this unit. EXPORT ALL SHEETS = every cast member (download pack).</div>'+
     (thumb?'<img src="'+esc(thumb)+'" alt="" style="max-width:96px;max-height:64px;border:1px solid #245;margin-top:4px;object-fit:contain">':'')+
     '</div></div>'+dirGrid
   ):(isWeapon?'<div class="hint">Weapons use procedural/icon art + color. Tune stats above; fire SFX via dropdown.</div>':'');
@@ -1552,25 +1558,53 @@ function renderEntitiesEditor(){
     for(let i=0;i<paintSelMask.length;i++)if(paintSelMask[i])d[i*4+3]=0;
     g.putImageData(id,ox,0);paintSelMask=null;drawFrame();renderThumbs();
   }
+  // Circular stamp — diameter = brush.size (same units as SIZE control)
+  function stampCircle(px,py){
+    const g=work.getContext('2d');const ox=beastFrame*CELL;
+    const r=Math.max(0.5,brush.size/2);
+    g.save();
+    g.beginPath();g.arc(ox+px+0.5,py+0.5,r,0,Math.PI*2);
+    if(brush.tool==='erase'||brush.erase){g.globalCompositeOperation='destination-out';g.fillStyle='#000';g.fill()}
+    else{g.fillStyle=brush.col;g.fill()}
+    g.restore();
+  }
+  const brushCur=body.querySelector('#forgeBrushCur');
+  function updateBrushCursor(ev){
+    if(!brushCur)return;
+    const wrap=body.querySelector('#paintWrap')||cv.parentElement;
+    if(!wrap)return;
+    const rect=cv.getBoundingClientRect(),wrect=wrap.getBoundingClientRect();
+    const z=Math.max(1,paintZoom|0);
+    const diam=Math.max(2,brush.size*z);
+    brushCur.style.width=diam+'px';brushCur.style.height=diam+'px';
+    brushCur.classList.toggle('erase',brush.tool==='erase'||brush.erase);
+    brushCur.classList.toggle('wand',brush.tool==='wand');
+    if(ev){
+      const inside=ev.clientX>=rect.left&&ev.clientX<=rect.right&&ev.clientY>=rect.top&&ev.clientY<=rect.bottom;
+      brushCur.style.display=inside?'block':'none';
+      if(inside){brushCur.style.left=(ev.clientX-wrect.left+wrap.scrollLeft)+'px';brushCur.style.top=(ev.clientY-wrect.top+wrap.scrollTop)+'px'}
+    }
+  }
   function paintAt(ev){
     const rect=cv.getBoundingClientRect(),x=Math.floor((ev.clientX-rect.left)/rect.width*CELL),y=Math.floor((ev.clientY-rect.top)/rect.height*CELL);
     if(x<0||y<0||x>=CELL||y>=CELL)return;
     if(brush.tool==='wand'){wandSelect(x,y);return}
-    const g=work.getContext('2d');const ox=beastFrame*CELL;
-    if(brush.tool==='erase'||brush.erase)g.clearRect(ox+x-brush.size/2,y-brush.size/2,brush.size,brush.size);
-    else{g.fillStyle=brush.col;g.fillRect(ox+x-brush.size/2,y-brush.size/2,brush.size,brush.size)}
+    stampCircle(x,y);
     drawFrame();
   }
   cv.onpointerdown=e=>{
+    updateBrushCursor(e);
     if(brush.tool==='wand'){paintAt(e);return}
     pushUndo();painting=true;cv.setPointerCapture(e.pointerId);paintAt(e);
   };
-  cv.onpointermove=e=>{if(painting)paintAt(e)};
+  cv.onpointermove=e=>{updateBrushCursor(e);if(painting)paintAt(e)};
   cv.onpointerup=()=>{painting=false;renderThumbs()};
+  cv.onpointerleave=()=>{if(brushCur)brushCur.style.display='none'};
+  cv.onpointerenter=e=>updateBrushCursor(e);
   body.querySelector('#spCol').oninput=e=>{brush.col=e.target.value;if(brush.tool!=='wand'){brush.tool='brush';brush.erase=false}};
-  body.querySelector('#spSize').oninput=e=>{brush.size=Math.max(1,Math.min(32,+e.target.value||4))};
+  body.querySelector('#spSize').oninput=e=>{brush.size=Math.max(1,Math.min(32,+e.target.value||4));updateBrushCursor()};
   const zEl=body.querySelector('#spZoom');
-  if(zEl)zEl.oninput=()=>{paintZoom=+zEl.value||2;applyPaintZoom()};
+  if(zEl)zEl.oninput=()=>{paintZoom=+zEl.value||2;applyPaintZoom();updateBrushCursor()};
   const setTool=t=>{brush.tool=t;brush.erase=(t==='erase');renderEntitiesEditor()};
   body.querySelector('#spToolBrush').onclick=()=>setTool('brush');
   body.querySelector('#spToolErase').onclick=()=>setTool('erase');
@@ -1618,6 +1652,51 @@ function renderEntitiesEditor(){
     const c=document.createElement('canvas');c.width=CELL;c.height=CELL;
     c.getContext('2d').drawImage(work,beastFrame*CELL,0,CELL,CELL,0,0,CELL,CELL);
     const ael=document.createElement('a');ael.href=c.toDataURL('image/png');ael.download=(a.key||'frame')+(paintDir?('_walk_'+paintDir):'')+'_f'+(beastFrame+1)+'.png';ael.click();
+  };
+  // Build a labeled atlas for one character: idle 8-dir row + walk strips below
+  async function buildCharSheet(stem,basePath){
+    const dirs=FACE_SFX8.slice();
+    const cell=128,cols=8,rows=3; // row0 idle dirs, row1 walk frame0, row2 labels area unused
+    const c=document.createElement('canvas');c.width=cell*cols;c.height=cell*2+28;
+    const g=c.getContext('2d');g.fillStyle='#1a1018';g.fillRect(0,0,c.width,c.height);
+    g.fillStyle='#6fffe2';g.font='11px monospace';g.fillText(stem+' — idle row / walk row (first frame)',6,14);
+    function loadImg(src){return new Promise(res=>{if(!src)return res(null);const im=new Image();im.crossOrigin='anonymous';
+      im.onload=()=>res(im);im.onerror=()=>res(null);
+      const ovr=SPRITE_OVR[src]||SPRITE_OVR['path:'+src];const u=ovrDataURL(ovr)||src;im.src=u})}
+    for(let i=0;i<dirs.length;i++){
+      const d=dirs[i];
+      const idle=basePath?String(basePath).replace(/\.png$/,'')+'_'+d+'.png':basePath;
+      const walk=basePath?String(basePath).replace(/\.png$/,'')+'_walk_'+d+'.png':basePath;
+      const imI=await loadImg(idle||basePath), imW=await loadImg(walk);
+      g.fillStyle='#333';g.fillRect(i*cell,20,cell,cell);g.fillRect(i*cell,20+cell,cell,cell);
+      g.fillStyle='#8ab';g.font='10px monospace';g.fillText(d,i*cell+4,18);
+      if(imI){const nf=imI.naturalWidth>=imI.naturalHeight*1.6?Math.max(1,Math.round(imI.naturalWidth/imI.naturalHeight)):1;
+        g.drawImage(imI,0,0,imI.naturalWidth/nf,imI.naturalHeight,i*cell,20,cell,cell)}
+      if(imW){const nf=imW.naturalWidth>=imW.naturalHeight*1.6?Math.max(1,Math.round(imW.naturalWidth/imW.naturalHeight)):1;
+        g.drawImage(imW,0,0,imW.naturalWidth/nf,imW.naturalHeight,i*cell,20+cell,cell,cell)}
+    }
+    return c;
+  }
+  function downloadCanvas(c,name){const ael=document.createElement('a');ael.href=c.toDataURL('image/png');ael.download=name;ael.click()}
+  const expSheet=body.querySelector('#spExpSheet');
+  if(expSheet)expSheet.onclick=async()=>{
+    const stem=(basePathA||a.key||'char').replace(/^.*\//,'').replace(/\.png$/,'');
+    const c=await buildCharSheet(stem,basePathA||a.path||'');
+    downloadCanvas(c,'hiveswarm_'+stem+'_sheet.png');
+  };
+  const expAll=body.querySelector('#spExpAll');
+  if(expAll)expAll.onclick=async()=>{
+    const stems=['player','shambler','runner','crawler','necro_node','brute','armored_dead','mutant_enforcer','zombie_colossus'];
+    expAll.disabled=true;expAll.textContent='EXPORTING…';
+    try{
+      for(const stem of stems){
+        const path='art_src/topdown_v1/'+stem+'.png';
+        const c=await buildCharSheet(stem,path);
+        downloadCanvas(c,'hiveswarm_'+stem+'_sheet.png');
+        await new Promise(r=>setTimeout(r,180)); // stagger downloads so browsers don't drop files
+      }
+      alert('Downloaded '+stems.length+' character sheets.\nAlso see art_src/topdown_v1/ and the pre-magenta backup folder for full originals.');
+    }finally{expAll.disabled=false;expAll.textContent='EXPORT ALL SHEETS'}
   };
   if(!window.__swarmPaintKeys){
     window.__swarmPaintKeys=1;
