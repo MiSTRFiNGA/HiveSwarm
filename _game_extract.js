@@ -1,7 +1,7 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.1.4';
+const GAME_VERSION='0.1.5';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -40,7 +40,7 @@ const FORGE_KEY='hive_swarm_forge_values_v1', copy=o=>JSON.parse(JSON.stringify(
 // player was buried by ~60 bodies before the first pack even finished arriving (~15s travel),
 // then contact-DPS (~8 dmg / 0.45s iframe ≈ 18 HP/s) finished them by ~12–21s. Survivors-likes
 // open near 1 spawn/sec and ramp; HP was never the lever.
-const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034,budgetBase:1.15,budgetExponent:1.065},drops:{xp:1,metaChance:.08,healChance:.07,heal:12,weaponChance:.05,eliteWeaponChance:.4},weapons:[
+const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034,budgetBase:1.15,budgetExponent:1.065},drops:{xp:1,metaChance:.08,healChance:.07,heal:12,weaponChance:.05,eliteWeaponChance:.4},weapons:[
   // dropWeight = relative odds this gun is picked when a field cache rolls a weapon drop
   // (maybeDropWeapon does a weighted pick over EDIT.weapons; 1 = baseline, all guns shipped equal).
   {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:760,dropWeight:1},
@@ -67,11 +67,11 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90},world:{halfW:810,
 // a between-stage break (upgrade card + continue), then the next stage begins. Data-driven so
 // FORGE/DATA tab JSON export can retune name/seconds/enemyCap/bg/bossMul later without code edits.
 stages:[
-  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bossMul:6},
-  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bossMul:7},
-  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bossMul:8},
-  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bossMul:9},
-  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bossMul:12}
+  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bgArt:'art_src/stages/outskirts.jpg',obstacleArt:'art_src/obstacles/outskirts.png',bossMul:6},
+  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bgArt:'art_src/stages/sewers.jpg',obstacleArt:'art_src/obstacles/sewers.png',bossMul:7},
+  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bgArt:'art_src/stages/downtown.jpg',obstacleArt:'art_src/obstacles/downtown.png',bossMul:8},
+  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bgArt:'art_src/stages/highway.jpg',obstacleArt:'art_src/obstacles/highway.png',bossMul:9},
+  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bgArt:'art_src/stages/hivecore.jpg',obstacleArt:'art_src/obstacles/hivecore.png',bossMul:12}
 ]};
 function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(key==='codexPages'){if(Array.isArray(saved.codexPages))next.codexPages=saved.codexPages;continue}if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object'&&!Array.isArray(base[key]))Object.assign(next[key],saved[key])}return next}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
@@ -135,31 +135,14 @@ function spriteFor(src){
   if(!SPRITES[src]){const image=new Image();image.src=src;SPRITES[src]=image}return SPRITES[src]
 }
 function entitySpriteKey(e){return e&&e.id?e.id:('path:'+(e&&e.sprite||''))}
-// 4-way facing: 0=E,1=S,2=W,3=N (N = back). W reuses E art mirrored in draw.
+// 4-way + multi-frame walk sheets (_walk_e/s/w/n.png = horizontal frame strips)
 function facingFromAngle(a){const t=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);if(t<Math.PI*.25||t>=Math.PI*1.75)return 0;if(t<Math.PI*.75)return 1;if(t<Math.PI*1.25)return 2;return 3}
-const FACE_SFX=['e','s','w','n'];
-function spriteSrcForEntity(e,face){
-  const k=entitySpriteKey(e);
-  if(SPRITE_OVR[k])return SPRITE_OVR[k];
-  const base=(e&&e.sprite)||'';
-  if(!base)return '';
-  if(face!=null&&base.endsWith('.png')){
-    // W mirrors E; request e for face 2
-    const dir=FACE_SFX[face===2?0:(face|0)]||'e';
-    const dsrc=base.replace(/\.png$/,'_'+dir+'.png');
-    return dsrc;
-  }
-  return base;
-}
-function spriteSrcForPlayer(face){
-  const base=PLAYER_SPRITE;
-  if(face!=null){
-    const dir=FACE_SFX[face===2?0:(face|0)]||'e';
-    const dsrc=base.replace(/\.png$/,'_'+dir+'.png');
-    return dsrc;
-  }
-  return base;
-}
+const FACE_SFX=['e','s','w','n'], WALK_FPS=8;
+function walkSheetSrc(base,face){if(!base||!String(base).endsWith('.png'))return '';const stem=String(base).replace(/\.png$/,'');return stem+'_walk_'+(FACE_SFX[face|0]||'e')+'.png'}
+function spriteSrcForEntity(e,face){const k=entitySpriteKey(e);if(SPRITE_OVR[k])return SPRITE_OVR[k];const base=(e&&e.sprite)||'';if(!base)return '';if(face!=null){const w=walkSheetSrc(base,face);if(w)return w;const dir=FACE_SFX[face===2?0:(face|0)]||'e';return base.replace(/\.png$/,'_'+dir+'.png')}return base}
+function spriteSrcForPlayer(face){const base=PLAYER_SPRITE;if(face!=null){const w=walkSheetSrc(base,face);if(w)return w;const dir=FACE_SFX[face===2?0:(face|0)]||'e';return base.replace(/\.png$/,'_'+dir+'.png')}return base}
+function drawSpriteAnim(img,x,y,size,moving){if(!img||!img.complete||!img.naturalWidth)return false;const frames=(img.naturalWidth>=img.naturalHeight*1.8)?Math.max(1,Math.round(img.naturalWidth/img.naturalHeight)):1;const fw=img.naturalWidth/frames,fh=img.naturalHeight;const fr=moving?(Math.floor(elapsed*WALK_FPS)%frames):0;ctx.drawImage(img,fr*fw,0,fw,fh,x-size/2,y-size/2,size,size);return true}
+function playerScale(){const s=Number(EDIT.player&&EDIT.player.scale);return Number.isFinite(s)&&s>0?s:1}
 
 const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;
 function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
@@ -234,16 +217,21 @@ function spawnDmgNum(x,y,amount){if(!amount)return;const o=dmgNums.find(o=>!o.ac
 // S6 — static circular obstacles. Simplest version that reads as "a map": push-out collision
 // against player + enemies (no pathfinding/avoidance, no bullet blocking — see report).
 function genObstacles(){
-  obstacles=[];const n=14;let tries=0;
-  while(obstacles.length<n&&tries<n*8){
+  obstacles=[];const n=16;let tries=0;
+  const cfg=curStageCfg(), art=cfg.obstacleArt||OBSTACLE_SPRITE;
+  while(obstacles.length<n&&tries<n*12){
     tries++;
-    const x=rand(-WORLD.halfW+140,WORLD.halfW-140),y=rand(-WORLD.halfH+140,WORLD.halfH-140);
-    if(Math.hypot(x,y)<240)continue; // keep the deploy point clear
-    obstacles.push({x,y,r:rand(30,58),seed:Math.random()*999});
+    const ang=Math.random()*Math.PI*2, dist=rand(280, Math.min(WORLD.halfW,WORLD.halfH)*0.72);
+    const x=Math.cos(ang)*dist+rand(-40,40), y=Math.sin(ang)*dist+rand(-40,40);
+    if(Math.abs(x)>WORLD.halfW-120||Math.abs(y)>WORLD.halfH-120)continue;
+    if(Math.hypot(x,y)<240)continue;
+    let ok=true; for(const o of obstacles){if(Math.hypot(o.x-x,o.y-y)<o.r+70){ok=false;break}}
+    if(!ok)continue;
+    obstacles.push({x,y,r:rand(36,64),seed:Math.random()*999,art,scale:rand(0.9,1.25)});
   }
 }
 function pushOutOfObstacles(body){for(const o of obstacles){let dx=body.x-o.x,dy=body.y-o.y,d=Math.hypot(dx,dy),gap=o.r+body.r;if(d<1e-4){dx=1;dy=0;d=1}if(d<gap){body.x=o.x+dx/d*gap;body.y=o.y+dy/d*gap}}}
-function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius});WEAPON=EDIT.weapons[0];ENEMIES=EDIT.entities;if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35}applyForge();
+function applyForge(){Object.assign(WORLD,EDIT.world);CAMERA.deadZone=EDIT.world.deadZone;const psc=EDIT.player.scale??1;Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius,scale:psc,r:16*psc});WEAPON=EDIT.weapons[0];ENEMIES=(EDIT.entities||[]).map(e=>{if(e.scale==null)e.scale=1;return e});if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35}applyForge();
 // G7 — weapon caches, ranks, armory seed
 function weaponById(id){return (EDIT.weapons||[]).find(w=>w.id===id)||EDIT.weapons[0]}
 // 2026-08-06 fix: armory cost table listed seeker/beam/chain/nova explicitly and silently fell
@@ -301,7 +289,7 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   let total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);let x=Math.max(-WORLD.halfW+type.r,Math.min(WORLD.halfW-type.r,player.x+Math.cos(a)*distance)),y=Math.max(-WORLD.halfH+type.r,Math.min(WORLD.halfH-type.r,player.y+Math.sin(a)*distance));
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
-  enemies.push({x,y,r:type.r,hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});}
+  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});}
 // STAGE climax: one scaled-up copy of the strongest entity this stage's roster allows (no new art
 // needed). cycle = how many full laps through EDIT.stages we've made, so re-visiting Stage 1 after
 // looping past HiVE Core still fields a tougher guardian than the first time.
@@ -545,20 +533,13 @@ window.__swarmPause=setPaused;window.__swarmTogglePause=togglePause;
 function draw(){
   // STAGE backdrop: each stage tints the arena via its own bg[] pair (top→bottom gradient) so a
   // stage transition reads visually even though the grid/geometry stays the same.
-  const stageBg=(curStageCfg().bg)||['#050b14','#050b14'],bgGrad=ctx.createLinearGradient(0,0,0,VIEW.h);
+  const st=curStageCfg(), stageBg=(st.bg)||['#050b14','#050b14'],bgGrad=ctx.createLinearGradient(0,0,0,VIEW.h);
   bgGrad.addColorStop(0,stageBg[0]);bgGrad.addColorStop(1,stageBg[1]||stageBg[0]);
-  ctx.fillStyle=bgGrad;ctx.fillRect(0,0,VIEW.w,VIEW.h);let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
+  ctx.fillStyle=bgGrad;ctx.fillRect(0,0,VIEW.w,VIEW.h);
+  if(st.bgArt){const bgImg=spriteFor(st.bgArt);if(bgImg&&bgImg.complete&&bgImg.naturalWidth){const zoom=1.12,bw=VIEW.w*zoom,bh=VIEW.h*zoom,bxo=-(cam.x*0.08)%bw,byo=-(cam.y*0.08)%bh;ctx.globalAlpha=0.52;for(let ix=-1;ix<=1;ix++)for(let iy=-1;iy<=1;iy++)ctx.drawImage(bgImg,bxo+ix*bw,byo+iy*bh,bw,bh);ctx.globalAlpha=1}}let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;let grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
 // S6 — static obstacles (procedural rock-cluster shapes, deterministic per-seed so they don't
 // flicker frame to frame). Push-out collision handled in update(); drawn under everything else.
-for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-80||ox2>VIEW.w+80||oy2<-80||oy2>VIEW.h+80)continue;
-  const oImg=spriteFor(OBSTACLE_SPRITE);const oS=o.r*2.6;
-  if(oImg&&oImg.complete&&oImg.naturalWidth){ctx.save();ctx.globalAlpha=.95;ctx.drawImage(oImg,ox2-oS/2,oy2-oS/2,oS,oS);ctx.globalAlpha=1;ctx.restore()}
-  else{ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.strokeStyle='#5a7d76';ctx.lineWidth=2;ctx.shadowColor='#000';ctx.shadowBlur=14;
-  ctx.beginPath();const spikes=7;
-  for(let i=0;i<=spikes;i++){const ang=i/spikes*6.283,rr=o.r*(0.75+((Math.sin((o.seed+i)*12.9898)*43758.5453)%1+1)%1*0.45),px=Math.cos(ang)*rr,py=Math.sin(ang)*rr;if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py)}
-  ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=0;
-  ctx.fillStyle='rgba(120,239,219,.12)';ctx.beginPath();ctx.arc(-o.r*.25,-o.r*.25,o.r*.35,0,7);ctx.fill();
-  ctx.restore()}}
+for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-100||ox2>VIEW.w+100||oy2<-100||oy2>VIEW.h+100)continue;const oImg=spriteFor(o.art||OBSTACLE_SPRITE);const oS=o.r*2.8*(o.scale||1);ctx.save();ctx.globalAlpha=.28;ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(ox2,oy2+oS*0.28,oS*0.42,oS*0.16,0,0,7);ctx.fill();ctx.restore();if(oImg&&oImg.complete&&oImg.naturalWidth){ctx.globalAlpha=.98;ctx.drawImage(oImg,ox2-oS/2,oy2-oS/2,oS,oS);ctx.globalAlpha=1}else{ctx.save();ctx.translate(ox2,oy2);ctx.fillStyle='#2a3d3a';ctx.beginPath();ctx.arc(0,0,o.r,0,7);ctx.fill();ctx.restore()}}
 // beams (laser + chain) under projectiles
 for(const b of beams){
   if(b.chain){ctx.save();ctx.globalAlpha=Math.min(1,b.life*10);ctx.strokeStyle=b.color||'#6ea8ff';ctx.shadowColor=b.color||'#6ea8ff';ctx.shadowBlur=18;ctx.lineWidth=b.w||4;ctx.lineCap='round';
@@ -611,15 +592,11 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    new Image().src='enemy.shambler' -> a bogus URL -> a truthy Image, so the `||` fallback to the
    real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
-for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle(Math.atan2(e.vy||0,e.vx||1));let img=spriteFor(spriteSrcForEntity(e.type,eFace));if(img&&img.complete&&img.naturalWidth){let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;ctx.save();ctx.translate(x,y);if(eFace===2){ctx.scale(-1,1)}ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore();ctx.globalAlpha=1}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}
+for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;let img=spriteFor(spriteSrcForEntity(e.type,eFace));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;if(!drawSpriteAnim(img,x,y,s,moving)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);if(eFace===2)ctx.scale(-1,1);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
   // S4 — visually distinct poison tell: pulsing green ring while a DoT stack is active.
   if(e.poisonT>0){ctx.globalAlpha=.35;ctx.fillStyle='#7cff4f';ctx.beginPath();ctx.arc(x,y,e.r*1.15,0,7);ctx.fill();ctx.globalAlpha=1}
   ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
-let px=sx(player.x),py=sy(player.y);const pFace=facingFromAngle(player.angle);ctx.save();ctx.translate(px,py);
-const pImg=spriteFor(spriteSrcForPlayer(pFace));const pS=player.r*3.4;
-if(pImg&&pImg.complete&&pImg.naturalWidth){ctx.globalAlpha=player.inv?.55:1;if(pFace===2)ctx.scale(-1,1);ctx.drawImage(pImg,-pS/2,-pS/2,pS,pS);ctx.globalAlpha=1}
-else{ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8)}
-ctx.restore();ctx.restore();
+let px=sx(player.x),py=sy(player.y);const pFace=facingFromAngle(player.angle);const pImg=spriteFor(spriteSrcForPlayer(pFace));const pS=player.r*3.4*playerScale();const pMoving=!!(STICK.active&&(STICK.dx||STICK.dy))||['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].some(k=>keys.has(k));ctx.globalAlpha=player.inv?.55:1;if(!drawSpriteAnim(pImg,px,py,pS,pMoving)){ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();ctx.fillStyle='#dff';ctx.fillRect(8,-4,22,8);ctx.restore()}ctx.globalAlpha=1;ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
    computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
@@ -700,7 +677,7 @@ function offerStageBreak(){
   // fire mid-iteration over the very bullets/enemies arrays update() is looping through, which
   // corrupts those loops). Both paths below only schedule it; update()'s top-of-frame check runs
   // it once the current frame's simulation loops have finished.
-  const advance=()=>{stage++;stageT=0;stageBoss=null;enemies=[];bullets=[];beams=[];player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.25));state='play'};
+  const advance=()=>{stage++;genObstacles();stageT=0;stageBoss=null;enemies=[];bullets=[];beams=[];player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.25));state='play'};
   if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();pendingStageAdvance=advance;return}
   let box=document.createElement('div');box.id='stagebreak';box.className='overlay';
   box.innerHTML='<h2>STAGE '+(stage+1)+' CLEAR — '+clearedCfg.name+'</h2><div class="hint">Guardian down · score +250 · choose a reward, then deploy to Stage '+(stage+2)+'</div>'+
@@ -830,24 +807,29 @@ function renderTab(){
   tabsEl.querySelectorAll('button').forEach((d,i)=>d.classList.toggle('on',i===tab));
   if(tab===0){// ENTITIES
     body.innerHTML=`<div class="hint">Enemy roster. Numbers, names, colours and sprite paths apply live. Behaviours stay in code.</div>
-      <table><tr><th></th><th>ID</th><th>NAME</th><th>HP</th><th>SPD</th><th>DMG</th><th>W</th><th>WAVE</th><th></th></tr>
+      <table><tr><th></th><th>ID</th><th>NAME</th><th>HP</th><th>SPD</th><th>DMG</th><th>R</th><th>SCALE</th><th>W</th><th>WAVE</th><th></th></tr>
       ${EDIT.entities.map((e,i)=>`<tr>
         <td><img class="kthumb" src="${esc(spriteSrcForEntity(e)||e.sprite||'')}" onerror="this.style.opacity=.2"></td>
         <td><input data-p="entities.${i}.id" value="${esc(e.id)}" style="width:110px"></td>
         <td><input data-p="entities.${i}.name" value="${esc(e.name)}" style="width:100px"></td>
         <td><input type="number" data-p="entities.${i}.hp" value="${e.hp}" style="width:56px"></td>
         <td><input type="number" data-p="entities.${i}.speed" value="${e.speed}" style="width:56px"></td>
-        <td><input type="number" data-p="entities.${i}.damage" value="${e.damage}" style="width:56px"></td>
-        <td><input type="number" data-p="entities.${i}.weight" value="${e.weight}" style="width:48px"></td>
+        <td><input type="number" data-p="entities.${i}.damage" value="${e.damage}" style="width:48px"></td>
+        <td><input type="number" step="any" data-p="entities.${i}.r" value="${e.r||12}" style="width:48px"></td>
+        <td><input type="number" step="0.05" min="0.2" max="4" data-p="entities.${i}.scale" value="${e.scale??1}" style="width:56px" title="size scale"></td>
+        <td><input type="number" data-p="entities.${i}.weight" value="${e.weight}" style="width:44px"></td>
         <td><input type="number" data-p="entities.${i}.unlockWave" value="${e.unlockWave||1}" style="width:48px"></td>
         <td><button data-del="${i}" class="warn">✕</button></td></tr>`).join('')}</table>
       <div class="row"><button id="addEnemy">+ ADD ENEMY</button></div>`;
     bindInputs();
     body.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(EDIT.entities.length>1){EDIT.entities.splice(+b.dataset.del,1);applyForge();persistForge();renderTab()}});
-    body.querySelector('#addEnemy').onclick=()=>{const n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1,sprite:''});applyForge();persistForge();renderTab()};
+    body.querySelector('#addEnemy').onclick=()=>{const n=EDIT.entities.length+1;EDIT.entities.push({id:'enemy.custom'+n,name:'Custom '+n,r:12,scale:1,hp:30,speed:70,damage:8,color:'#c7d4d3',weight:1,dropXp:1,unlockWave:1,sprite:''});applyForge();persistForge();renderTab()};
+    if(!body.querySelector('#exportForgeFile')){const row=body.querySelector('.row');if(row)row.insertAdjacentHTML('beforeend',' <button id="exportForgeFile">⬇ SAVE FORGE JSON</button> <label style="display:inline-flex;gap:6px;align-items:center">⬆ LOAD<input type="file" id="importForgeFile" accept="application/json,.json" style="width:auto"></label>');}
+    const exp=body.querySelector('#exportForgeFile');if(exp)exp.onclick=()=>{const blob=new Blob([JSON.stringify(EDIT,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hiveswarm_forge_'+GAME_VERSION+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2e3)};
+    const imp=body.querySelector('#importForgeFile');if(imp)imp.onchange=async ev=>{const f=ev.target.files&&ev.target.files[0];if(!f)return;try{EDIT=forgeMerge(FORGE_BASE,JSON.parse(await f.text()));applyForge();persistForge();genObstacles();renderTab()}catch(err){alert('Bad forge file: '+err.message)}};
   }
   else if(tab===1){// PLAYER
-    body.innerHTML=`<div class="hint">Player combat knobs. Apply to the next deploy (or immediately if mid-run via applyForge).</div>
+    body.innerHTML=`<div class="hint">Player combat knobs. <b>scale</b> resizes sprite + hit radius (1=default). Saved with Forge / SAVE FORGE JSON.</div>
       <div class="row">${fields(EDIT.player,'player')}</div>
       <div class="row">${fields(EDIT.drops,'drops')}</div>`;
     bindInputs();
