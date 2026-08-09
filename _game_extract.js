@@ -316,6 +316,15 @@ const SKILLS=[
   {id:'vampiric',name:'Vampiric',    text:'Heal 2 HP per kill (stacks add +1)'},
   {id:'drone',  name:'Drone Escort', text:'Orbiting drones fire with you'},
 ];
+// Drone-specific upgrades (owner 2026-08-08 spec: "allow drone upgrades to appear for weapon speed
+// and damage"). Not weapon-bound like MODS and not player-passive like SKILLS, so they get their own
+// small list + their own droneMods stack table (see droneModN/addDroneMod above). Gated in
+// buildCardPool() to ONLY appear once skillN('drone')>0 — offering a drone upgrade to a player with
+// zero drones is exactly the "dead card" class of bug the owner reported for the drone skill itself.
+const DRONE_MODS=[
+  {id:'dronerate',name:'Drone Overclock',text:'-15% time between drone shots'},
+  {id:'dronedmg', name:'Drone Payload',  text:'+25% drone damage'},
+];
 function modApplies(mod,w){return mod.appliesTo.includes(w.kind||'bullet')}
 function wNovaShards(w){return Math.max(0,(w.shards??3)+2*modStacks(w.id,'novastar'))}
 function wJumps(w){return Math.max(1,(w.jumps||4)+2*modStacks(w.id,'arcjump'))}
@@ -430,6 +439,18 @@ function waveBudgetMul(w){return 1+(w??stageWave)*0.55} // wave 1 = 1x, wave 2 �
 // biggest, and scales up gently with stage index so later stages still feel denser.
 function waveQuota(w){return Math.max(4,Math.round((10+stage*3)*waveBudgetMul(w)))}
 let shieldCharges=0,shieldCd=0; // Shield Matrix runtime
+// Drone Escort runtime (owner 2026-08-08 — orbit/sprite ported from HiVE War, see fireDrones()/draw()).
+// droneMods is a SEPARATE stack table from weaponMods because drone upgrades are not weapon-bound —
+// they persist across weapon swaps exactly like skillStacks, but need their own MOD_MAX-capped ids
+// (dronerate/dronedmg) instead of piggybacking on a held weapon's id.
+let droneMods={}, droneFireClock=0;
+function droneModN(id){return droneMods[id]||0}
+function addDroneMod(id){if((droneMods[id]||0)>=MOD_MAX)return false;droneMods[id]=(droneMods[id]||0)+1;return true}
+// CONTINUES (owner 2026-08-08): 1 continue earned per 3 STAGES reached — deliberately NOT xp levels,
+// which land every ~30s and would hand out a near-infinite supply. continuesUsed resets in reset().
+let continuesUsed=0, pendingRevive=null; // pendingRevive: see acceptContinue() — dispatched in update()
+let pendingLevelUps=0, cardsOpen=false; // declared HERE, not next to offerCards(), because reset() below touches them — a `let` further down the file would be in the temporal dead zone if reset() ever ran during script evaluation. See offerCards() for why level-ups queue.
+function continuesAllowed(){return Math.floor((stage+1)/3)}
 let WEAPON,ENEMIES,paused=false,pauseAccum=0;
 const MAX_PARTICLES=220;
 // S5 — pooled floating damage numbers. Fixed-size pool, no per-hit allocation at survivors-like fire rates.
@@ -504,6 +525,7 @@ function reset(){applyForge();
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
   player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=threatTier=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;weaponMods={};weaponOrbs={};skillStacks={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
   stage=0;stageT=0;stageBoss=null;stageWave=0;waveSpawned=0;waveNoKillT=0;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;shieldCharges=0;shieldCd=0;resetRunStats();
+  droneMods={};droneFireClock=0;continuesUsed=0;pendingRevive=null;pendingLevelUps=0;cardsOpen=false; // fresh drones + fresh continue budget every run
   genObstacles();for(const o of dmgNums)o.active=0;
   if(WEAPON&&WEAPON.id){codexSee('weapon:'+WEAPON.id,0);noteWeapon(WEAPON)}}
 function rand(a,b){return a+Math.random()*(b-a)} function dist2(a,b){let x=a.x-b.x,y=a.y-b.y;return x*x+y*y}
@@ -797,6 +819,7 @@ function update(dt){
   // Run any scheduled stage-advance BEFORE this frame's simulation loops touch enemies/bullets —
   // see the comment in offerStageBreak() for why this can't run synchronously from killEnemy.
   if(pendingStageAdvance){const fn=pendingStageAdvance;pendingStageAdvance=null;fn()}
+  if(pendingRevive){const fn=pendingRevive;pendingRevive=null;fn()}
   if(newCodexT>0)newCodexT=Math.max(0,newCodexT-dt);
   if(state==='debrief'){updateDebrief(dt);return}
   if(paused){// freeze sim: no spawnBudget/fireClock/enemy advance — resume is frame-clean
@@ -887,7 +910,11 @@ if(bossPendingT>0){
 }
 // Shield Matrix recharge
 if((skillStacks.shield||0)>0){shieldCd=Math.max(0,shieldCd-dt);if(shieldCd<=0&&shieldCharges<(skillStacks.shield||0)){shieldCharges=skillStacks.shield;shieldCd=12}}
-fireClock-=dt;if(fireClock<=0){fireClock+=wRate(WEAPON);fire();fireDrones()}
+fireClock-=dt;if(fireClock<=0){fireClock+=wRate(WEAPON);fire()}
+// Drones run on their OWN clock (droneRate(), scaled independently by the Drone Overclock card)
+// instead of piggybacking on the held weapon's rate — otherwise a Rapid mod on the gun would also
+// silently speed up the drones for free, and a Drone Overclock card would have nothing to modulate.
+droneFireClock-=dt;if(droneFireClock<=0){droneFireClock+=droneRate();fireDrones()}
 for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.y-e.y,d=Math.hypot(vx,vy)||1,
     // S.7 feel pass: poisoned enemies are slowed (poisonSlow, from weapon.poison's slowFactor) so
     // the player never has to kite/run away waiting the DoT out — infection defangs on contact.
@@ -939,7 +966,7 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
         if(shieldCharges>0){shieldCharges--;player.inv=.55;burst(player.x,player.y,'#6fffe2',12);sfx('hit',.1)}
         else{if(e.type&&e.type.sfxAttack)sfxFile(e.type.sfxAttack,.16);player.hp-=e.damage;player.inv=.7;shake=8;burst(player.x,player.y,'#ff718a',14);
         player.x-=vx/d*18;player.y-=vy/d*18;
-        if(player.hp<=0){player.hp=0;if(score>(META.bestScore||0)){META.bestScore=score;saveMeta()}state='dead';setPaused(false)}}}
+        if(player.hp<=0){player.hp=0;tryDeath()}}}
         if(!isStaticEnemy(e)){e.x-=vx/d*28;e.y-=vy/d*28;clampEnemy(e)}}}
 for(let i=bullets.length-1;i>=0;i--){let b=bullets[i];
   if(b.kind==='homing'){const t=nearestEnemy(b);if(t){const desired=Math.atan2(t.y-b.y,t.x-b.x),cur=Math.atan2(b.vy,b.vx);let diff=((desired-cur+Math.PI*3)%(Math.PI*2))-Math.PI;const maxTurn=(b.turn||7)*dt;diff=Math.max(-maxTurn,Math.min(maxTurn,diff));const sp=Math.hypot(b.vx,b.vy)||400;const na=cur+diff;b.vx=Math.cos(na)*sp;b.vy=Math.sin(na)*sp}
@@ -1024,7 +1051,7 @@ for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.
     else if(p.heal){player.hp=Math.min(player.maxHp,player.hp+p.value);burst(p.x,p.y,'#ff5f7a',7);codexSee('item:heal',0)}
     else{xp+=p.value;orbsCollected++;runStats.orbs++;bankOrb();burst(p.x,p.y,'#6fffe2',5);codexSee('item:xp',0)}
     sfx('hit',.05);pickups.splice(i,1);
-    if(!p.heal&&!p.weapon&&xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);state='levelup';offerCards()}}}
+    if(!p.heal&&!p.weapon&&xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);pendingLevelUps++;state='levelup';offerCards()}}}
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.gib)p.rot=(p.rot||0)+(p.rvel||0)*dt;if(p.life<=0)particles.splice(i,1)}
 // S5 — advance pooled damage numbers (float up, gravity, fade); no allocation here.
 for(let i=0;i<dmgNums.length;i++){const o=dmgNums[i];if(!o.active)continue;o.y+=o.vy*dt;o.vy+=40*dt;o.life-=dt;if(o.life<=0)o.active=0}
@@ -1228,7 +1255,21 @@ ctx.save();ctx.translate(px,py);ctx.rotate(player.angle);
 ctx.shadowColor='#6fffe2';ctx.shadowBlur=12;
 ctx.fillStyle=player.inv?'#ffffff':'#6fffe2';ctx.beginPath();ctx.arc(0,0,player.r,0,7);ctx.fill();
 ctx.shadowBlur=0;ctx.fillStyle='#dff';ctx.fillRect(player.r*0.45,-player.r*0.28,player.r*1.35,player.r*0.55);
-ctx.restore();ctx.globalAlpha=1;ctx.restore();
+ctx.restore();ctx.globalAlpha=1;
+// Drone Escort — sprite + orbit ported 1:1 from HiVE War's draw() (D:\Dev\HiveWar\index.html
+// lines 3097-3103): glowing cyan diamond body + white core dot, spinning at 2x orbit speed.
+// Uses the SAME droneOrbitAngle() as fireDrones() so the drawn position always matches the muzzle.
+{const dn=skillN('drone');
+  for(let i=0;i<dn;i++){
+    const dAng=droneOrbitAngle(i,dn);
+    const dx=sx(player.x+Math.cos(dAng)*DRONE_ORBIT_R), dy=sy(player.y+Math.sin(dAng)*DRONE_ORBIT_R);
+    ctx.save();ctx.shadowColor='#0ff';ctx.shadowBlur=14;ctx.fillStyle='#8ff';
+    ctx.translate(dx,dy);ctx.rotate(dAng*2);
+    ctx.beginPath();ctx.moveTo(0,-9);ctx.lineTo(8,0);ctx.lineTo(0,9);ctx.lineTo(-8,0);ctx.closePath();ctx.fill(); // diamond body
+    ctx.fillStyle='#fff';ctx.shadowBlur=6;ctx.beginPath();ctx.arc(0,0,2.5,0,7);ctx.fill(); // core
+    ctx.restore();
+  }}
+ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
    computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
@@ -1384,7 +1425,7 @@ canvas.addEventListener('pointerdown',(e)=>{if(state==='debrief'){e.preventDefau
   btn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();togglePause()});
 })();
 let last=performance.now(),accumulator=0;function frame(now){accumulator+=Math.min(.05,(now-last)/1000);last=now;while(accumulator>=1/60){update(1/60);accumulator-=1/60}draw();requestAnimationFrame(frame)}requestAnimationFrame(frame);
-window.__hiveSwarmDebug=()=>({state,elapsed,score,wave:stageWave+1,threatTier,stage,stageT,stageBoss:!!stageBoss,stageName:curStageCfg().name,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length});
+window.__hiveSwarmDebug=()=>({state,elapsed,score,wave:stageWave+1,threatTier,stage,stageT,stageBoss:!!stageBoss,stageName:curStageCfg().name,enemies:enemies.length,heldWeapons:heldWeapons.length,player:{x:player.x,y:player.y,hp:player.hp},camera:cam,slot:currentSlot(),codex:codexVisible().length,continuesUsed,continuesAllowed:continuesAllowed(),drones:skillN('drone')});
 function weaponIconHtml(w){
   // Tiny inline canvas-like chip: colored square + first letter, plus sheet icon if available.
   if(!w)return '';
@@ -1396,12 +1437,19 @@ function cardIconHtml(c){
   if(c.wep)return weaponIconHtml(c.wep);
   return `<span style="display:inline-flex;width:28px;height:28px;border-radius:6px;background:#1a3034;border:1px solid #3a6a62;align-items:center;justify-content:center;margin-right:8px">✦</span>`;
 }
+// Card labels show OWNED→NEXT, never just the post-pick value (Eric, playtest 2026-08-08).
+// The bug he reported as "it offered me drone when it was 3/3" was NOT a filter bug — the
+// <MOD_MAX gates below were always correct. The label rendered (stacks+1), i.e. the value AFTER
+// picking, so the final purchasable stack of anything read "3/3" on the card. And because a card
+// label was the ONLY place in the whole UI that ever showed a skill's stack count, that lie was
+// the player's only source of truth. "2→3/3" makes owned-vs-granted unambiguous.
+function stackLabel(name,cur){return name+' '+cur+'→'+(cur+1)+'/'+MOD_MAX}
 function buildCardPool(opts){
   // Shared pool for level-up + stage break. Never offer a mod/skill already at MOD_MAX (3/3).
   opts=opts||{};
   const held=heldWeapons[0]||WEAPON;
   const weapons=MODS.filter(m=>held&&modApplies(m,held)&&modStacks(held.id,m.id)<MOD_MAX).map(m=>({
-    name:m.name+' '+(modStacks(held.id,m.id)+1)+'/'+MOD_MAX,
+    name:stackLabel(m.name,modStacks(held.id,m.id)),
     text:m.text+' — '+held.name,
     wep:held,
     apply:()=>addMod(held.id,m.id)}));
@@ -1414,14 +1462,83 @@ function buildCardPool(opts){
     drone:()=>addSkill('drone'),
   };
   const skills=SKILLS.filter(s=>skillN(s.id)<MOD_MAX).map(s=>({
-    name:s.name+' '+(skillN(s.id)+1)+'/'+MOD_MAX,
+    name:stackLabel(s.name,skillN(s.id)),
     text:s.text,
     apply:()=>skillApply[s.id]&&skillApply[s.id]()}));
+  // Drone upgrade cards: gated on skillN('drone')>0 (no drones = dead card, see DRONE_MODS comment)
+  // AND droneModN(m.id)<MOD_MAX (same never-offer-maxed rule as weapons/skills above).
+  const droneCards=skillN('drone')>0?DRONE_MODS.filter(m=>droneModN(m.id)<MOD_MAX).map(m=>({
+    name:stackLabel(m.name,droneModN(m.id)),
+    text:m.text,
+    apply:()=>addDroneMod(m.id)})):[];
   const evo={name:'Plasma Evolution',text:'Wave 10 evolution: double pulse damage',apply:()=>{if(WEAPON)WEAPON.damage*=2;evolved=true}};
-  let pool=[...weapons,...skills,...(opts.allowEvo&&threatTier>=10&&!evolved?[evo]:[])];
-  return {held,weapons,skills,pool};
+  let pool=[...weapons,...skills,...droneCards,...(opts.allowEvo&&threatTier>=10&&!evolved?[evo]:[])];
+  return {held,weapons,skills,droneCards,pool};
 }
+// --- CONTINUES (owner 2026-08-08) ---------------------------------------------------------------
+// requestContinue() is the SINGLE, exact place a rewarded-ad SDK call gets wired in later. Today it
+// grants immediately — no ad SDK is integrated yet, per owner instruction not to wire one now.
+// psdk_adapter.js already exposes PSDK.rewarded() -> Promise<boolean> (crazygames "rewarded" ad /
+// poki sdk.rewardedBreak()); the future hook here is simply:
+//   PSDK.rewarded().then(granted => granted ? onGranted() : onDenied());
+// swapped in for the current `onGranted()` call below. Nothing else in the continue flow needs to
+// change — onGranted/onDenied already model "ad watched" vs "ad skipped/failed".
+function requestContinue(onGranted,onDenied){
+  onGranted(); // TODO(ads): replace with PSDK.rewarded().then(...) once a rewarded-ad SDK is wired in
+}
+function tryDeath(){
+  if(continuesUsed<continuesAllowed()){state='continueoffer';offerContinue();return}
+  finalizeDeath();
+}
+function finalizeDeath(){if(score>(META.bestScore||0)){META.bestScore=score;saveMeta()}state='dead';setPaused(false)}
+function acceptContinue(){
+  requestContinue(()=>{
+    continuesUsed++;
+    // DEFER the revive to the top of the NEXT update() frame via pendingRevive, exactly like
+    // offerStageBreak()'s advance() defers through pendingStageAdvance (see the comment at the top
+    // of update()). Both continue paths reach here mid-frame: the DOM path from a button onclick
+    // (outside update() entirely, so this is mostly precautionary) and the headless-harness path
+    // from offerContinue()'s bypass branch, which fires SYNCHRONOUSLY from inside tryDeath() —
+    // itself called from inside the enemies for-loop in update(). Splicing `enemies` right there
+    // while that same loop is still iterating over it would shift indices out from under the
+    // loop's counter and could hand it `undefined` on the next iteration. Queuing it instead means
+    // the splice only ever runs at a frame boundary, never mid-loop.
+    pendingRevive=()=>{
+      player.hp=Math.max(1,Math.round(player.maxHp*.5)); // partial-HP revive, not a free full heal
+      player.inv=2.5; // brief invulnerability so the reviving player isn't hit on the same frame
+      // Clear nearby (non-boss) enemies so the revive isn't an instant re-death in a packed swarm.
+      // Boss is left alone — deleting the stage guardian mid-fight would desync stageBoss/enemies.
+      for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(!e.isBoss&&Math.hypot(e.x-player.x,e.y-player.y)<220)enemies.splice(i,1)}
+      state='play';
+    };
+  },()=>{finalizeDeath()});
+}
+function declineContinue(){finalizeDeath()}
+function offerContinue(){
+  if(typeof HTMLElement==='undefined'){acceptContinue();return} // headless: always accept, exercises the revive path
+  const prev=document.getElementById('continue');if(prev)prev.remove();
+  let box=document.createElement('div');box.id='continue';box.className='overlay';
+  box.innerHTML='<h2>CONTINUE?</h2><div class="hint">Score '+score+' · Stage '+(stage+1)+' · '+(continuesAllowed()-continuesUsed)+' continue(s) left</div>'+
+    '<button id="contYes" style="width:220px;padding:14px;margin:6px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px">▶ CONTINUE</button>'+
+    '<button id="contNo" style="width:220px;padding:14px;margin:6px;background:#331616;color:#eafffa;border:1px solid #a55;border-radius:8px">✕ END RUN</button>';
+  document.body.append(box);
+  box.querySelector('#contYes').onclick=()=>{box.remove();acceptContinue()};
+  box.querySelector('#contNo').onclick=()=>{box.remove();declineContinue()};
+}
+// Level-ups QUEUE rather than re-enter. offerCards() used to be called straight from the pickup
+// collision loop, once per orb crossing the threshold and with no removal of a prior overlay — so
+// collecting two orbs in one frame (easy with Magnet, or an explosion dropping a cluster) stacked
+// two #cards overlays that shared the single global `choices`. The second call overwrote `choices`
+// before the first overlay was dismissed, so clicking the stale one applied whatever card now sat
+// at that index — sometimes a silent no-op. Now: N level-ups in a frame = N card screens in
+// sequence, and a pick is never swallowed (2026-08-08). `pendingLevelUps` is declared up by
+// continuesUsed — see the TDZ note there.
 function offerCards(){
+  // Re-entrancy guard is an explicit flag, NOT a document.getElementById('cards') probe: the
+  // headless harness's fake DOM returns a truthy stub for EVERY id, so a DOM-based guard would
+  // return early forever there and strand the game in state 'levelup' (2026-08-08).
+  if(cardsOpen)return;
+  pendingLevelUps=Math.max(0,pendingLevelUps-1);
   // S.7: weapon cards grant a MOD attached to the held weapon's ID. Skills are run-scoped, max 3.
   const {weapons,pool}=buildCardPool({allowEvo:true,bigHeal:false});
   let first=cardPicks<3&&weapons.length?weapons[Math.floor(Math.random()*weapons.length)]:null;
@@ -1429,11 +1546,11 @@ function offerCards(){
   const bag=pool.slice();
   while(choices.length<3&&bag.length){let c=bag.splice(Math.floor(Math.random()*bag.length),1)[0];if(!choices.includes(c))choices.push(c)}
   if(!choices.length)choices.push({name:'Press On',text:'Everything is maxed — keep fighting',apply:()=>{}});
-  if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();cardPicks++;state='play';return}
+  if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();cardPicks++;if(pendingLevelUps>0)return offerCards();state='play';return}
   let box=document.createElement('div');box.id='cards';box.className='overlay';
   box.innerHTML='<h2>LEVEL '+level+' — CHOOSE ONE</h2>'+choices.map((c,i)=>`<button data-card="${i}" style="width:280px;padding:16px;background:#16383a;color:#eafffa;border:1px solid #75f0db;border-radius:8px;text-align:left"><b style="display:flex;align-items:center">${cardIconHtml(c)}${c.name}</b><br><span style="opacity:.85">${c.text}</span></button>`).join('');
-  document.body.append(box);
-  box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();cardPicks++;box.remove();state='play'});
+  document.body.append(box);cardsOpen=true;
+  box.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{choices[Number(b.dataset.card)].apply();cardPicks++;box.remove();cardsOpen=false;if(pendingLevelUps>0)offerCards();else state='play'});
 }
 // ---- HiveWar-style stage debrief (count-up stats) then upgrade pick ----
 let debriefT=0, debriefDone=false, debriefRowsCache=null, debriefLastVal={};
@@ -1523,15 +1640,28 @@ function finishDebrief(){
   if(state!=='debrief'||!debriefDone)return;
   offerStageBreak();
 }
+// Drone orbit motion — ported 1:1 from HiVE War's perkWeapons()/draw() (D:\Dev\HiveWar\index.html
+// lines 1129-1141 and 3097-3103, owner 2026-08-08): angular speed 2.6 rad/s, evenly spaced by
+// 2*PI/count, fixed orbit radius. HiVE War is a lane shooter and draws an ELLIPSE (x radius 82,
+// y radius 34) because its "camera" is a fixed low-angle view of a squad; HiveSwarm is top-down, so
+// the same 82px radius becomes a plain circle instead — same numbers, no perspective squash needed.
+// This EXACT function drives both fireDrones() (below) and draw() so the muzzle flash / bullet
+// origin always lines up with the drawn drone, never the player's own position.
+const DRONE_ORBIT_R=82, DRONE_ANGVEL=2.6;
+function droneOrbitAngle(i,n){return elapsed*DRONE_ANGVEL+i*(Math.PI*2/Math.max(1,n))}
+function droneRate(){return Math.max(.05,.32*Math.pow(.85,droneModN('dronerate')))} // same -15%/stack curve as wRate()
 function fireDrones(){
-  // Drone Escort skill: small orbiting shots toward nearest enemy.
+  // Drone Escort skill: orbiting drones fire WITH the player but FROM THEIR OWN world position
+  // (ox,oy below) — never player.x/player.y — so drone shots visibly originate at the orbiting
+  // sprite drawn in draw(), matching HiVE War's "drone shots are their own emitter" behaviour.
   const n=skillN('drone');if(!n)return;
   const t=nearestEnemy(player);if(!t)return;
+  const dmg=(6+n*2)*(1+.25*droneModN('dronedmg'));
   for(let i=0;i<n;i++){
-    const ang=elapsed*2.2+i*(Math.PI*2/Math.max(1,n));
-    const ox=player.x+Math.cos(ang)*36, oy=player.y+Math.sin(ang)*36;
+    const ang=droneOrbitAngle(i,n);
+    const ox=player.x+Math.cos(ang)*DRONE_ORBIT_R, oy=player.y+Math.sin(ang)*DRONE_ORBIT_R;
     const a=Math.atan2(t.y-oy,t.x-ox), sp=520;
-    bullets.push({x:ox,y:oy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:3,damage:6+n*2,pierce:0,life:.7,color:'#9ef',kind:'bullet',kb:0,shards:0,trail:[],bounces:0});
+    bullets.push({x:ox,y:oy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:3,damage:dmg,pierce:0,life:.7,color:'#9ef',kind:'bullet',kb:0,shards:0,trail:[],bounces:0});
   }
 }
 // STAGE break: after debrief, pick a reward then advance.
