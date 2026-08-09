@@ -54,7 +54,7 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{ha
   // existing continuous-fire sample) rather than a one-shot cue like grenade.mp3.
   {id:'weapon.flame',name:'Flamethrower',kind:'flame',damage:9,rate:.06,speed:0,shots:1,pierce:99,color:'#ff9a3d',range:260,flameWidth:38,flameLength:260,burnDps:40,burnTime:2.2,dropWeight:1,sfx:'light-machine-gun.mp3',icon:5},
   {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'electric-explosive.mp3',icon:2},
-  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:150,jumps:4,dropWeight:1,coreWidth:1.8,glowWidth:12,glowIntensity:1,sfx:'lightning01.mp3',icon:3},
+  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:240,jumps:4,dropWeight:1,coreWidth:1.8,glowWidth:12,glowIntensity:1,sfx:'lightning01.mp3',icon:3},
   {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78,dropWeight:1,shards:3,sfx:'grenade.mp3',icon:4},
   // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
   // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
@@ -102,7 +102,12 @@ if(EDIT.waves.budgetBase>=3.5){EDIT.waves.budgetBase=1.15;EDIT.waves.budgetExpon
 function persistForge(){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){alert('Storage full — Forge values were not saved.')}}
 if(EDIT.waves.budgetBase===1.15&&EDIT.waves.budgetExponent===1.065){try{const raw=localStorage.getItem(FORGE_KEY);if(raw&&/"budgetBase"\s*:\s*[3-9]/.test(raw))persistForge()}catch(_){}}
 // 2026-08-07 Storm Arc retune (range 150 / dmg 22). Only rewrite the old shipped pair so hand-tunes stick.
-(function(){const c=(EDIT.weapons||[]).find(w=>w.id==='weapon.chain');if(c){if(c.range===280&&c.damage===16){c.range=150;c.damage=22;persistForge()}if(c.coreWidth==null)c.coreWidth=1.8;if(c.glowWidth==null)c.glowWidth=12;if(c.glowIntensity==null)c.glowIntensity=1}const n=(EDIT.weapons||[]).find(w=>w.id==='weapon.nova');if(n&&n.shards==null)n.shards=3})();
+// 2026-08-09 follow-up (owner: "storm arc is broken"): 150 was so short the arc almost never had a
+// target — measured 2 of 120 sampled frames with a live bolt while charging the swarm — so it read
+// as a dead weapon. Range goes to 240 (still the close-range tier, under the flame's 260, far under
+// the laser's 720). Damage is untouched; the real DPS bug was the shared fire clock, fixed in
+// update(). Same shipped-pair-only rule so hand-tuned FORGE values survive.
+(function(){const c=(EDIT.weapons||[]).find(w=>w.id==='weapon.chain');if(c){if(c.range===280&&c.damage===16){c.range=150;c.damage=22;persistForge()}if(c.range===150&&c.damage===22){c.range=240;persistForge()}if(c.coreWidth==null)c.coreWidth=1.8;if(c.glowWidth==null)c.glowWidth=12;if(c.glowIntensity==null)c.glowIntensity=1}const n=(EDIT.weapons||[]).find(w=>w.id==='weapon.nova');if(n&&n.shards==null)n.shards=3})();
 
 // ---- SAVE SLOTS (mirror HiVE WAR: 3 slots + erase; legacy single key migrates into slot 1) ----
 const SAVE_SLOTS=3, LEGACY_KEY='hive_swarm_meta_v1', SLOT_PICK_KEY='hive_swarm_slot';
@@ -452,6 +457,8 @@ let continuesUsed=0, pendingRevive=null; // pendingRevive: see acceptContinue() 
 let pendingLevelUps=0, cardsOpen=false; // declared HERE, not next to offerCards(), because reset() below touches them — a `let` further down the file would be in the temporal dead zone if reset() ever ran during script evaluation. See offerCards() for why level-ups queue.
 function continuesAllowed(){return Math.floor((stage+1)/3)}
 let WEAPON,ENEMIES,paused=false,pauseAccum=0;
+// weapon.id -> seconds until that weapon may fire again (see the per-weapon cadence block in update)
+let fireClocks={};
 const MAX_PARTICLES=220;
 // S5 — pooled floating damage numbers. Fixed-size pool, no per-hit allocation at survivors-like fire rates.
 const MAX_DMGNUM=60;
@@ -523,7 +530,7 @@ function reset(){applyForge();
   const startId=(META.startWeapon&&META.ownedWeapons[META.startWeapon])?META.startWeapon:'weapon.pulse';
   const start=weaponById(startId);
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
-  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=threatTier=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;weaponMods={};weaponOrbs={};skillStacks={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
+  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,hp:player.maxHp,inv:0,angle:0});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=threatTier=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;fireClocks={};weaponMods={};weaponOrbs={};skillStacks={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
   stage=0;stageT=0;stageBoss=null;stageWave=0;waveSpawned=0;waveNoKillT=0;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;shieldCharges=0;shieldCd=0;resetRunStats();
   droneMods={};droneFireClock=0;continuesUsed=0;pendingRevive=null;pendingLevelUps=0;cardsOpen=false; // fresh drones + fresh continue budget every run
   genObstacles();for(const o of dmgNums)o.active=0;
@@ -607,11 +614,13 @@ function fire(){
   let a=Math.atan2(target.y-player.y,target.x-player.x);player.angle=a;
   const dmgMul=1+Math.min(.25,META.damage*.05);
   for(const w of heldWeapons){
+    if((fireClocks[w.id]||0)>0)continue;      // this weapon is still on cooldown
+    fireClocks[w.id]=wRate(w);
     const kind=w.kind||'bullet', dmg=wDamage(w)*dmgMul;
     // Each weapon aims for itself now - the toxin gun wants a clean target, everything else wants
     // the closest body.
     let wTarget=kind==='poison'?poisonTarget():target;
-    if(!wTarget)continue;
+    if(!wTarget){fireClocks[w.id]=0;continue}   // declined to fire -> don't burn the cooldown
     let wa=Math.atan2(wTarget.y-player.y,wTarget.x-player.x);
     if(w===heldWeapons[0])player.angle=wa;
     if(kind==='beam'){
@@ -641,7 +650,7 @@ function fire(){
       // and only decline to fire when NO enemy at all is in range.
       const chainRangeSq=(w.range||150)**2;
       let cur=nearestEnemy(player,null,e=>(e.x-player.x)**2+(e.y-player.y)**2<=chainRangeSq);
-      if(!cur)continue; // genuinely nothing in range — the only case Storm Arc holds fire
+      if(!cur){fireClocks[w.id]=0;continue} // genuinely nothing in range — the only case Storm Arc holds fire
       let hit=new Set(), jumps=wJumps(w), from={x:player.x,y:player.y};
       const chainGlow=Math.max(4,(w.glowWidth||12)*(w.glowIntensity??1));
       const chainCore=Math.max(0.6,w.coreWidth||1.8);
@@ -910,7 +919,15 @@ if(bossPendingT>0){
 }
 // Shield Matrix recharge
 if((skillStacks.shield||0)>0){shieldCd=Math.max(0,shieldCd-dt);if(shieldCd<=0&&shieldCharges<(skillStacks.shield||0)){shieldCharges=skillStacks.shield;shieldCd=12}}
-fireClock-=dt;if(fireClock<=0){fireClock+=wRate(WEAPON);fire()}
+// PER-WEAPON CADENCE (owner 2026-08-09, "storm arc is broken"). This used to be ONE global
+// fireClock ticked at wRate(WEAPON) — the PRIMARY weapon's rate — and fire() then fired every held
+// weapon on that same tick. So a secondary's own `rate` was dead data: Storm Arc (rate .32) firing
+// alongside a Flamethrower primary (rate .06) zapped ~16x/sec instead of ~3x/sec, and since the
+// chain branch deals its FULL `dmg` per call (unlike beam/flame, which multiply by w.rate and so
+// cancel the cadence out), its DPS swung wildly with whatever else you happened to be holding.
+// Each weapon now owns its own clock, so every weapon's `rate` means what it says.
+for(const w of heldWeapons)fireClocks[w.id]=Math.max(-.1,(fireClocks[w.id]||0)-dt);
+fire()
 // Drones run on their OWN clock (droneRate(), scaled independently by the Drone Overclock card)
 // instead of piggybacking on the held weapon's rate — otherwise a Rapid mod on the gun would also
 // silently speed up the drones for free, and a Drone Overclock card would have nothing to modulate.
@@ -1070,6 +1087,9 @@ window.__swarmDbg=()=>({state,wave:stageWave+1,threatTier,stage,stageT,stageWave
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 window.__swarmPause=setPaused;window.__swarmTogglePause=togglePause;
+// QA hook: jump straight to the stage-clear debrief so the fireworks/fanfare can be verified
+// without having to grind a whole stage down to the guardian.
+window.__swarmDebrief=()=>{state='debrief';startDebrief()};
 function draw(){
   // STAGE backdrop: each stage tints the arena via its own bg[] pair (top→bottom gradient) so a
   // stage transition reads visually even though the grid/geometry stays the same.
@@ -1088,24 +1108,49 @@ for(const o of obstacles){const ox2=sx(o.x),oy2=sy(o.y);if(ox2<-100||ox2>VIEW.w+
 // beams (laser + chain) under projectiles
 for(const b of beams){
   if(b.flame){
-    // Flamethrower cone (owner 2026-08-08): layered additive gradient wedge, NOT a solid
-    // triangle — outer orange, mid yellow, white-hot core near the muzzle — plus a scatter of
-    // flickering ember particles so it reads as fire instead of a geometric shape. Scales
-    // directly with b.len/b.halfAng, which already carry wFlameLen/wFlameWidth (mods + giant
-    // exclusion applied upstream in fire()).
+    // Flamethrower gout (owner 2026-08-09: "flame thrower is horrible looking, copy the look from
+    // hive war"). The old render was a gradient WEDGE — a hard-edged geometric triangle that read
+    // as a cone of light, not fire. HiVE WAR draws its flamethrower as a STREAM OF SOFT ADDITIVE
+    // PUFFS (D:\Dev\HiveWar\index.html, `case 'flame'` in the bullet draw): each puff is 3 stacked
+    // circles — outer smoke-red #c33, body #f83, hot core #fd6 — that WIDEN and FADE as they travel
+    // (`grow = 1 + (1-life)*1.9`), with a white spark while still near the nozzle.
+    //
+    // HiVE WAR gets its stream for free because its flame is a real pooled projectile with its own
+    // `life`; HiveSwarm's flame is a CONTINUOUS cone hitbox (one short-lived beam object per tick),
+    // so the puffs are synthesised here instead: PUFFS samples marched along the cone axis, each
+    // one's travel `t` advancing with `elapsed` so the gout visibly flows outward, wrapping back to
+    // the muzzle. Same colours, same grow/fade curve, same additive blend — hit logic untouched.
     const px=sx(b.x),py=sy(b.y),len=b.len,half=b.halfAng;
-    ctx.save();ctx.globalCompositeOperation='lighter';ctx.translate(px,py);ctx.rotate(b.ang);
-    const flick=.85+.15*Math.sin(elapsed*37+b.x*.05);
-    const grad=ctx.createLinearGradient(0,0,len,0);
-    grad.addColorStop(0,'rgba(255,255,240,'+(.85*flick)+')');
-    grad.addColorStop(.35,'rgba(255,196,80,'+(.55*flick)+')');
-    grad.addColorStop(1,'rgba(255,90,30,0)');
-    ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,0);
-    ctx.arc(0,0,len,-half,half);ctx.closePath();ctx.fill();
+    const PUFFS=26, wid=Math.max(6,Math.tan(half)*len);   // wid = cone half-width at full reach
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<PUFFS;i++){
+      // t: 0 at the nozzle -> 1 at max reach. Offsetting by elapsed makes each puff march outward;
+      // the golden-ratio stride keeps successive puffs from banding into a visible ladder.
+      const t=((i*0.6180339887)+elapsed*1.35)%1;
+      const life=1-t;                                    // matches HiVE WAR's nozzle=1, reach=0
+      const grow=1+t*1.9;                                // ...and its widen-as-it-flies curve
+      const d=t*len;
+      // Lateral wander stays INSIDE the cone (scaled by t so puffs converge at the muzzle).
+      const wob=Math.sin(i*2.399+elapsed*9)*half*0.62*t;
+      const ex=px+Math.cos(b.ang+wob)*d, ey=py+Math.sin(b.ang+wob)*d;
+      // Puffs must OVERLAP or the stream reads as a dotted line of beads instead of a gout — the
+      // radius therefore spans roughly half-width at the muzzle to ~2x half-width at full reach.
+      const r=wid*(0.5+0.95*t)*(grow/1.9);
+      ctx.globalAlpha=0.16+0.34*life;
+      ctx.fillStyle='#c33';ctx.beginPath();ctx.arc(ex,ey,r*0.95,0,7);ctx.fill();    // outer smoke-red
+      ctx.fillStyle='#f83';ctx.beginPath();ctx.arc(ex,ey,r*0.62,0,7);ctx.fill();    // body
+      ctx.globalAlpha=0.30+0.55*life;
+      ctx.fillStyle='#fd6';ctx.beginPath();ctx.arc(ex,ey,r*0.32,0,7);ctx.fill();    // hot core
+      if(life>0.7){ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ex,ey,wid*0.16,0,7);ctx.fill()}
+    }
+    // Muzzle flare so the stream is anchored to the gun instead of starting in mid-air.
+    const fl=0.85+0.15*Math.sin(elapsed*37);
+    ctx.globalAlpha=0.55*fl;ctx.fillStyle='#fd6';ctx.beginPath();ctx.arc(px,py,wid*0.5,0,7);ctx.fill();
+    ctx.globalAlpha=0.9*fl;ctx.fillStyle='#fff6c8';ctx.beginPath();ctx.arc(px,py,wid*0.22,0,7);ctx.fill();
     ctx.restore();
-    // Scattered ember flecks inside the cone — cheap, no new state stored on the beam object.
-    for(let i=0;i<5;i++){
-      const t=Math.random(),r=t*len,a=(Math.random()*2-1)*half*(1-t*.3);
+    // Ember flecks thrown off the stream — same role as HiVE WAR's burn embers.
+    for(let i=0;i<4;i++){
+      const t=Math.random(),r=t*len,a=(Math.random()*2-1)*half;
       const ex=px+Math.cos(b.ang+a)*r,ey=py+Math.sin(b.ang+a)*r;
       ctx.globalAlpha=.5*(1-t);ctx.fillStyle=t<.4?'#fff6c8':'#ff9a3d';ctx.shadowColor='#ff9a3d';ctx.shadowBlur=8;
       ctx.beginPath();ctx.arc(ex,ey,rand(1.2,2.6),0,7);ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;
@@ -1554,6 +1599,25 @@ function offerCards(){
 }
 // ---- HiveWar-style stage debrief (count-up stats) then upgrade pick ----
 let debriefT=0, debriefDone=false, debriefRowsCache=null, debriefLastVal={};
+// CELEBRATION (owner 2026-08-09: "where are the fireworks and fanfare at end of stage screen like
+// hive war"). Ported 1:1 from HiVE WAR's fireworkBurst()/updateDebrief()/drawDebrief()
+// (D:\Dev\HiveWar\index.html): 72 gravity-fed sparks + two flash rings per burst, an opening
+// 3-burst fanfare when the panel opens, then a burst every ~0.38s once the tally finishes.
+// Fireworks live in SCREEN space (the debrief is an overlay, not world geometry) so they need no
+// sx()/sy() and are unaffected by the camera.
+let fireworks=[], fireT=0;
+function fireworkBurst(){
+  const W=VIEW.w,H=VIEW.h;
+  const x=rand(70,W-70), y=rand(H*0.25,H*0.72);
+  const hue=['#4ff','#f4f','#ff4','#6f9','#f86','#fff'][(Math.random()*6)|0];
+  for(let i=0;i<72;i++){
+    const a=Math.random()*6.283, sp=rand(120,420);
+    fireworks.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:rand(.9,2.1),col:hue,r:rand(2.4,5.2)});
+  }
+  fireworks.push({x,y,vx:0,vy:0,life:.28,col:'#fff',r:38,flash:1});
+  fireworks.push({x,y,vx:0,vy:0,life:.4,col:hue,r:54,flash:1});
+  sfxFile('electric-explosive.mp3',.18);
+}
 function debriefRows(){
   if(debriefRowsCache)return debriefRowsCache;
   const rows=[];
@@ -1574,16 +1638,29 @@ function debriefRows(){
 }
 function startDebrief(){
   debriefT=0;debriefDone=false;debriefRowsCache=null;debriefLastVal={};
+  fireworks=[];fireT=0;
   state='debrief';
   if(typeof HTMLElement==='undefined'){// harness: skip animation
     pendingStageAdvance=()=>offerStageBreak();return}
+  // Opening fanfare: three staggered bursts, exactly like HiVE WAR's.
+  for(let i=0;i<3;i++)setTimeout(()=>{if(state==='debrief')fireworkBurst()},i*120);
 }
 function updateDebrief(dt){
   if(state!=='debrief')return;
   debriefT+=dt;
   const rows=debriefRows();
   const full=rows.length*0.45+1.4;
-  if(!debriefDone&&debriefT>full)debriefDone=true;
+  // Tally tick: one blip as each row lands, so the count-up has a rhythm instead of being silent.
+  const shownRows=Math.min(rows.length,Math.floor(debriefT/0.45));
+  if(shownRows>(debriefLastVal._rows||0)){debriefLastVal._rows=shownRows;sfxFile('money.mp3',.12)}
+  if(!debriefDone&&debriefT>full){debriefDone=true;fireT=0}
+  if(debriefDone){                       // celebration: a burst every ~0.38s, sometimes doubled
+    fireT-=dt;
+    if(fireT<=0){fireT=.38;fireworkBurst();if(Math.random()<.45)fireworkBurst()}
+  }
+  for(let i=fireworks.length-1;i>=0;i--){const f=fireworks[i];
+    f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=210*dt;f.life-=dt;      // 210 px/s^2 gravity, same as HiVE WAR
+    if(f.life<=0)fireworks.splice(i,1)}
 }
 function drawDebrief(){
   if(state!=='debrief')return;
@@ -1629,6 +1706,14 @@ function drawDebrief(){
       ctx.textAlign='center';
     }
   });
+  // Fireworks paint OVER the panel (screen space, additive-ish glow) — HiVE WAR draws them in the
+  // same slot, after the rows and before the continue prompt.
+  for(const f of fireworks){
+    ctx.globalAlpha=Math.max(0,Math.min(1,f.life));
+    ctx.fillStyle=f.col;ctx.shadowColor=f.col;ctx.shadowBlur=f.flash?56:18;
+    ctx.beginPath();ctx.arc(f.x,f.y,(f.r||3)*(f.flash?Math.max(.2,f.life/.28):1),0,7);ctx.fill();
+  }
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
   if(debriefDone){
     const pulse=.7+.3*Math.sin(debriefT*5);
     ctx.fillStyle=`rgba(111,255,226,${pulse})`;ctx.font='700 16px system-ui';
