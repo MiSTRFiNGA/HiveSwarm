@@ -101,7 +101,7 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{ha
   // existing continuous-fire sample) rather than a one-shot cue like grenade.mp3.
   {id:'weapon.flame',name:'Flamethrower',kind:'flame',damage:9,rate:.06,speed:0,shots:1,pierce:99,color:'#ff9a3d',range:260,flameWidth:38,flameLength:260,burnDps:40,burnTime:2.2,dropWeight:1,sfx:'light-machine-gun.mp3',icon:5},
   {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'electric-explosive.mp3',icon:2},
-  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:240,jumps:4,dropWeight:1,coreWidth:1.8,glowWidth:12,glowIntensity:1,sfx:'lightning01.mp3',icon:3},
+  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:240,jumps:4,dropWeight:1,coreWidth:3.4,glowWidth:15,glowIntensity:1.15,sfx:'lightning01.mp3',icon:3},
   {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78,dropWeight:1,shards:3,sfx:'grenade.mp3',icon:4},
   // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
   // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
@@ -154,7 +154,28 @@ if(EDIT.waves.budgetBase===1.15&&EDIT.waves.budgetExponent===1.065){try{const ra
 // as a dead weapon. Range goes to 240 (still the close-range tier, under the flame's 260, far under
 // the laser's 720). Damage is untouched; the real DPS bug was the shared fire clock, fixed in
 // update(). Same shipped-pair-only rule so hand-tuned FORGE values survive.
-(function(){const c=(EDIT.weapons||[]).find(w=>w.id==='weapon.chain');if(c){if(c.range===280&&c.damage===16){c.range=150;c.damage=22;persistForge()}if(c.range===150&&c.damage===22){c.range=240;persistForge()}if(c.coreWidth==null)c.coreWidth=1.8;if(c.glowWidth==null)c.glowWidth=12;if(c.glowIntensity==null)c.glowIntensity=1}const n=(EDIT.weapons||[]).find(w=>w.id==='weapon.nova');if(n&&n.shards==null)n.shards=3})();
+// 2026-08-12 THIRD pass — and unlike the first two, this one was MEASURED, which is why it is a
+// PRESENTATION change and NOT another range/damage retune (owner: "the storm arc is broken, you
+// dont see it unless it chains 6 enemies").
+//
+// Instrumented runs (Storm Arc equipped, player stationary, sampling beams.length):
+//   * Nothing fires for the first ~10s of a stage. That is NOT a Storm Arc bug — enemies spawn
+//     ~950px out and walk in, so every short-range weapon is idle until they arrive.
+//   * A/B on range, time-to-first-bolt:  range 241 -> 11.0s,  range 340 -> 10.4s.
+//     A 41% range increase bought 0.6 SECONDS, because travel time dominates, not reach. So the
+//     range was left at 240 — a balance change that buys nothing is just balance drift, and the
+//     previous two passes already moved this number twice (280 -> 150 -> 240) on guesswork.
+//   * Once engaged: bolts on screen ~50% of samples, MAX 1 CONCURRENT BOLT. That is the whole
+//     complaint. One 1.8px-core bolt, on screen half the time, is invisible in a busy fight —
+//     you only registered the weapon when several bolts happened to stack, i.e. "chains 6".
+//
+// Fix: make ONE bolt read on its own. coreWidth 1.8 -> 3.4, glowWidth 12 -> 20, glowIntensity
+// 1 -> 1.5, bolt lifetime raised to the full fire interval, plus an impact spark per link (see
+// the chain branch in fire()). Damage, rate, range and jumps are all untouched.
+(function(){const c=(EDIT.weapons||[]).find(w=>w.id==='weapon.chain');if(c){if(c.range===280&&c.damage===16){c.range=150;c.damage=22;persistForge()}if(c.range===150&&c.damage===22){c.range=240;persistForge()}
+  // Push the louder bolt onto saves that still carry the old thin-bolt trio (shipped-pair rule:
+  // only rewrite the exact old defaults, so hand-tuned FORGE values survive).
+  if(c.coreWidth===1.8&&c.glowWidth===12&&(c.glowIntensity??1)===1){c.coreWidth=3.4;c.glowWidth=15;c.glowIntensity=1.15;persistForge()}if(c.coreWidth==null)c.coreWidth=1.8;if(c.glowWidth==null)c.glowWidth=12;if(c.glowIntensity==null)c.glowIntensity=1}const n=(EDIT.weapons||[]).find(w=>w.id==='weapon.nova');if(n&&n.shards==null)n.shards=3})();
 
 // ---- SAVE SLOTS (mirror HiVE WAR: 3 slots + erase; legacy single key migrates into slot 1) ----
 const SAVE_SLOTS=3, LEGACY_KEY='hive_swarm_meta_v1', SLOT_PICK_KEY='hive_swarm_slot';
@@ -346,10 +367,11 @@ const MODS=[
   {id:'ricochet',  name:'Ricochet',  text:'Bullets bounce off enemies & walls',   appliesTo:['bullet','homing','poison']},
   // Damage amp — Zombie Waves Overclock cousin for raw DPS.
   {id:'overcharge',name:'Overcharge',text:'+22% weapon damage',                   appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
-  // Bigger projectiles / thicker beam. Flame deliberately excluded (owner 2026-08-08): it already
-  // has two dedicated size mods (flamelength/flamespread below) — folding 'giant' in too would let
-  // one card double-dip on the same stat, so 'giant' stays projectile/beam-only.
-  {id:'giant',     name:'Giant Rounds',text:'+35% projectile / beam size',        appliesTo:['bullet','homing','nova','poison','beam']},
+  // REMOVED 2026-08-12 (owner: "remove large or giant bullet upgrade"). 'Giant Rounds' is gone
+  // from the offer pool. wSizeMul() is deliberately KEPT and now always returns 1 — old saves and
+  // FORGE presets can still carry a `giant` stack, and every projectile/beam draw path multiplies
+  // by it, so deleting the function would break loading an existing run rather than fix anything.
+  //   {id:'giant', name:'Giant Rounds', ...}   <- do not re-add without asking the owner
   // Nova Shell unique: kill explosions spit mini reactor-stars. Base shards (3) + 2 per stack.
   {id:'novastar',  name:'Nova Star', text:'+2 mini nova stars on kill explosion', appliesTo:['nova']},
   // Storm Arc unique: adds jumps on top of the weapon's current jump count (owner 2026-08-08).
@@ -381,7 +403,10 @@ function modApplies(mod,w){return mod.appliesTo.includes(w.kind||'bullet')}
 function wNovaShards(w){return Math.max(0,(w.shards??3)+2*modStacks(w.id,'novastar'))}
 function wJumps(w){return Math.max(1,(w.jumps||4)+2*modStacks(w.id,'arcjump'))}
 function wDamage(w){return (w.damage||10)*(1+.22*modStacks(w.id,'overcharge'))}
-function wSizeMul(w){return 1+.35*modStacks(w.id,'giant')}
+// Giant Rounds was removed from the offer pool 2026-08-12; this now always returns 1. Kept as a
+// function (rather than deleted) because every projectile/beam size read still calls it, and a
+// saved run or FORGE preset may still hold a `giant` stack we must simply ignore.
+function wSizeMul(w){return 1}
 function wBounces(w){return modStacks(w.id,'ricochet')}
 // Flamethrower unique stats (owner 2026-08-08). 'giant' deliberately does NOT feed these — see the
 // comment on the giant MODS entry — so only the dedicated flame mods scale length/width/burn.
@@ -614,7 +639,14 @@ function spawnBossEnemy(){
   let roster=ENEMIES.filter(e=>(e.unlockWave||1)<=stageCap);if(!roster.length)roster=ENEMIES;
   const fallbackBase=roster.reduce((best,e)=>(!best||(e.unlockWave||1)>=(best.unlockWave||1))?e:best,null);
   const base=(bcfg&&ENEMIES.find(e=>e.id===bcfg.baseEntityId))||fallbackBase;
-  const scale=bcfg?(bcfg.scale||1.6):1.6;
+  // BOSS_FIGHT_SCALE (owner 2026-08-12: "make level boss 2x scale just for boss fight").
+  // Applied ON TOP of the per-boss FORGE `scale` so hand-tuned boss slots keep their relative
+  // sizes, and applied ONLY here in spawnBossEnemy() — no normal enemy, add, or wave spawn reads
+  // it, which is the "just for boss fight" part. Radius only: hp, damage and speed are untouched,
+  // so this is presentation, not a difficulty change. Note r feeds the arena clamp below and the
+  // enemy's hit radius, so the bigger guardian is genuinely bigger to hit, not just drawn bigger.
+  const BOSS_FIGHT_SCALE=2;
+  const scale=(bcfg?(bcfg.scale||1.6):1.6)*BOSS_FIGHT_SCALE;
   const a=Math.random()*Math.PI*2,distance=Math.hypot(VIEW.w,VIEW.h)*.6+160;
   const r=base.r*scale;
   let x=Math.max(-WORLD.halfW+r,Math.min(WORLD.halfW-r,player.x+Math.cos(a)*distance)),
@@ -656,6 +688,21 @@ function nearestEnemy(from,ignore,ok){let target=null,best=Infinity;for(const e 
 // dumping shots into a target that was already dying of the DoT. It now looks for the nearest
 // CLEAN enemy first and only falls back to the plain nearest when the whole screen is infected.
 function poisonTarget(){return nearestEnemy(player,null,e=>!(e.poisonT>0))||nearestEnemy(player)}
+// MUZZLE (owner 2026-08-12: "all weapons should shoot from the tip of the cannon on the player").
+// Every weapon used to originate at the player's CENTRE, so shots, beams, arcs and the flame cone
+// all visibly spawned inside the hull instead of at the barrel.
+//
+// The barrel is drawn in player-local space at draw():
+//     ctx.fillRect(player.r*0.45, -player.r*0.28, player.r*1.35, player.r*0.55)
+// so it runs from 0.45r to 0.45r+1.35r = 1.8r along the facing axis. MUZZLE_R is that 1.8 — keep
+// the two in sync if the barrel art changes.
+//
+// Angle note: only heldWeapons[0] drives player.angle (the drawn barrel). Secondary weapons aim
+// independently at their own target, so they use their OWN angle here — i.e. "where the tip would
+// be if the barrel were pointing at my target". Spawning them at the drawn tip instead would make
+// their shots visibly launch sideways out of the barrel.
+const MUZZLE_R=1.8;
+function muzzle(w,ang){const d=player.r*MUZZLE_R;return{x:player.x+Math.cos(ang)*d,y:player.y+Math.sin(ang)*d}}
 function fire(){
   let target=nearestEnemy(player);if(!target)return;
   let a=Math.atan2(target.y-player.y,target.x-player.x);player.angle=a;
@@ -672,14 +719,17 @@ function fire(){
     if(w===heldWeapons[0])player.angle=wa;
     if(kind==='beam'){
       // continuous ray — damage everything on the segment this tick
-      const len=w.range||720, x2=player.x+Math.cos(wa)*len, y2=player.y+Math.sin(wa)*len;
+      const m=muzzle(w,wa);
+      const len=w.range||720, x2=m.x+Math.cos(wa)*len, y2=m.y+Math.sin(wa)*len;
       const beamLife=.14;
       const sm=wSizeMul(w);
-      beams.push({x1:player.x,y1:player.y,x2,y2,color:w.color,core:w.coreColor,life:beamLife,lifeMax:beamLife,w:(w.glowWidth||24)*sm,coreW:(w.coreWidth||2.4)*sm,pulseRate:w.pulseRate||16});
+      beams.push({x1:m.x,y1:m.y,x2,y2,color:w.color,core:w.coreColor,life:beamLife,lifeMax:beamLife,w:(w.glowWidth||24)*sm,coreW:(w.coreWidth||2.4)*sm,pulseRate:w.pulseRate||16});
       const hitList=[];
       for(const e of enemies){
-        const px=e.x-player.x,py=e.y-player.y,segx=x2-player.x,segy=y2-player.y,t=Math.max(0,Math.min(1,(px*segx+py*segy)/(segx*segx+segy*segy||1)));
-        const dx=player.x+segx*t-e.x,dy=player.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){const tick=dmg*w.rate*3;e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);applyKnockback(e,e.x-player.x,e.y-player.y,modStacks(w.id,'knockback'));if(Math.random()<.5)burst(e.x,e.y,w.coreColor||'#eaffff',2);if(e.hp<=0)hitList.push(e)}}
+        // Hit segment starts at the MUZZLE, matching the drawn beam exactly — if these two
+        // origins ever diverge the laser damages things it visibly misses.
+        const px=e.x-m.x,py=e.y-m.y,segx=x2-m.x,segy=y2-m.y,t=Math.max(0,Math.min(1,(px*segx+py*segy)/(segx*segx+segy*segy||1)));
+        const dx=m.x+segx*t-e.x,dy=m.y+segy*t-e.y;if(dx*dx+dy*dy<(e.r+(w.width||6))**2){const tick=dmg*w.rate*3;e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);applyKnockback(e,e.x-player.x,e.y-player.y,modStacks(w.id,'knockback'));if(Math.random()<.5)burst(e.x,e.y,w.coreColor||'#eaffff',2);if(e.hp<=0)hitList.push(e)}}
       for(const e of hitList)killEnemy(e);
       if(w.sfx)sfxFile(w.sfx,.04);else sfx('fire',.04);continue}
     if(kind==='chain'){
@@ -698,11 +748,21 @@ function fire(){
       const chainRangeSq=(w.range||150)**2;
       let cur=nearestEnemy(player,null,e=>(e.x-player.x)**2+(e.y-player.y)**2<=chainRangeSq);
       if(!cur){fireClocks[w.id]=0;continue} // genuinely nothing in range — the only case Storm Arc holds fire
-      let hit=new Set(), jumps=wJumps(w), from={x:player.x,y:player.y};
+      let hit=new Set(), jumps=wJumps(w), from=muzzle(w,wa);
       const chainGlow=Math.max(4,(w.glowWidth||12)*(w.glowIntensity??1));
       const chainCore=Math.max(0.6,w.coreWidth||1.8);
+      // VISIBILITY FIX 2026-08-12 (owner: "the storm arc is broken, you dont see it unless it
+      // chains 6 enemies"). The bolt lived .2s on a .32s fire cycle, so it was OFF ~38% of the
+      // time and each individual bolt was a 1.8px core for 12 frames. On a single target that
+      // reads as "nothing is happening" — you only registered the weapon when 6 overlapping
+      // bolts happened to stack into something bright enough to notice.
+      // Fix is presentational, NOT a damage buff: the bolt now lives the full fire interval so
+      // the arc is continuously on screen while a target is in range, and every link gets an
+      // impact spark. Damage, rate, range and jumps are all untouched.
+      const chainLife=Math.max(.22,wRate(w)*.95);
       for(let j=0;j<jumps&&cur;j++){
-        beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:.2,w:chainGlow,coreW:chainCore,glowI:w.glowIntensity??1,chain:1});
+        beams.push({x1:from.x,y1:from.y,x2:cur.x,y2:cur.y,color:w.color,life:chainLife,lifeMax:chainLife,w:chainGlow,coreW:chainCore,glowI:w.glowIntensity??1,chain:1});
+        burst(cur.x,cur.y,w.color||'#d7a6ff',3);   // impact spark so a single-target zap still reads
         const jd=dmg*(1-j*0.12);cur.hp-=jd;cur.hit=.12;spawnDmgNum(cur.x,cur.y-cur.r,jd);hit.add(cur);
         // Direction = away from `from` (the arc's immediate source: the player on jump 0, the
         // previous link after that) rather than away from the player — a chain can zig-zag several
@@ -738,15 +798,20 @@ function fire(){
       // leans ~67% of its damage on the burn DoT, which also keeps ticking after the target leaves
       // the cone. Short range (260 vs 720) is the cost of that area. Overcharge scales the direct
       // tick only; Napalm scales burnDps only — neither double-dips.
+      // ORIGIN FIX 2026-08-12 (owner: "the flame should start at the top of the rectangle that
+      // shoots"). The cone used to be emitted from the player's centre, so the fire visibly
+      // started inside the hull and swallowed the barrel. It now starts at the barrel tip, and
+      // the damage cone below uses the same origin so what burns matches what you see.
+      const fm=muzzle(w,wa);
       const len=wFlameLen(w), halfAng=Math.atan2(wFlameWidth(w)/2,len);
-      beams.push({flame:1,x:player.x,y:player.y,ang:wa,len,halfAng,color:w.color,life:.1});
+      beams.push({flame:1,x:fm.x,y:fm.y,ang:wa,len,halfAng,color:w.color,life:.1});
       const tick=dmg*w.rate*2.2;
       const burn=wBurnDps(w);
       // Collect-then-kill, same as the beam branch above: killEnemy() -> explode() can kill more
       // enemies and splice the array, which is unsafe to do while iterating it.
       const flameKills=[];
       for(const e of enemies){
-        const dx=e.x-player.x,dy=e.y-player.y,d=Math.hypot(dx,dy);if(d>len+e.r)continue;
+        const dx=e.x-fm.x,dy=e.y-fm.y,d=Math.hypot(dx,dy);if(d>len+e.r)continue;
         let diff=Math.atan2(dy,dx)-wa;diff=((diff+Math.PI*3)%(Math.PI*2))-Math.PI;
         if(Math.abs(diff)>halfAng+Math.atan2(e.r,Math.max(1,d)))continue;
         e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);
@@ -771,8 +836,13 @@ function fire(){
       let spread=(i-(shots-1)/2)*fan;
       const ang=wa+spread;
       const baseR=kind==='nova'?7:kind==='homing'?5:4;
+      // MUZZLE 2026-08-12: was a hardcoded 18px from the player's centre, which is INSIDE the
+      // hull+barrel art (the barrel tip is at 1.8*player.r ~= 28.8px), so rounds visibly popped
+      // into existence on top of the ship. Each pellet of a Scatter fan leaves from the tip along
+      // its own angle, so the fan still opens from one point.
+      const pm=muzzle(w,ang);
       bullets.push({
-        x:player.x+Math.cos(ang)*18,y:player.y+Math.sin(ang)*18,
+        x:pm.x,y:pm.y,
         vx:Math.cos(ang)*(w.speed||700),vy:Math.sin(ang)*(w.speed||700),
         r:baseR*sm,
         damage:dmg,pierce:wPierce(w),life:kind==='homing'?2.2:kind==='nova'?1.4:1.05,
@@ -1301,7 +1371,11 @@ for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Mat
   // Color differentiation + transparency so stacks read as a cloud of acid gas, not a solid disc.
   if(e.poisonT>0){
     const stacks=Math.max(1,e.poisonStacks||1);
-    const n=10+Math.min(8,stacks*2); // twice the bubbles (owner 2026-08-08)
+    // OWNER 2026-08-12: "make poison bubble twice as many, hard to see them."
+    // Count doubled again (10+<=8 -> 20+<=16), and the bubbles themselves made legible below:
+    // bigger radius, brighter floor on the alpha ramp, and a dark outline so they no longer
+    // disappear against a light sprite or a bright muzzle flash.
+    const n=20+Math.min(16,stacks*4);
     const tNow=performance.now()*0.001;
     // Stable per-enemy seed so the pattern is coherent while they move, not random static.
     const seed=((e.x*12.9898+e.y*78.233+e.r*37.1)|0)>>>0;
@@ -1313,9 +1387,14 @@ for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Mat
       const wobble=Math.sin(tNow*2.8+i*1.9+seed*.01)*e.r*(.28+.08*(i%3));
       const lane=((i%5)-2)*e.r*.18;
       const bx=x+wobble+lane, by=y+rise;
-      const br=1.2+((seed+i*3)&3)*.55+(1-phase)*.9;
+      const br=2.1+((seed+i*3)&3)*.8+(1-phase)*1.3;   // was 1.2/.55/.9 — ~70% larger
       // Fade in near bottom, peak mid, fade out at top — soft transparency throughout.
-      const alpha=.18+.42*(1-phase)*Math.min(1,phase*5);
+      // Alpha floor raised (.18 -> .34) and peak lifted so a single stack is still readable.
+      const alpha=.34+.5*(1-phase)*Math.min(1,phase*5);
+      ctx.globalAlpha=alpha;
+      // Dark rim first: the bubbles were pure light-green on light sprites and vanished.
+      ctx.strokeStyle='#0d3a12';ctx.lineWidth=1;ctx.globalAlpha=alpha*.8;
+      ctx.beginPath();ctx.arc(bx,by,br,0,7);ctx.stroke();
       ctx.globalAlpha=alpha;
       ctx.fillStyle=palette[(seed+i*5)%palette.length];
       ctx.beginPath();ctx.arc(bx,by,br,0,7);ctx.fill();
@@ -1567,6 +1646,28 @@ function buildCardPool(opts){
   let pool=[...weapons,...skills,...droneCards,...(opts.allowEvo&&threatTier>=10&&!evolved?[evo]:[])];
   return {held,weapons,skills,droneCards,pool};
 }
+// EQUIPPED-WEAPON GUARANTEE (owner 2026-08-12: "Every upgrade turn MUST have at least 1 upgrade
+// for the currently equipped weapon. If all current upgraded weapon stats are maxed, you may show
+// other options.")
+//
+// Before this, only offerCards() had a partial version of the rule and it was gated on
+// `cardPicks<3` — so from your 4th level-up onward the roll was pure random over the whole pool
+// and could easily hand you three drone/skill cards while your actual gun got nothing. The stage
+// -break reward had no such rule at all.
+//
+// `weapons` from buildCardPool() is ALREADY filtered to mods that apply to heldWeapons[0] and are
+// below MOD_MAX, so an empty `weapons` array is exactly the owner's escape hatch: everything for
+// this weapon is maxed, and the roll falls through to the rest of the pool.
+function rollChoices(n,built){
+  const out=[];
+  if(built.weapons.length)out.push(built.weapons[Math.floor(Math.random()*built.weapons.length)]);
+  const bag=built.pool.slice();
+  while(out.length<n&&bag.length){
+    const c=bag.splice(Math.floor(Math.random()*bag.length),1)[0];
+    if(!out.includes(c))out.push(c);
+  }
+  return out;
+}
 // --- CONTINUES (owner 2026-08-08) ---------------------------------------------------------------
 // requestContinue() is the SINGLE, exact place a rewarded-ad SDK call gets wired in later. Today it
 // grants immediately — no ad SDK is integrated yet, per owner instruction not to wire one now.
@@ -1632,11 +1733,9 @@ function offerCards(){
   if(cardsOpen)return;
   pendingLevelUps=Math.max(0,pendingLevelUps-1);
   // S.7: weapon cards grant a MOD attached to the held weapon's ID. Skills are run-scoped, max 3.
-  const {weapons,pool}=buildCardPool({allowEvo:true,bigHeal:false});
-  let first=cardPicks<3&&weapons.length?weapons[Math.floor(Math.random()*weapons.length)]:null;
-  choices=[];if(first)choices.push(first);
-  const bag=pool.slice();
-  while(choices.length<3&&bag.length){let c=bag.splice(Math.floor(Math.random()*bag.length),1)[0];if(!choices.includes(c))choices.push(c)}
+  // rollChoices() guarantees slot 1 is an upgrade for the EQUIPPED weapon whenever one exists —
+  // at every level-up now, not just the first three (see rollChoices()).
+  choices=rollChoices(3,buildCardPool({allowEvo:true,bigHeal:false}));
   if(!choices.length)choices.push({name:'Press On',text:'Everything is maxed — keep fighting',apply:()=>{}});
   if(typeof HTMLElement==='undefined'){if(choices[0])choices[0].apply();cardPicks++;if(pendingLevelUps>0)return offerCards();state='play';return}
   let box=document.createElement('div');box.id='cards';box.className='overlay';
@@ -1672,8 +1771,11 @@ function debriefRows(){
   for(const k of kills)if(k.n>0)rows.push({label:k.name,value:k.n,col:k.color||'#9ef',kind:1});
   rows.push({label:'TOTAL KILLS',value:runStats.totalKills||0,big:true,col:'#4ff'});
   rows.push({label:'ORBS COLLECTED',value:runStats.orbs||0,col:'#6fffe2'});
-  // Weapons seen this run with current rank + mod stacks
-  const weps=Object.values(runStats.weaponsSeen||{});
+  // OWNER 2026-08-12: "stop showing all weapons at level end."
+  // This used to list every weapon in runStats.weaponsSeen — i.e. everything you'd touched all
+  // run, including guns you no longer carry — which buried the stats that matter. The debrief now
+  // reports only the weapons you are ACTUALLY HOLDING when the stage ends.
+  const weps=Object.values(runStats.weaponsSeen||{}).filter(w=>heldWeapons.some(h=>h.id===w.id));
   for(const w of weps){
     const live=(heldWeapons.find(h=>h.id===w.id))||weaponById(w.id)||w;
     const rank=live.rank||w.rank||1;
@@ -1714,7 +1816,11 @@ function drawDebrief(){
   const W=VIEW.w,H=VIEW.h;
   ctx.save();
   ctx.fillStyle='rgba(2,8,16,.86)';ctx.fillRect(0,0,W,H);
-  const panelW=Math.min(W-36,520),panelH=Math.min(H-80,560);
+  // OWNER 2026-08-12: "make att stats fill window end of level." The panel was capped at 520x560,
+  // so on anything bigger than a phone the debrief was a small box marooned in the middle of the
+  // screen. It now fills the window with a fixed margin, and the row pitch below scales to the
+  // panel so a long kill list still fits instead of spilling out the bottom.
+  const panelW=W-36,panelH=H-56;
   const px0=(W-panelW)/2,py0=(H-panelH)/2;
   ctx.fillStyle='rgba(12,28,32,.96)';ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
   ctx.shadowColor='#6fffe2';ctx.shadowBlur=22;
@@ -1726,10 +1832,17 @@ function drawDebrief(){
   ctx.fillStyle='#9ebbb6';ctx.font='14px system-ui';
   ctx.fillText(curStageCfg().name+' · Guardian down · +250 score',W/2,py0+74);
   const rows=debriefRows();
+  // Row pitch fills the panel: spread rows over the space between the header and the footer, but
+  // never stretch past 36px (the original look) and never squash below 22px (unreadable).
+  const rowTop=py0+110, rowBottom=py0+panelH-64, avail=rowBottom-rowTop;
+  const pitch=Math.max(22,Math.min(36,rows.length>1?avail/rows.length:36));
+  // A short list (few enemy types killed) would otherwise bunch at the top of a now-full-screen
+  // panel and leave a huge void — centre the block vertically when it doesn't fill the space.
+  const startY=rowTop+Math.max(0,(avail-rows.length*pitch)/2);
   rows.forEach((r,i)=>{
     const appear=i*0.45, shown=debriefT-appear;if(shown<=0)return;
     const k=Math.min(1,shown/0.4), val=Math.round((r.value||0)*k*k);
-    const y=py0+110+i*36;
+    const y=startY+i*pitch;
     if(r.big){
       ctx.fillStyle='#fff';ctx.font='900 28px system-ui';ctx.shadowColor='#4ff';ctx.shadowBlur=16;
       ctx.fillText(String(val),W/2,y);
@@ -1799,9 +1912,9 @@ function fireDrones(){
 // STAGE break: after debrief, pick a reward then advance.
 function offerStageBreak(){
   const clearedCfg=curStageCfg();
-  const {pool}=buildCardPool({allowEvo:false,bigHeal:true});
-  choices=[];const bag=pool.slice();
-  while(choices.length<3&&bag.length){let c=bag.splice(Math.floor(Math.random()*bag.length),1)[0];if(!choices.includes(c))choices.push(c)}
+  // Same equipped-weapon guarantee as the level-up cards (owner 2026-08-12) — the stage reward
+  // previously had none at all.
+  choices=rollChoices(3,buildCardPool({allowEvo:false,bigHeal:true}));
   if(!choices.length)choices.push({name:'Press On',text:'No upgrades available — deploy anyway',apply:()=>{}});
   const advance=()=>{
     stage++;genObstacles();stageT=0;stageWave=0;waveSpawned=0;waveNoKillT=0;stageBoss=null;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;
