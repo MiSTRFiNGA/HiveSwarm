@@ -6,7 +6,7 @@
 // player-facing string) — only CACHE_VERSION needs bumping to bust stale caches; renaming
 // the prefix would work too, but bumping the version is the documented mechanism and is
 // sufficient on its own to force every returning tester to refetch the shell.
-const CACHE_VERSION = 'v17';  // v0.3.0 — rounds, debrief, ricochet, double toxin bubbles, rocket  // bumped 2026-08-08 — toxin bubbles (rising green) instead of solid poison blob (game v0.2.4)
+const CACHE_VERSION = 'v18';  // v0.5.0 — muzzle-tip firing, visible Storm Arc, guaranteed equipped-weapon upgrades, full-window debrief, 2x boss, denser poison, tighter drone orbit  // bumped 2026-08-12
 const CACHE_NAME = `hiveswarm-game-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 
