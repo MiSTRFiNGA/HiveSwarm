@@ -129,6 +129,51 @@ the fraction of frames with a live target. Use **time-to-first-bolt** if you mea
 
 ---
 
+## 📝 Change record — 2026-08-13 (Claude) · v0.5.1
+
+| Owner request | Status | What changed |
+|---|---|---|
+| Storm Arc at 200 length | ✅ DONE | Shipped `range` 240 → 200, with a migration step so old saves land on it |
+| Remove rocket launcher | ✅ DONE | It was already deleted from source on 2026-08-08 — see the resurrection bug below |
+| Enemies appear/reappear on top of the player | ✅ DONE | Two separate causes, both fixed |
+| Larger stats on level clear | ✅ DONE | Debrief type scales with row pitch (~2× on a roomy screen) |
+
+### 🐛 Retired content resurrects from localStorage — READ BEFORE DELETING ANY WEAPON/ENEMY
+
+`weapon.rocket` was removed from the shipped table on 2026-08-08 (commit `1dde751`) and **was still
+appearing in game five days later.** `forgeMerge()` is why:
+
+```js
+next[key] = saved[key].map(row => Object.assign({}, shipped.get(row.id)||{}, row))
+```
+
+It iterates the **saved** array. A row whose id no longer exists in `FORGE_BASE` falls back to `{}`
+and the saved copy is kept wholesale — so **anything deleted from the shipped tables comes back from
+localStorage on every load, forever, for anyone who played the old build.**
+
+**Deleting content from source is not enough.** Add its id to `RETIRED_FORGE_IDS`; `pruneRetired()`
+strips it from `EDIT` and re-persists, and `reset()` scrubs it from the save's `ownedWeapons` /
+`startWeapon`. Verified with a poisoned save (rocket in FORGE + owned + set as start weapon): after
+one load the FORGE list is clean, `ownedWeapons` is `['weapon.pulse']`, and `startWeapon` is reset.
+
+### 🐛 Spawning on top of the player — quantified
+
+1. `spawnEnemy()` computed `player + dir*distance` then **clamped to world bounds**. Near an edge the
+   clamp eats the whole distance. Simulated at the cornered position a Playwright run actually
+   reached (794, 1424): **minimum spawn distance 0px, and 28.3% of spawns within 100px of the
+   player.** That is the bug, not bad luck.
+2. The wave-stall watchdog **teleported stragglers to `rand(60,140)` of the player** with no
+   telegraph — enemies materialising in your lap.
+
+Both now go through `placeAwayFromPlayer(r, minD, maxD)`, which retries angles until the *clamped*
+result still clears `minD` (half the screen diagonal for spawns, 240px for the stall valve) and
+falls back to the farthest legal point when genuinely cornered. The stall valve also flashes a
+`burst()` where each straggler lands. Verified in-game while cornered: worst observed spawn distance
+**703px** vs a 673px off-camera threshold. `__swarmDbg().minEnemyDist` was added so this stays
+regression-testable.
+
+---
+
 ## 🗺️ Upgrade roadmap (future builds)
 
 **P1 — correctness / polish**
