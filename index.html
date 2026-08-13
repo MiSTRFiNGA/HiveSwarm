@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.3.0';
+const GAME_VERSION='0.4.0';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -1892,7 +1892,12 @@ function finishDebrief(){
 // the same 82px radius becomes a plain circle instead — same numbers, no perspective squash needed.
 // This EXACT function drives both fireDrones() (below) and draw() so the muzzle flash / bullet
 // origin always lines up with the drawn drone, never the player's own position.
-const DRONE_ORBIT_R=82, DRONE_ANGVEL=2.6;
+// ORBIT RADIUS (owner 2026-08-12: "make drones circle player more closely"). 82 -> 52.
+// One constant only: droneOrbitAngle()/fireDrones()/draw() all read it, so the drawn drone, its
+// muzzle flash and its bullet origin stay locked together — do NOT hardcode a radius anywhere else.
+// 52 keeps them clear of the player's own 1.8*r barrel tip (~29px) so shots don't spawn inside the
+// hull, while reading as a tight escort ring instead of a wide, detached halo.
+const DRONE_ORBIT_R=52, DRONE_ANGVEL=2.6;
 function droneOrbitAngle(i,n){return elapsed*DRONE_ANGVEL+i*(Math.PI*2/Math.max(1,n))}
 function droneRate(){return Math.max(.05,.32*Math.pow(.85,droneModN('dronerate')))} // same -15%/stack curve as wRate()
 function fireDrones(){
