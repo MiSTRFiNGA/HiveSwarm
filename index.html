@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.5.1';
+const GAME_VERSION='0.5.2';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -516,7 +516,7 @@ let waveSpawned=0; // spawned-so-far vs this wave's total quota (spawned, not bu
 // waveNoKillT = seconds since the last kill while a wave/boss-fight is live; reset on every kill.
 // If it climbs past WAVE_STALL_T with only a few bodies left, the stragglers get teleported to the
 // player instead of leaving them to hunt an unreachable enemy forever.
-let waveNoKillT=0;
+let waveNoKillT=0, spawnOnCam=0, spawnOffCam=0;
 const WAVE_STALL_T=11, WAVE_STALL_MAX_LEFT=3;
 // Boss-fight equivalent (review fix 2026-08-08): bossStallT = seconds since the guardian last TOOK
 // DAMAGE (not since a kill — a legit boss fight goes a long time between deaths). bossStallHp is the
@@ -665,6 +665,37 @@ function placeAwayFromPlayer(r,minD,maxD){
   }
   return best;                          // cornered: the farthest legal spot we found
 }
+// OFF-CAMERA SPAWN (owner 2026-08-13, second report: "enemies randomly pop in on top ... they need
+// to walk from outside"). The first fix measured distance FROM THE PLAYER, which is the wrong frame
+// of reference and is why pop-ins survived it:
+//
+//   sx(x) = x - cam.x + VIEW.w/2   -> what's visible depends on the CAMERA, not the player.
+//
+// followCamera() has a 15% dead-zone and CLAMPS at the world edge, so the player routinely sits well
+// off-centre — near a world edge the camera stops and the view extends far to the opposite side. An
+// enemy placed "551px from the player" then lands comfortably on screen. Visibility must be tested
+// against the actual viewport rectangle.
+//
+// This picks a side of the camera rect that still has world outside it and spawns beyond that edge,
+// so the enemy is off-screen BY CONSTRUCTION and has to walk in.
+//
+// Fallback matters: WORLD is 1620 wide but a desktop window can be wider than that, so the whole
+// world width is on screen and NO horizontal side has room. Then we fall back to the farthest legal
+// point from the player rather than pretending we succeeded.
+function placeOutsideView(r,margin){
+  const L=cam.x-VIEW.w/2-margin, R=cam.x+VIEW.w/2+margin;
+  const T=cam.y-VIEW.h/2-margin, B=cam.y+VIEW.h/2+margin;
+  const minX=-WORLD.halfW+r, maxX=WORLD.halfW-r, minY=-WORLD.halfH+r, maxY=WORLD.halfH-r;
+  const sides=[];
+  if(L>minX)sides.push(()=>({x:rand(minX,L),         y:rand(minY,maxY)}));
+  if(R<maxX)sides.push(()=>({x:rand(R,maxX),         y:rand(minY,maxY)}));
+  if(T>minY)sides.push(()=>({x:rand(minX,maxX),      y:rand(minY,T)}));
+  if(B<maxY)sides.push(()=>({x:rand(minX,maxX),      y:rand(B,maxY)}));
+  if(sides.length)return sides[Math.floor(Math.random()*sides.length)]();
+  return placeAwayFromPlayer(r,Math.hypot(VIEW.w,VIEW.h)*.5,Math.hypot(VIEW.w,VIEW.h));
+}
+// True when a world point is inside the drawn viewport — used by the spawn regression probe.
+function isOnCamera(x,y,pad){return x>cam.x-VIEW.w/2-pad&&x<cam.x+VIEW.w/2+pad&&y>cam.y-VIEW.h/2-pad&&y<cam.y+VIEW.h/2+pad}
 function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return false}
   // G6: early waves spawn from full ring (not the facing cone). The cone made "walk forward"
   // walk into every spawn and soft-locked wave 1 even at sane spawn rates.
@@ -680,10 +711,17 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   // Keep the chosen angle when it's legal (the ring-vs-cone choice above is deliberate game feel),
   // but never let the world-bound clamp drop a spawn inside the player's screen. minD = half the
   // screen diagonal, i.e. "at least just off-camera".
-  const er=(type.r||16)*(type.scale||1), minD=Math.hypot(VIEW.w,VIEW.h)*.5;
+  // Keep the chosen angle when it lands OFF-CAMERA (the ring-vs-cone choice above is deliberate
+  // game feel), otherwise force the spawn outside the viewport so it always walks in from outside.
+  const er=(type.r||16)*(type.scale||1);
   let x=Math.max(-WORLD.halfW+er,Math.min(WORLD.halfW-er,player.x+Math.cos(a)*distance)),
       y=Math.max(-WORLD.halfH+er,Math.min(WORLD.halfH-er,player.y+Math.sin(a)*distance));
-  if(Math.hypot(x-player.x,y-player.y)<minD){const p=placeAwayFromPlayer(er,minD,distance);x=p.x;y=p.y}
+  if(isOnCamera(x,y,er+24)){const p=placeOutsideView(er,er+24);x=p.x;y=p.y}
+  // Regression counters (2026-08-13). spawnFixups = how often the raw angle would have put an enemy
+  // on screen and we corrected it; spawnOnCam = how often one STILL landed on screen, which must
+  // stay 0. Counting at the spawn site is the only honest way to test this — sampling live enemies
+  // can't tell a fresh spawn from one that has walked into view.
+  if(isOnCamera(x,y,0))spawnOnCam++; else spawnOffCam++;
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
   enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});return true}
@@ -715,6 +753,9 @@ function spawnBossEnemy(){
   const r=base.r*scale;
   let x=Math.max(-WORLD.halfW+r,Math.min(WORLD.halfW-r,player.x+Math.cos(a)*distance)),
       y=Math.max(-WORLD.halfH+r,Math.min(WORLD.halfH-r,player.y+Math.sin(a)*distance));
+  // The guardian had the SAME clamp-collapse bug as spawnEnemy() and was missed in the first pass
+  // (2026-08-13) — a 2x-scale boss materialising on top of the player is the worst case of it.
+  if(isOnCamera(x,y,r+24)){const p=placeOutsideView(r,r+24);x=p.x;y=p.y}
   const hp=bcfg?(bcfg.hp||base.hp*mul):base.hp*mul;
   const bossId=bcfg?bcfg.id:'boss:'+base.id;
   codexSee(bossId,0);
@@ -1059,10 +1100,12 @@ if(bossPendingT>0){
       // telegraph, which is the other half of "enemies reappear on top of the player". The valve
       // still exists (it stops a wave soft-locking) but now drops stragglers at a fightable
       // distance and flashes where they land so it reads as an event, not a cheap shot.
+      // 2026-08-13 second pass: even 240-420px was still ON SCREEN (see placeOutsideView) — the
+      // valve was re-creating the exact pop-in the owner reported. Stragglers are now moved
+      // off-camera and have to walk back in like everything else.
       for(const e of enemies){
-        const p=placeAwayFromPlayer(e.r||16,240,420);
+        const p=placeOutsideView(e.r||16,(e.r||16)+24);
         e.x=p.x;e.y=p.y;clampEnemy(e);pushOutOfObstacles(e);e.kx=0;e.ky=0;
-        burst(e.x,e.y,e.color||'#f6a',6);
       }
       waveNoKillT=0; // give the player a fresh window before nudging again
     }
@@ -1276,6 +1319,9 @@ window.__swarmDbg=()=>({state,wave:stageWave+1,threatTier,stage,stageT,stageWave
   // minEnemyDist added 2026-08-13 to regression-test "enemies spawn on top of the player". A spawn
   // is only legal off-camera, so watching this at the frame an enemy appears catches the bug.
   minEnemyDist:enemies.length?Math.round(Math.min(...enemies.map(e=>Math.hypot(e.x-player.x,e.y-player.y)))):-1,
+  // onCamEnemies is the metric that actually matters: distance-from-player was the WRONG frame of
+  // reference and let pop-ins survive the first fix. A spawn must be outside the drawn viewport.
+  onCamEnemies:enemies.filter(e=>isOnCamera(e.x,e.y,0)).length,spawnOnCam,spawnOffCam,
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 window.__swarmPause=setPaused;window.__swarmTogglePause=togglePause;
