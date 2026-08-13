@@ -20,12 +20,14 @@ tags: [game, hivemind, websgame, documentation]
 ## 🎮 Gameplay
 
 Top-down arena survival. **Weapons fire automatically** — you only move (WASD / arrows / on-screen
-stick) and choose upgrades. Enemies spawn off-camera (~950 px out) and walk in.
+stick) and choose upgrades. Enemies spawn **off-camera by construction** (outside the viewport
+rect, not a fixed distance from the player) and walk in — and never in the direction you are
+travelling (v0.6.0).
 
 | System | How it works |
 |---|---|
 | **Stages** | Each stage = 3 waves + a Guardian (stage boss). Clear the boss → debrief → reward → next stage. |
-| **Waves** | Kill-based, not timed. A wave has a finite spawn quota and only ends when every enemy it spawned is dead. A stall watchdog drags blockers to the player so a wave can't soft-lock. |
+| **Waves** | Kill-based, not timed. A wave has a finite spawn quota and only ends when every enemy it spawned is dead. A stall watchdog relocates **genuinely wedged** bodies (see v0.6.0) so a wave can't soft-lock. |
 | **XP / levels** | Orbs drop from kills. Each level-up offers 3 cards. Multiple level-ups in one frame **queue** rather than stack overlays. |
 | **Meta progression** | 3 save slots. Credits buy permanent damage/hp/speed/venom and unlock weapons in the Armory. |
 | **Continues** | Limited per run; currently granted free — this is the single wiring point for a future rewarded-ad SDK (`PSDK.rewarded()`), deliberately not wired yet. |
@@ -49,20 +51,25 @@ Roster lives in the `ENEMIES` table in `index.html`, gated by `unlockWave`. Beha
 
 | Weapon | id | Kind | Damage | Rate | Range | Notes |
 |---|---|---|---|---|---|---|
-| Pulse Carbine | `weapon.pulse` | bullet | — | — | — | Starter, always owned |
-| Seeker | `weapon.seeker` | homing | — | — | — | Armory 4 |
-| Flamethrower | `weapon.flame` | flame | 9 | .06 | 260 | Cone + burn DoT; ~59.8 sustained DPS |
-| Toxin Injector | `weapon.poison` | poison | — | — | — | DoT + spread; targets *clean* enemies first |
-| Breach Laser | `weapon.beam` | beam | 28 | — | 720 | Continuous ray, 84 DPS, single-target king |
-| **Storm Arc** | `weapon.chain` | chain | 22 | .32 | 240 | 4 jumps, −12% damage per jump |
-| Nova Shell | `weapon.nova` | nova | — | — | — | Kill explosions spit mini reactor-stars |
+| Pulse Carbine | `weapon.pulse` | bullet | 18 | .16 | **100** | Starter, always owned |
+| Seeker | `weapon.seeker` | homing | 22 | .38 | **900 (exempt)** | Armory 4. **The one weapon whose range never scales** |
+| Flamethrower | `weapon.flame` | flame | 9 | .06 | **100** | Cone + burn DoT; `flameLength` tracks `range` |
+| Toxin Injector | `weapon.poison` | poison | 6 | .5 | **100** | DoT + spread; targets *clean* enemies first |
+| Breach Laser | `weapon.beam` | beam | 28 | .08 | **100** | Continuous ray, single-target king |
+| **Storm Arc** | `weapon.chain` | chain | 22 | .32 | **100** | 4 jumps, −12% damage per jump |
+| Nova Shell | `weapon.nova` | nova | 34 | .55 | **100** | Kill explosions spit mini reactor-stars |
+
+> **Range is now authoritative for every kind** (v0.6.0). Before this, `range` only fed beam and
+> chain — projectile weapons ignored it entirely and their reach was an accident of `speed × life`,
+> so the FORGE `range` field was a lie for five of the seven guns. Bullets now retire once they have
+> travelled `range` px.
 
 **Weapon kinds matter.** `beam`/`chain`/`flame` are continuous and never fire discrete projectiles,
 so Scatter / Pierce / Ricochet do not apply to them (enforced via each mod's `appliesTo`).
 
 ### Upgrade mods (`MODS`, max 3 stacks each)
 
-`rapid` · `knockback` · `ricochet` · `overcharge` · `novastar` (nova) · `arcjump` (Storm Arc) ·
+`rapid` · `knockback` · `ricochet` · `overcharge` · **`longrange`** · `novastar` (nova) · `arcjump` (Storm Arc) ·
 flame length/spread/napalm · plus run-scoped **skills** (fleet, bulk, magnet, shield, vampiric,
 drone) and drone mods.
 
@@ -126,6 +133,138 @@ the fraction of frames with a live target. Use **time-to-first-bolt** if you mea
 - ❌ `_game_extract.js` was **not** regenerated; the headless harness evaluates that stale copy, so
   harness results will not reflect these changes until it's regenerated.
 - ❌ Balance not re-tuned after the Giant Rounds removal — the offer pool is one card smaller.
+
+---
+
+## 📝 Change record — 2026-08-13 (Claude) · v0.6.0
+
+| Owner request | Status | What changed |
+|---|---|---|
+| All weapons start at range 100; upgrades extend it; **homing exempt** | ✅ DONE | 6 of 7 guns ship `range:100`; `weapon.seeker` keeps 900 and ignores range upgrades |
+| Upgrades must be **modular** — work at any base range I set | ✅ DONE | New **Long Barrel** mod is **multiplicative** (`+30% of the weapon's own base`, 3 stacks) |
+| Enemies disappear and reappear elsewhere, especially large ones | ✅ DONE | The wave stall valve was relocating **the entire field every 11s**. Root-caused and fixed |
+| A horde appears where I'm moving to instead of walking into frame | ✅ DONE | 57% of spawns landed within 30° of the travel direction. Now 0% within 60° |
+| Movement feel knobs (drag / resistance) in FORGE | ✅ DONE | `accel` / `brake` / `friction` on the **FORGE → PLAYER** tab, live + persisted |
+| Level-clear stats box 20% smaller, everything fits | ✅ DONE | `PANEL_SHRINK=.8`; removed the pitch/font floors that made overflow inevitable |
+
+### 🎯 Range is multiplicative on purpose
+
+The owner's requirement was *"make upgrades modular so no matter what number I set the range to for
+the weapon, the upgrades work."* An **additive** `+150px` card silently fails that: at the shipped
+100 baseline it is a +150% buff, but retune a gun to 600 in FORGE and the same card is a +25% nudge.
+`RANGE_PER_STACK = .30` is a fraction of whatever `range` currently is, so a card is worth the same
+**proportion** at any baseline. `wRange()` is the single source of truth — every reach in the game
+(bullet travel, beam ray length, Storm Arc jump radius, flame cone) reads it.
+
+The homing exemption is enforced **twice**: `appliesTo` keeps the card from being *offered* to the
+seeker, and `wRange()` returns the flat base for `kind==='homing'` so a stack that reaches it some
+other way (old save, FORGE preset) still has **no effect**.
+
+**Old saves are migrated.** `forgeMerge()` keeps the saved row wholesale, so editing the shipped
+table alone does nothing for an existing player — the same trap that resurrected the rocket
+launcher. A migration walks each gun's range to 100 **only** when the saved value is still one of
+that gun's known shipped defaults, so a hand-tuned FORGE number is never overwritten.
+
+### 🐛 The stall valve was the "enemies disappear" bug — measured
+
+`WAVE_STALL_T` fires when there has been **no KILL for 11s**, which is *not* the same as "the wave is
+stuck". Two completely normal situations trip it:
+
+* **Grinding a tanky body.** A Zombie Colossus is 1200 HP; a Guardian more. Chewing one at early-run
+  DPS routinely exceeds 11s with zero kills — hence *"especially the larger enemies."*
+* **Kiting.** Running while shooting means low DPS and few kills.
+
+Once tripped, `stallCap` becomes `Infinity` as soon as the spawn quota drains, so it relocated
+**every body on the field at once**. The earlier 2026-08-13 pass made this worse, not better: moving
+stragglers **off-camera** (instead of the old 240–420px) is exactly what turned "they jump a bit"
+into "they vanish and come back somewhere else".
+
+**Reproduced and fixed** (40s probe, unkillable enemies, identical scenario both builds):
+
+| Build | Teleports >300px | Pattern |
+|---|---|---|
+| v0.5.2 (before) | **27** | All 9 enemies relocated at once at t=10.2s, 21.2s, 32.2s — i.e. every `WAVE_STALL_T` |
+| v0.6.0 (after) | **0** | — |
+
+Two narrowing fixes, neither of which weakens the genuine soft-lock guard:
+
+1. **Progress is measured as damage, not kills.** `waveStallHp` is a low-water mark of total live
+   enemy HP; any dip resets the timer. Same technique the boss guard already used (`bossStallHp`).
+2. **Only genuinely wedged bodies move.** `e.stuckT` counts seconds an enemy fails to *cover ground*
+   relative to its own `speed`. This is deliberately **not** a distance-to-player test — a kiting
+   player outruns the swarm, so "isn't getting closer" would flag every healthy chaser and blank the
+   field for exactly the playstyle that reported the bug.
+
+### 🐛 Spawns were steered into your path — measured
+
+`spawnEnemy()`'s facing cone was only disabled for the first 45 seconds. After that, **65% of spawns
+landed in a ±60° wedge centred on `player.angle`** — which is written from the movement input every
+frame, so "facing" is literally "the direction you are running."
+
+| Build | Spawns within 30° of travel | Within 60° |
+|---|---|---|
+| v0.5.2 (before) | **57.4%** | 61.7% |
+| v0.6.0 (after) | **0%** | **0%** |
+
+The wedge is now an **exclusion**: spawns are drawn from the full ring, and one landing dead ahead of
+a *moving* player is pushed to the nearer edge. A stationary player has no travel direction, so the
+ring stays uniform.
+
+### ⚖️ Range 100 is NOT a difficulty regression — measured
+
+8 headless runs per baseline (`_headless_harness.js`, 90s cap). Run-to-run variance is large, so
+single runs are meaningless here — these are means:
+
+| Starting range | Mean survival | Deaths |
+|---|---|---|
+| **100 (shipped)** | 69.8s | 5/8 |
+| 200 | 86.4s | 2/8 |
+| 300 | 87.6s | 1/8 |
+| 500 | 88.7s | 2/8 |
+| 760 (old pulse) | 63.0s | 5/8 |
+
+Range 100 (69.8s) is **not worse** than the old shipped reach (63.0s). If you want it easier, the
+measured sweet spot is **200–300** — one number per gun in FORGE → ENTITIES, and Long Barrel scales
+off whatever you pick.
+
+### 🕹️ Movement feel — FORGE → PLAYER
+
+Movement used to write straight to position (`player.x += dir * speed * dt`): infinite acceleration,
+instant dead stop, **no velocity to tune**, which is why there was nothing to expose. The pawn now
+carries a velocity.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `accel` | 2600 | px/s² while a direction is held. High = arcade; low = heavy ramp-up |
+| `brake` | 3400 | px/s² when **no** direction is held. High = stops dead; low = long coast |
+| `friction` | 4 | Extra drag/sec **while coasting only**. 0 = pure linear brake |
+
+Defaults are deliberately close to the old instant response (~0.09s to top speed) so this lands as a
+tuning knob, not a stealth nerf. Measured: `accel 4000 / brake 6000 / friction 8` → full 245 px/s in
+0.25s and a 2.5px coast; `accel 300 / brake 200 / friction 0` → 75 px/s and a 13.4px slide.
+
+**`friction` is coast-only by design.** Applying drag every frame would fight `accel` and silently
+cap top speed *below* `EDIT.player.speed`, so raising friction would quietly nerf the speed stat and
+every Fleet Footed stack with it.
+
+### 📐 Debrief panel
+
+`PANEL_SHRINK = .8` on both axes, still centred; header/footer metrics scale with the panel via
+`hs`. The real fit bug was the **floors**: pitch had a hard 22px floor and the font scale a hard 1.0
+floor, so past ~14 rows the list drew straight off the bottom of the panel. Both removed — pitch is
+now exactly `avail / rows`, which fits **by construction** at any panel size or row count. Verified
+at 4 / 12 / 30 / 60 rows on desktop (1280×800) and mobile (400×860).
+
+### 🧪 Verification
+
+`qa/_verify_2026_08_13_changes.py` — Playwright probe, run against a local static server. Covers
+shipped ranges, `wRange()` modularity at bases 100/250/600, the homing exemption, the FORGE movement
+fields, debrief geometry, and the row-fit guarantee under stress. **ALL CHECKS PASSED** on desktop
+and mobile. Screenshots in `Desktop\Tests\hiveswarm_2026_08_13\`.
+
+> ⚠️ `_forge_stages_verify.js` fails with `TABS[5] !== STAGES`. **Pre-existing** — `STAGES` is at
+> index 4 and the assertion was never updated. Confirmed failing on v0.5.2 too; not caused by this
+> change set.
 
 ---
 
