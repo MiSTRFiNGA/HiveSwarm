@@ -6,7 +6,7 @@
 // player-facing string) — only CACHE_VERSION needs bumping to bust stale caches; renaming
 // the prefix would work too, but bumping the version is the documented mechanism and is
 // sufficient on its own to force every returning tester to refetch the shell.
-const CACHE_VERSION = 'v18';  // v0.5.0 — muzzle-tip firing, visible Storm Arc, guaranteed equipped-weapon upgrades, full-window debrief, 2x boss, denser poison, tighter drone orbit  // bumped 2026-08-12
+const CACHE_VERSION = 'v19';  // v0.5.1 — retired rocket launcher purge, spawn-on-player fix, storm arc 200, larger debrief stats  // bumped 2026-08-13
 const CACHE_NAME = `hiveswarm-game-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 

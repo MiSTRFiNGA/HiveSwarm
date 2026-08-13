@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.5.0';
+const GAME_VERSION='0.5.1';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -101,7 +101,7 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1},world:{ha
   // existing continuous-fire sample) rather than a one-shot cue like grenade.mp3.
   {id:'weapon.flame',name:'Flamethrower',kind:'flame',damage:9,rate:.06,speed:0,shots:1,pierce:99,color:'#ff9a3d',range:260,flameWidth:38,flameLength:260,burnDps:40,burnTime:2.2,dropWeight:1,sfx:'light-machine-gun.mp3',icon:5},
   {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:720,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'electric-explosive.mp3',icon:2},
-  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:240,jumps:4,dropWeight:1,coreWidth:3.4,glowWidth:15,glowIntensity:1.15,sfx:'lightning01.mp3',icon:3},
+  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:200,jumps:4,dropWeight:1,coreWidth:3.4,glowWidth:15,glowIntensity:1.15,sfx:'lightning01.mp3',icon:3},
   {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:520,blast:78,dropWeight:1,shards:3,sfx:'grenade.mp3',icon:4},
   // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
   // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
@@ -142,7 +142,28 @@ bosses:[
   {id:'boss.hivecore',name:'HiVE Core Guardian',baseEntityId:'enemy.colossus',hp:2400,speed:38,damage:42,scale:1.8,color:'#a46fca',xp:22,score:520,addTotal:10,addPerSec:.75,roar:'xenotera hit.mp3'}
 ]};
 function forgeMerge(base,saved){let next=copy(base);if(!saved||typeof saved!=='object')return next;for(const key of Object.keys(base)){if(key==='codexPages'){if(Array.isArray(saved.codexPages))next.codexPages=saved.codexPages;continue}if(Array.isArray(base[key])&&Array.isArray(saved[key])){let shipped=new Map(base[key].map(row=>[row.id,row]));next[key]=saved[key].map(row=>Object.assign({},shipped.get(row.id)||{},row));for(const row of base[key])if(!saved[key].some(x=>x.id===row.id))next[key].push(copy(row))}else if(saved[key]&&typeof saved[key]==='object'&&!Array.isArray(base[key]))Object.assign(next[key],saved[key])}return next}
+// RETIRED CONTENT (owner 2026-08-13: "remove rocket launcher").
+//
+// The Rocket Launcher was already deleted from the shipped table on 2026-08-08 (commit 1dde751,
+// "flamethrower replaces rocket") — yet it was still showing up in game. forgeMerge() is why:
+//
+//     next[key] = saved[key].map(row => Object.assign({}, shipped.get(row.id)||{}, row))
+//
+// It iterates the SAVED array, so a row whose id no longer exists in FORGE_BASE falls back to
+// `{}` and the saved copy is kept wholesale. Anything deleted from the shipped tables therefore
+// RESURRECTS from localStorage on every load, forever, for anyone who played the old build.
+// Deleting a weapon from the source is not enough — it has to be retired here too.
+const RETIRED_FORGE_IDS=new Set(['weapon.rocket']);
+function pruneRetired(edit){
+  if(Array.isArray(edit.weapons)){
+    const before=edit.weapons.length;
+    edit.weapons=edit.weapons.filter(w=>!RETIRED_FORGE_IDS.has(w.id));
+    if(edit.weapons.length!==before)return true;   // caller re-persists so the purge sticks
+  }
+  return false;
+}
 let EDIT=forgeMerge(FORGE_BASE,(()=>{try{return JSON.parse(localStorage.getItem(FORGE_KEY)||'null')}catch(_){return null}})());
+if(pruneRetired(EDIT)){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){}}
 Object.assign(EDIT.waves,{budgetBase:EDIT.waves.budgetBase??1.15,budgetExponent:EDIT.waves.budgetExponent??1.065});
 // Migrate the deadly pre-G6 default so old localStorage cannot keep the softlock.
 if(EDIT.waves.budgetBase>=3.5){EDIT.waves.budgetBase=1.15;EDIT.waves.budgetExponent=1.065}
@@ -172,7 +193,12 @@ if(EDIT.waves.budgetBase===1.15&&EDIT.waves.budgetExponent===1.065){try{const ra
 // Fix: make ONE bolt read on its own. coreWidth 1.8 -> 3.4, glowWidth 12 -> 20, glowIntensity
 // 1 -> 1.5, bolt lifetime raised to the full fire interval, plus an impact spark per link (see
 // the chain branch in fire()). Damage, rate, range and jumps are all untouched.
-(function(){const c=(EDIT.weapons||[]).find(w=>w.id==='weapon.chain');if(c){if(c.range===280&&c.damage===16){c.range=150;c.damage=22;persistForge()}if(c.range===150&&c.damage===22){c.range=240;persistForge()}
+//
+// 2026-08-13 (owner: "start storm arc at 200 length"): shipped range set to 200. The migration
+// chain below walks an old save 280 -> 150 -> 240 -> 200 so a player from any prior build lands on
+// the current number, while a hand-tuned FORGE value that isn't one of those exact shipped values
+// is left alone.
+(function(){const c=(EDIT.weapons||[]).find(w=>w.id==='weapon.chain');if(c){if(c.range===280&&c.damage===16){c.range=150;c.damage=22;persistForge()}if(c.range===150&&c.damage===22){c.range=240;persistForge()}if(c.range===240&&c.damage===22){c.range=200;persistForge()}
   // Push the louder bolt onto saves that still carry the old thin-bolt trio (shipped-pair rule:
   // only rewrite the exact old defaults, so hand-tuned FORGE values survive).
   if(c.coreWidth===1.8&&c.glowWidth===12&&(c.glowIntensity??1)===1){c.coreWidth=3.4;c.glowWidth=15;c.glowIntensity=1.15;persistForge()}if(c.coreWidth==null)c.coreWidth=1.8;if(c.glowWidth==null)c.glowWidth=12;if(c.glowIntensity==null)c.glowIntensity=1}const n=(EDIT.weapons||[]).find(w=>w.id==='weapon.nova');if(n&&n.shards==null)n.shards=3})();
@@ -599,6 +625,13 @@ function maybeDropWeapon(x,y,elite){
   pickups.push({x,y,weapon:1,weaponId:w.id,color:w.color||'#ffe08a'})}
 function reset(){applyForge();
   if(!META.ownedWeapons)META.ownedWeapons={'weapon.pulse':true};
+  // Scrub retired weapons out of the SAVE too (2026-08-13). A player who owned / start-selected the
+  // Rocket Launcher would otherwise keep an armory entry for a weapon that no longer exists, and
+  // weaponById() would fall through to the shipped default anyway — better to fix the save once.
+  let metaDirty=false;
+  for(const id of Object.keys(META.ownedWeapons))if(RETIRED_FORGE_IDS.has(id)){delete META.ownedWeapons[id];metaDirty=true}
+  if(RETIRED_FORGE_IDS.has(META.startWeapon)){META.startWeapon='weapon.pulse';metaDirty=true}
+  if(metaDirty)saveMeta();
   const startId=(META.startWeapon&&META.ownedWeapons[META.startWeapon])?META.startWeapon:'weapon.pulse';
   const start=weaponById(startId);
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
@@ -608,6 +641,30 @@ function reset(){applyForge();
   genObstacles();for(const o of dmgNums)o.active=0;
   if(WEAPON&&WEAPON.id){codexSee('weapon:'+WEAPON.id,0);noteWeapon(WEAPON)}}
 function rand(a,b){return a+Math.random()*(b-a)} function dist2(a,b){let x=a.x-b.x,y=a.y-b.y;return x*x+y*y}
+// SPAWN PLACEMENT (owner 2026-08-13: "enemies appear and reappear on top of the player").
+//
+// TWO separate bugs produced that, and this helper fixes both callers:
+//   1. spawnEnemy() picked `player + dir*distance` and then CLAMPED it to the world bounds. Near a
+//      world edge the clamp collapses the whole distance — player at halfW-50 spawning rightward
+//      lands the enemy ~34px away, i.e. in the player's lap. The clamp silently turned "spawn far
+//      off-screen" into "spawn on top of him".
+//   2. The wave-stall watchdog teleported stragglers to rand(60,140) of the player. That IS on top
+//      of the player, with no telegraph — it reads as enemies materialising out of nowhere.
+//
+// Rule now: pick an angle whose CLAMPED result is still at least minD away. Try a spread of angles
+// before giving up, and fall back to the farthest legal point rather than a point we know is bad.
+function placeAwayFromPlayer(r,minD,maxD){
+  let best=null,bestD=-1;
+  for(let i=0;i<12;i++){
+    const a=Math.random()*Math.PI*2, d=rand(minD,maxD);
+    const x=Math.max(-WORLD.halfW+r,Math.min(WORLD.halfW-r,player.x+Math.cos(a)*d));
+    const y=Math.max(-WORLD.halfH+r,Math.min(WORLD.halfH-r,player.y+Math.sin(a)*d));
+    const got=Math.hypot(x-player.x,y-player.y);
+    if(got>bestD){bestD=got;best={x,y}}
+    if(got>=minD)return best;          // clamp didn't eat the distance — good enough, take it
+  }
+  return best;                          // cornered: the farthest legal spot we found
+}
 function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return false}
   // G6: early waves spawn from full ring (not the facing cone). The cone made "walk forward"
   // walk into every spawn and soft-locked wave 1 even at sane spawn rates.
@@ -619,7 +676,14 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
     stageCap=curStageCfg().enemyCap??99,roster=ENEMIES.filter(e=>(e.unlockWave||1)<=Math.min(level,stageCap));
   if(!roster.length)roster=ENEMIES.filter(e=>(e.unlockWave||1)<=level);
   if(!roster.length)roster=ENEMIES;
-  let total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);let x=Math.max(-WORLD.halfW+type.r,Math.min(WORLD.halfW-type.r,player.x+Math.cos(a)*distance)),y=Math.max(-WORLD.halfH+type.r,Math.min(WORLD.halfH-type.r,player.y+Math.sin(a)*distance));
+  let total=roster.reduce((n,e)=>n+Math.max(0,e.weight||0),0),roll=Math.random()*total,type=roster[0],boost=1+Math.min(.8,excessThreat*.04);for(const e of roster){roll-=Math.max(0,e.weight||0);if(roll<=0){type=e;break}}excessThreat=Math.max(0,excessThreat-1);
+  // Keep the chosen angle when it's legal (the ring-vs-cone choice above is deliberate game feel),
+  // but never let the world-bound clamp drop a spawn inside the player's screen. minD = half the
+  // screen diagonal, i.e. "at least just off-camera".
+  const er=(type.r||16)*(type.scale||1), minD=Math.hypot(VIEW.w,VIEW.h)*.5;
+  let x=Math.max(-WORLD.halfW+er,Math.min(WORLD.halfW-er,player.x+Math.cos(a)*distance)),
+      y=Math.max(-WORLD.halfH+er,Math.min(WORLD.halfH-er,player.y+Math.sin(a)*distance));
+  if(Math.hypot(x-player.x,y-player.y)<minD){const p=placeAwayFromPlayer(er,minD,distance);x=p.x;y=p.y}
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
   enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});return true}
@@ -991,7 +1055,15 @@ if(bossPendingT>0){
   if(waveNoKillT>WAVE_STALL_T&&enemies.length>0){
     const stallCap=waveSpawned>=quota?Infinity:Math.max(WAVE_STALL_MAX_LEFT,Math.ceil((WORLD.maxEnemies||220)*.25));
     if(enemies.length<=stallCap){
-      for(const e of enemies){const a=Math.random()*Math.PI*2,d=rand(60,140);e.x=player.x+Math.cos(a)*d;e.y=player.y+Math.sin(a)*d;clampEnemy(e);pushOutOfObstacles(e);e.kx=0;e.ky=0}
+      // 2026-08-13: was rand(60,140) — a hard teleport straight into the player's lap with no
+      // telegraph, which is the other half of "enemies reappear on top of the player". The valve
+      // still exists (it stops a wave soft-locking) but now drops stragglers at a fightable
+      // distance and flashes where they land so it reads as an event, not a cheap shot.
+      for(const e of enemies){
+        const p=placeAwayFromPlayer(e.r||16,240,420);
+        e.x=p.x;e.y=p.y;clampEnemy(e);pushOutOfObstacles(e);e.kx=0;e.ky=0;
+        burst(e.x,e.y,e.color||'#f6a',6);
+      }
       waveNoKillT=0; // give the player a fresh window before nudging again
     }
   }
@@ -1201,6 +1273,9 @@ window.__swarmDbg=()=>({state,wave:stageWave+1,threatTier,stage,stageT,stageWave
   weaponMods:Object.assign({},weaponMods),
   startWeapon:META.startWeapon||'weapon.pulse',bullets:bullets.length,beams:beams.length,particles:particles.length,
   obstacles:obstacles.length,poisoned:enemies.filter(e=>e.poisonT>0).length,burning:enemies.filter(e=>e.burnT>0).length,dmgNumsActive:dmgNums.filter(o=>o.active).length,
+  // minEnemyDist added 2026-08-13 to regression-test "enemies spawn on top of the player". A spawn
+  // is only legal off-camera, so watching this at the frame an enemy appears catches the bug.
+  minEnemyDist:enemies.length?Math.round(Math.min(...enemies.map(e=>Math.hypot(e.x-player.x,e.y-player.y)))):-1,
   stick:{active:STICK.active,dx:Math.round(STICK.dx*100)/100,dy:Math.round(STICK.dy*100)/100,
          baseX:Math.round(STICK.base.x),baseY:Math.round(STICK.base.y),homeX:Math.round(STICK.home.x),homeY:Math.round(STICK.home.y)}});
 window.__swarmPause=setPaused;window.__swarmTogglePause=togglePause;
@@ -1835,7 +1910,14 @@ function drawDebrief(){
   // Row pitch fills the panel: spread rows over the space between the header and the footer, but
   // never stretch past 36px (the original look) and never squash below 22px (unreadable).
   const rowTop=py0+110, rowBottom=py0+panelH-64, avail=rowBottom-rowTop;
-  const pitch=Math.max(22,Math.min(36,rows.length>1?avail/rows.length:36));
+  // TEXT SCALE (owner 2026-08-13: "make stats larger on level clear"). The panel already fills the
+  // window; now the type inside it scales with the row pitch instead of being fixed 14-18px, so a
+  // short list on a big screen prints big. `fs` is the scale factor vs the old fixed sizes: pitch
+  // maxes at 64 (was 36), so a typical debrief roughly doubles in size, and a long kill list still
+  // shrinks back down to the readable 22px floor rather than overflowing.
+  const pitch=Math.max(22,Math.min(64,rows.length>1?avail/rows.length:64));
+  const fs=Math.max(1,Math.min(1.9,pitch/34));   // 1.0 when squeezed, up to 1.9 when roomy
+  const px_=n=>Math.round(n*fs);
   // A short list (few enemy types killed) would otherwise bunch at the top of a now-full-screen
   // panel and leave a huge void — centre the block vertically when it doesn't fill the space.
   const startY=rowTop+Math.max(0,(avail-rows.length*pitch)/2);
@@ -1844,24 +1926,24 @@ function drawDebrief(){
     const k=Math.min(1,shown/0.4), val=Math.round((r.value||0)*k*k);
     const y=startY+i*pitch;
     if(r.big){
-      ctx.fillStyle='#fff';ctx.font='900 28px system-ui';ctx.shadowColor='#4ff';ctx.shadowBlur=16;
+      ctx.fillStyle='#fff';ctx.font=`900 ${px_(28)}px system-ui`;ctx.shadowColor='#4ff';ctx.shadowBlur=16;
       ctx.fillText(String(val),W/2,y);
-      ctx.shadowBlur=0;ctx.fillStyle='#9ef';ctx.font='700 13px system-ui';
-      ctx.fillText(r.label,W/2,y+18);
+      ctx.shadowBlur=0;ctx.fillStyle='#9ef';ctx.font=`700 ${px_(13)}px system-ui`;
+      ctx.fillText(r.label,W/2,y+px_(18));
     }else{
-      ctx.textAlign='left';ctx.fillStyle=r.col||'#dce9e7';ctx.font='700 15px system-ui';
-      const labelX=px0+28;
-      if(r.wep){/* weapon chip */
-        ctx.fillStyle=(r.wep.color||'#6ff')+'33';ctx.fillRect(labelX,y-16,22,22);
-        ctx.strokeStyle=r.wep.color||'#6ff';ctx.strokeRect(labelX,y-16,22,22);
-        ctx.fillStyle=r.wep.color||'#6ff';ctx.font='900 12px system-ui';ctx.textAlign='center';
-        ctx.fillText((r.wep.name||'?')[0],labelX+11,y+1);ctx.textAlign='left';
-        ctx.fillStyle=r.col||'#dce9e7';ctx.font='700 14px system-ui';
-        ctx.fillText(r.label,labelX+30,y);
+      ctx.textAlign='left';ctx.fillStyle=r.col||'#dce9e7';ctx.font=`700 ${px_(15)}px system-ui`;
+      const labelX=px0+28, chip=px_(22);
+      if(r.wep){/* weapon chip — scales with the type so it doesn't float next to giant text */
+        ctx.fillStyle=(r.wep.color||'#6ff')+'33';ctx.fillRect(labelX,y-chip*.73,chip,chip);
+        ctx.strokeStyle=r.wep.color||'#6ff';ctx.strokeRect(labelX,y-chip*.73,chip,chip);
+        ctx.fillStyle=r.wep.color||'#6ff';ctx.font=`900 ${px_(12)}px system-ui`;ctx.textAlign='center';
+        ctx.fillText((r.wep.name||'?')[0],labelX+chip/2,y+px_(1));ctx.textAlign='left';
+        ctx.fillStyle=r.col||'#dce9e7';ctx.font=`700 ${px_(14)}px system-ui`;
+        ctx.fillText(r.label,labelX+chip+px_(8),y);
       }else{
         ctx.fillText(r.label,labelX,y);
       }
-      ctx.textAlign='right';ctx.fillStyle='#fff';ctx.font='900 18px system-ui';
+      ctx.textAlign='right';ctx.fillStyle='#fff';ctx.font=`900 ${px_(18)}px system-ui`;
       ctx.fillText(String(val),px0+panelW-28,y);
       ctx.textAlign='center';
     }
