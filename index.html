@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.0';
+const GAME_VERSION='0.6.1';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -63,6 +63,13 @@ function safeAreaTop(){
   }catch(_){return 24}
 }
 const SAFE_TOP=(typeof document!=='undefined'&&document.body)?safeAreaTop():24;
+function hudLayout(){
+  const t=SAFE_TOP;
+  const stageY=32+t, hpY=70+t, hpBottom=80+t, hudBottom=104+t;
+  const weaponY=hudBottom+22, weaponBarY=weaponY+8, toastY=weaponBarY+36;
+  return {stageY,hpY,hpBottom,hudBottom,weaponY,weaponBarY,toastY};
+}
+window.__swarmHudLayout=hudLayout;
 const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
 const VIEW={w:540,h:960}, WORLD={halfW:810,halfH:1440,maxEnemies:220}, CAMERA={deadZone:.15}; let dpr=1;
 function resize(){dpr=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);VIEW.w=innerWidth;VIEW.h=innerHeight} addEventListener('resize',resize);resize();
@@ -113,8 +120,8 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1,accel:2600
   // No dedicated flame SFX ships in assets/SFX, so it reuses light-machine-gun.mp3 (closest
   // existing continuous-fire sample) rather than a one-shot cue like grenade.mp3.
   {id:'weapon.flame',name:'Flamethrower',kind:'flame',damage:9,rate:.06,speed:0,shots:1,pierce:99,color:'#ff9a3d',range:100,flameWidth:38,flameLength:100,burnDps:40,burnTime:2.2,dropWeight:1,sfx:'light-machine-gun.mp3',icon:5},
-  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:100,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'electric-explosive.mp3',icon:2},
-  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:100,jumps:4,dropWeight:1,coreWidth:3.4,glowWidth:15,glowIntensity:1.15,sfx:'lightning01.mp3',icon:3},
+  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:200,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'electric-explosive.mp3',icon:2},
+  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:200,jumps:4,dropWeight:1,coreWidth:3.4,glowWidth:15,glowIntensity:1.15,sfx:'lightning01.mp3',icon:3},
   {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:100,blast:78,dropWeight:1,shards:3,sfx:'grenade.mp3',icon:4},
   // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
   // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
@@ -216,32 +223,28 @@ if(EDIT.waves.budgetBase===1.15&&EDIT.waves.budgetExponent===1.065){try{const ra
   // only rewrite the exact old defaults, so hand-tuned FORGE values survive).
   if(c.coreWidth===1.8&&c.glowWidth===12&&(c.glowIntensity??1)===1){c.coreWidth=3.4;c.glowWidth=15;c.glowIntensity=1.15;persistForge()}if(c.coreWidth==null)c.coreWidth=1.8;if(c.glowWidth==null)c.glowWidth=12;if(c.glowIntensity==null)c.glowIntensity=1}const n=(EDIT.weapons||[]).find(w=>w.id==='weapon.nova');if(n&&n.shards==null)n.shards=3})();
 
-// 2026-08-13 RANGE BASELINE MIGRATION (owner: "make all weapons length be 100 to start").
-//
-// forgeMerge() keeps the SAVED row wholesale for any weapon already in localStorage, so editing the
-// shipped table above does nothing for an existing player — the same trap that resurrected the
-// rocket launcher (see RETIRED_FORGE_IDS). This walks each gun's range to 100, but ONLY when the
-// saved value is still one of that gun's known shipped defaults. A hand-tuned number the owner set
-// in FORGE is never touched, which is the whole point of the "I can adjust the starting length"
-// requirement — this migration must not fight the owner's own tuning.
-//
-// weapon.seeker is deliberately ABSENT from this table: homing keeps its 900 (owner exemption).
+// 2026-08-13 RANGE BASELINE MIGRATION, updated 2026-08-14.
+// forgeMerge() keeps the SAVED row wholesale, so editing FORGE_BASE does nothing for existing
+// players. Walk a gun ONLY when its saved range is a known shipped default. Hand-tunes stay.
+// 2026-08-14 (owner): Breach Laser + Storm Arc start at 200. Their 0.6.0 value of 100 is therefore
+// a shipped default that must walk UP to 200. Do NOT list 200 as a source or it will loop.
+// weapon.seeker is absent: homing stays 900.
 (function(){
-  const SHIPPED_RANGES={          // weaponId -> every range value that gun has ever shipped with
+  const TO_100={
     'weapon.pulse':[760],
     'weapon.flame':[260],
-    'weapon.beam':[720],
-    'weapon.chain':[280,150,240,200],
     'weapon.nova':[520],
     'weapon.poison':[640],
   };
+  const TO_200={
+    'weapon.beam':[720,100],
+    'weapon.chain':[280,150,240,100],
+  };
   let dirty=false;
   for(const w of (EDIT.weapons||[])){
-    const known=SHIPPED_RANGES[w.id];
-    if(known&&known.includes(w.range)){w.range=100;dirty=true}
+    if(TO_100[w.id]&&TO_100[w.id].includes(w.range)){w.range=100;dirty=true}
+    if(TO_200[w.id]&&TO_200[w.id].includes(w.range)){w.range=200;dirty=true}
   }
-  // The flame cone's real reach is flameLength, not range; migrate it in lockstep or the gun keeps
-  // a 260px cone while its range field reads 100.
   const f=(EDIT.weapons||[]).find(w=>w.id==='weapon.flame');
   if(f&&f.flameLength===260){f.flameLength=100;dirty=true}
   if(dirty)persistForge();
@@ -1757,13 +1760,18 @@ ctx.restore();ctx.globalAlpha=1;
   }}
 ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
-   Every HUD y-coordinate below is shifted down by SAFE_TOP (safe-area-inset-top + fallback,
-   computed once at load — see SAFE_TOP above) instead of a hardcoded magic number. */
-// HUD label: WAVE 1/3 .. WAVE 3/3, then STAGE BOSS once the guardian is up or telegraphing
-// (owner 2026-08-08 — "it does not need waves and rounds, call them Waves").
-ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';ctx.fillText('STAGE '+(stage+1)+' · '+curStageCfg().name+'  ·  '+((stageBoss||bossPendingT>0)?'STAGE BOSS':'WAVE '+(stageWave+1)+'/'+WAVES_PER_STAGE),18,32+SAFE_TOP);ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';
+   Every HUD y-coordinate below is shifted down by SAFE_TOP.
+   2026-08-14: weapon name used to share the STAGE/WAVE band (y=20+SAFE_TOP vs y=32+SAFE_TOP)
+   and the beastiary toast sat on the HP bar. Left stack first, weapon under it, toast under that. */
+const HUD=hudLayout();
+ctx.fillStyle='#dce9e7';ctx.font='700 16px system-ui';
+const waveLabel=(stageBoss||bossPendingT>0)?'STAGE BOSS':'WAVE '+(stageWave+1)+'/'+WAVES_PER_STAGE;
+ctx.fillText('STAGE '+(stage+1)+' · '+curStageCfg().name,18,HUD.stageY);
+ctx.textAlign='right';ctx.fillStyle='#9fded2';ctx.fillText(waveLabel,VIEW.w-18,HUD.stageY);ctx.textAlign='left';
+ctx.font='14px system-ui';ctx.fillStyle='#a5c3be';
 const waveLeft=Math.max(0,waveQuota(stageWave)-waveSpawned)+enemies.length;
-ctx.fillText((stageBoss?(stageBoss.bossName||'GUARDIAN')+' '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp:bossPendingT>0?'GUARDIAN INCOMING':'HOSTILES LEFT '+waveLeft)+'   SCORE '+score+'   HOSTILES '+enemies.length+(shieldCharges?'   🛡'+shieldCharges:''),18,55+SAFE_TOP);ctx.fillStyle='#26383a';ctx.fillRect(18,70+SAFE_TOP,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,70+SAFE_TOP,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,80+SAFE_TOP);
+ctx.fillText((stageBoss?(stageBoss.bossName||'GUARDIAN')+' '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp:bossPendingT>0?'GUARDIAN INCOMING':'HOSTILES LEFT '+waveLeft)+'   SCORE '+score+'   HOSTILES '+enemies.length+(shieldCharges?'   🛡'+shieldCharges:''),18,55+SAFE_TOP);
+ctx.fillStyle='#26383a';ctx.fillRect(18,HUD.hpY,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,HUD.hpY,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,HUD.hpBottom);
 if(bossPendingT>0){
   ctx.textAlign='center';const pulse=.6+.4*Math.sin(elapsed*10);
   ctx.fillStyle=`rgba(255,113,138,${pulse})`;ctx.font='900 26px system-ui';
@@ -1772,14 +1780,10 @@ if(bossPendingT>0){
 }
 ctx.fillStyle='#1b2f33';ctx.fillRect(18,88+SAFE_TOP,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88+SAFE_TOP,180*Math.max(0,Math.min(1,xp/nextXp)),8);
 ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected+'   🔫 '+heldWeapons.length,205,96+SAFE_TOP);
-// S2 — current weapon name, top-centre, just below the phone icons. Updates whenever grantWeapon
-// replaces heldWeapons[0] (or upgradeWeapon renames rank-ups — name itself doesn't change on rank).
-if((state==='play'||state==='levelup'||state==='stagebreak')&&heldWeapons[0]){ctx.save();ctx.textAlign='center';ctx.fillStyle='#ffe066';ctx.font='700 14px system-ui';ctx.shadowColor='#000';ctx.shadowBlur=4;
-  ctx.fillText((heldWeapons[0].name||'')+(heldWeapons[0].rank>1?'  Rk.'+heldWeapons[0].rank:''),VIEW.w/2,20+SAFE_TOP);
-  // S.7 — the weapon's own progress bar + its mod stacks. Without this the orb track and the mods
-  // are invisible, which is exactly the "no goal to look forward to" the owner called out.
+if((state==='play'||state==='levelup'||state==='stagebreak')&&heldWeapons[0]){ctx.save();ctx.textAlign='center';ctx.fillStyle='#ffe066';ctx.font='700 15px system-ui';ctx.shadowColor='#000';ctx.shadowBlur=4;
+  ctx.fillText((heldWeapons[0].name||'')+(heldWeapons[0].rank>1?'  Rk.'+heldWeapons[0].rank:''),VIEW.w/2,HUD.weaponY);
   const hw=heldWeapons[0], need=orbsForRank(hw.rank||1), got=weaponOrbs[hw.id]||0;
-  const bw=120,bx=VIEW.w/2-bw/2,by=26+SAFE_TOP;
+  const bw=132,bx=VIEW.w/2-bw/2,by=HUD.weaponBarY;
   ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(bx,by,bw,5);
   ctx.fillStyle=(hw.rank||1)>=5?'#ffe066':'#6fffe2';ctx.fillRect(bx,by,bw*Math.min(1,got/need),5);
   const tags=MODS.filter(m=>modStacks(hw.id,m.id)>0).map(m=>m.name[0]+modStacks(hw.id,m.id)).join(' ');
@@ -1793,9 +1797,10 @@ if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active
 if(state==='title'||state==='dead')drawTitleOrDead()
 // First-sighting toast
 if(newCodexT>0&&newCodexTitle){const a=Math.min(1,newCodexT/.5);ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';
-  ctx.fillStyle='rgba(60,20,90,.82)';ctx.fillRect(VIEW.w/2-170,96,340,52);ctx.strokeStyle='#c6f';ctx.strokeRect(VIEW.w/2-170,96,340,52);
-  ctx.fillStyle='#e8d8ff';ctx.font='bold 13px system-ui';ctx.fillText('NEW BEASTIARY ENTRY',VIEW.w/2,118);
-  ctx.fillStyle='#fff';ctx.font='bold 18px system-ui';ctx.fillText(newCodexTitle,VIEW.w/2,140);ctx.restore()}
+  const ty=HUD.toastY;
+  ctx.fillStyle='rgba(60,20,90,.82)';ctx.fillRect(VIEW.w/2-170,ty,340,52);ctx.strokeStyle='#c6f';ctx.strokeRect(VIEW.w/2-170,ty,340,52);
+  ctx.fillStyle='#e8d8ff';ctx.font='bold 13px system-ui';ctx.fillText('NEW BEASTIARY ENTRY',VIEW.w/2,ty+22);
+  ctx.fillStyle='#fff';ctx.font='bold 18px system-ui';ctx.fillText(newCodexTitle,VIEW.w/2,ty+44);ctx.restore()}
 if(state==='debrief')drawDebrief();
 if(typeof ensureTitleChrome==='function')ensureTitleChrome();
 }
@@ -2079,6 +2084,17 @@ function fireworkBurst(){
   fireworks.push({x,y,vx:0,vy:0,life:.4,col:hue,r:54,flash:1});
   sfxFile('electric-explosive.mp3',.18);
 }
+function debriefCopy(){
+  const stageName=(curStageCfg().name||'Sector');
+  return {
+    headline:stageName.toUpperCase()+' PURGED',
+    kicker:'GUARDIAN DOWN',
+    stageName,
+    reward:'+250',
+    continue:'TAP TO ADVANCE'
+  };
+}
+window.__swarmDebriefCopy=debriefCopy;
 function debriefRows(){
   if(debriefRowsCache)return debriefRowsCache;
   const rows=[];
@@ -2152,10 +2168,18 @@ function drawDebrief(){
   if(ctx.roundRect){ctx.beginPath();ctx.roundRect(px0,py0,panelW,panelH,14);ctx.fill();ctx.stroke()}
   else{ctx.fillRect(px0,py0,panelW,panelH);ctx.strokeRect(px0,py0,panelW,panelH)}
   ctx.shadowBlur=0;ctx.textAlign='center';
-  ctx.fillStyle='#6fffe2';ctx.font=`900 ${Math.round(32*hs)}px system-ui`;
-  ctx.fillText('STAGE '+(stage+1)+' CLEAR',W/2,py0+Math.round(48*hs));
-  ctx.fillStyle='#9ebbb6';ctx.font=`${Math.round(14*hs)}px system-ui`;
-  ctx.fillText(curStageCfg().name+' · Guardian down · +250 score',W/2,py0+Math.round(74*hs));
+  const copy=debriefCopy();
+  const pulse=.82+.18*Math.sin((debriefT||0)*6);
+  ctx.save();
+  ctx.shadowColor='#ffe066';ctx.shadowBlur=28;
+  ctx.fillStyle=`rgba(255,224,102,${pulse})`;ctx.font=`900 ${Math.round(38*hs)}px system-ui`;
+  ctx.fillText(copy.headline,W/2,py0+Math.round(46*hs));
+  ctx.shadowColor='#6fffe2';ctx.shadowBlur=14;
+  ctx.fillStyle='#6fffe2';ctx.font=`800 ${Math.round(16*hs)}px system-ui`;
+  ctx.fillText(copy.kicker+'  ·  '+copy.reward,W/2,py0+Math.round(72*hs));
+  ctx.restore();
+  ctx.strokeStyle='rgba(255,224,102,.45)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(px0+28,py0+Math.round(86*hs));ctx.lineTo(px0+panelW-28,py0+Math.round(86*hs));ctx.stroke();
   const rows=debriefRows();
   // Row pitch fills the panel: spread rows over the space between the header and the footer, but
   // never stretch past 36px (the original look) and never squash below 22px (unreadable).
@@ -2217,8 +2241,8 @@ function drawDebrief(){
   ctx.globalAlpha=1;ctx.shadowBlur=0;
   if(debriefDone){
     const pulse=.7+.3*Math.sin(debriefT*5);
-    ctx.fillStyle=`rgba(111,255,226,${pulse})`;ctx.font=`700 ${Math.round(16*hs)}px system-ui`;
-    ctx.fillText('TAP TO CONTINUE',W/2,py0+panelH-Math.round(28*hs));
+    ctx.fillStyle=`rgba(255,224,102,${pulse})`;ctx.font=`800 ${Math.round(17*hs)}px system-ui`;
+    ctx.fillText(debriefCopy().continue,W/2,py0+panelH-Math.round(28*hs));
   }
   ctx.restore();
 }

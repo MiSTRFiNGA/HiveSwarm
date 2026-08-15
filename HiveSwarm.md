@@ -3,7 +3,7 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.0
+version: 0.6.1
 updated: 2026-08-14
 tags: [game, hivemind, webgame, documentation]
 ---
@@ -15,13 +15,13 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.0` · `sw.js` `CACHE_VERSION = v21` |
+| **Version** | `0.6.1` · `sw.js` `CACHE_VERSION = v22` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.0.apk` (62,654,413 bytes, 2026-08-13) · copy also at `D:\Dev\_mobile\dist\HiveSwarm-0.6.0.apk` |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.1.apk` (62,654,413 bytes, signed CN=MiSTRFiNGA, in-APK `GAME_VERSION=0.6.1`) · copy at `D:\Dev\_mobile\dist\HiveSwarm-0.6.1.apk`. `0.6.0` is in `_APKs\Archive`. |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
 
@@ -76,8 +76,8 @@ You only steer. Weapons fire themselves at the nearest in-range threat. Stages a
 | Heat Seeker | `weapon.seeker` | homing | 22 | .38 | **900 (exempt)** | Armory 4. Range never scales |
 | Flamethrower | `weapon.flame` | flame | 9 | .06 | **100** | Cone + burn. `flameLength` tracks range |
 | Toxin Injector | `weapon.poison` | poison | 6 | .5 | **100** | DoT + spread; prefers clean targets |
-| Breach Laser | `weapon.beam` | beam | 28 | .08 | **100** | Continuous ray |
-| Storm Arc | `weapon.chain` | chain | 22 | .32 | **100** | 4 jumps, −12% per jump |
+| Breach Laser | `weapon.beam` | beam | 28 | .08 | **200** | Continuous ray. 0.6.1 owner retune |
+| Storm Arc | `weapon.chain` | chain | 22 | .32 | **200** | 4 jumps, −12% per jump. 0.6.1 owner retune |
 | Nova Shell | `weapon.nova` | nova | 34 | .55 | **100** | Kill explosions spit mini stars |
 
 Range is authoritative for **every** kind. `wRange()` is the single source of truth. **Long Barrel** = +30% of that gun's own base per stack, max 3. Homing is excluded twice (`appliesTo` + `wRange()`).
@@ -201,14 +201,14 @@ Do these in order. Do not add weapons or stages in front of P0.
 
 ### P0 — publish / honesty (this session's leftover)
 
-1. Push `master` so Pages = local `0.6.0`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.0`.
+1. Push `master` so Pages = local `0.6.1`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.1`.
 2. Owner play on the **URL** or the single `0.6.0` APK. Do not play an old APK.
 3. Still **no** CrazyGames / Poki rebuild.
 
 ### P1 — feel (from 2026-08-14 play)
 
 4. Draw the player with the existing 8-dir sheet, not the cyan circle.
-5. Separate weapon name from `WAVE n/3`. Move beastiary toasts off the HP bar.
+5. ✅ HUD unstack (0.6.1) — STAGE left, WAVE right, weapon under HP, toast under the stack.
 6. Raise on-screen swarm presence without breaking off-cam spawn (more bodies in frame, or stronger off-screen audio/markers). Opening minute should push, not just decorate.
 7. Fix `_forge_stages_verify.js` tab index. Regen `_game_extract.js` whenever `index.html` changes.
 
@@ -235,6 +235,16 @@ Do these in order. Do not add weapons or stages in front of P0.
 ---
 
 ## 8. Change record (keep — measured)
+
+### 2026-08-14 — Grok · v0.6.1 · HUD / debrief / range
+
+Owner: fix HUD, punch up level-end text, Breach Laser + Storm Arc start at 200, new APK.
+
+- HUD: STAGE/name left, WAVE right. Weapon name + orb bar sit under the HP/XP stack. Beastiary toast moved under that. Probe: `weaponY=150` vs `stageY=56`, toast `194` vs `hudBottom=128`.
+- Debrief headline is now `OUTSKIRTS PURGED` (gold, glow) + `GUARDIAN DOWN · +250` + `TAP TO ADVANCE`. Not `STAGE N CLEAR`.
+- Beam/chain shipped range 200. Migration walks known defaults (including 0.6.0's 100) up to 200; hand-tunes stay. Other guns remain 100, seeker 900.
+- `qa/_verify_2026_08_14_hud_range.py` — ALL CHECKS PASSED. Harness `SIM ENDED clean`.
+- APK: `HiveSwarm-0.6.1.apk`. Previous `0.6.0` moved to `_APKs\Archive`.
 
 ### 2026-08-14 — Grok · docs + shelf + play-feel
 
