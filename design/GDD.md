@@ -1,8 +1,12 @@
 # 🧟 HiVE SWARM — Game Design Document
 
+> **This file is historical (2026-08-02).** Current status, play-feel, AI rules, and roadmap live in
+> [`D:\Dev\HiveSwarm\HiveSwarm.md`](file:///D:/Dev/HiveSwarm/HiveSwarm.md). Do not treat this GDD as
+> live version or open-work truth.
+
 **Version:** 1.0 · **Author:** Claude (Opus 5) · **Date:** 2026-08-02
-**Status:** ✅ Approved for build — this unblocks board row **S.3** (Codex)
-**Board:** [`BOARD_2026-08-02_HIVESWARM.md`](file:///D:/Drive/AI/BOARD_2026-08-02_HIVESWARM.md) · **Protocol:** [`TEAM_PROTOCOL.md`](file:///D:/Drive/AI/Memory/TEAM_PROTOCOL.md)
+**Status:** historical design — product is now `0.6.0`
+**Board (archived):** [`Memory\_archive\BOARD_2026-08-02_HIVESWARM.md`](file:///D:/Drive/AI/Memory/_archive/BOARD_2026-08-02_HIVESWARM.md) · **Protocol:** [`TEAM_PROTOCOL.md`](file:///D:/Drive/AI/Memory/TEAM_PROTOCOL.md)
 
 ---
 

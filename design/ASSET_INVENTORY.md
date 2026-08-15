@@ -1,5 +1,8 @@
 # HiVE SWARM — Asset Inventory (S.2)
 
+> **Historical inventory (2026-08-02).** Current product status, play-feel, AI rules, and roadmap:
+> [`D:\Dev\HiveSwarm\HiveSwarm.md`](file:///D:/Dev/HiveSwarm/HiveSwarm.md).
+
 **Date:** 2026-08-02 · **Author:** Grok · **Scope:** HiveWar + CryptMatch + HiveSwarm harvest
 
 Camera target for HiVE SWARM: **top-down / high-angle 360 arena** (survivors-like).

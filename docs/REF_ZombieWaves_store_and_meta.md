@@ -1,5 +1,8 @@
 # Reference Teardown: Zombie Waves — Store, Meta, and Stage Structure
 
+> **Reference study only.** Live HiVE SWARM status is
+> [`D:\Dev\HiveSwarm\HiveSwarm.md`](file:///D:/Dev/HiveSwarm/HiveSwarm.md). Do not copy art, audio, or code from this APK.
+
 **APK analyzed:** `D:\Dev\_ref\apks\Zombie Waves.apk` (package `com.ddup.zombiewaves.zw`, billing client v8.3.0, ~25 MB on disk)
 **Method:** Unzipped as a plain zip archive (`D:\Dev\_ref\apks\zombie_waves_extract\`); inspected `AndroidManifest.xml`, `res/`, `assets/`, `billing.properties`, and mediation metadata. No DEX decompilation performed, per instructions.
 

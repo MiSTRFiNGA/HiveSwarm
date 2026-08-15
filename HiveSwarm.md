@@ -1,346 +1,283 @@
 ---
 type: game-documentation
 title: HiVE SWARM
-description: 360° top-down survivors-like — gameplay, enemies, weapons, change record and upgrade roadmap.
+description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-tags: [game, hivemind, websgame, documentation]
+version: 0.6.0
+updated: 2026-08-14
+tags: [game, hivemind, webgame, documentation]
 ---
 
-# 🐝 HiVE SWARM
+# 🐝 HiVE SWARM — source of truth
 
-- **Master path:** `D:\Dev\HiveSwarm` — **edit here only**
-- **Game file:** `index.html` — ONE ~210 KB single-file build (engine, art refs, FORGE, all of it)
-- **Launcher:** `Launch HiVE Swarm.bat`
-- **Genre:** 360° run-and-gun survivors-like. Reference APK: **Zombie Waves**.
-- **⚠️ Not the same game as HiVE WAR** (`D:\Dev\HiveWar`), which is a LANE shooter. Eric saying
-  "like hive war" means *borrow that behaviour*, not *edit that repo*.
+**This file is the only live document for HiVE SWARM.**  
+Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history. If they disagree with this file, this file wins. Update this file in place when the game, APK, Pages, or open work changes.
+
+| | |
+|---|---|
+| **Version** | `0.6.0` · `sw.js` `CACHE_VERSION = v21` |
+| **Master path** | `D:\Dev\HiveSwarm` — edit here only |
+| **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
+| **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
+| **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
+| **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.0.apk` (62,654,413 bytes, 2026-08-13) · copy also at `D:\Dev\_mobile\dist\HiveSwarm-0.6.0.apk` |
+| **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
+| **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
+
+**Owner last human verdict (2026-08-05):** "getting fun." Everything since then is playtest feel, not "does the game exist."
+
+**Do not** rebuild CrazyGames / Poki (`python build.py`) until the owner asks. Those zips are stale on purpose (`dist/*/index.html` still `0.1.1`).
 
 ---
 
-## 🎮 Gameplay
+## 1. How to run and verify
 
-Top-down arena survival. **Weapons fire automatically** — you only move (WASD / arrows / on-screen
-stick) and choose upgrades. Enemies spawn **off-camera by construction** (outside the viewport
-rect, not a fixed distance from the player) and walk in — and never in the direction you are
-travelling (v0.6.0).
+```bat
+Launch HiVE Swarm.bat
+```
+
+Never open `file://`. That taints the canvas and FORGE save/undo fails silently.
+
+```powershell
+cd D:\Dev\HiveSwarm
+python regen_extract.py          # MUST run after editing index.html
+node _headless_harness.js        # crash detector, not a play bot
+node _stage_verify.js            # stage/wave progression
+python qa/_verify_2026_08_13_changes.py   # 0.6.0 range / movement / debrief
+```
+
+Debug hooks: `window.__swarmDbg()` and `window.__hiveSwarmDebug()`. Playwright `evaluate()` cannot see script-scoped `let`/`const`.
+
+Screenshot the **canvas** with `canvas.toDataURL` for gameplay. HTML overlays (pause, cards, beastiary toast, `#pauseBtn`) will **not** appear in a canvas grab.
+
+---
+
+## 2. What the game is
+
+You only steer. Weapons fire themselves at the nearest in-range threat. Stages are kill-quota waves, then a Guardian, then debrief → next stage.
 
 | System | How it works |
 |---|---|
-| **Stages** | Each stage = 3 waves + a Guardian (stage boss). Clear the boss → debrief → reward → next stage. |
-| **Waves** | Kill-based, not timed. A wave has a finite spawn quota and only ends when every enemy it spawned is dead. A stall watchdog relocates **genuinely wedged** bodies (see v0.6.0) so a wave can't soft-lock. |
-| **XP / levels** | Orbs drop from kills. Each level-up offers 3 cards. Multiple level-ups in one frame **queue** rather than stack overlays. |
-| **Meta progression** | 3 save slots. Credits buy permanent damage/hp/speed/venom and unlock weapons in the Armory. |
-| **Continues** | Limited per run; currently granted free — this is the single wiring point for a future rewarded-ad SDK (`PSDK.rewarded()`), deliberately not wired yet. |
-| **FORGE** | Built-in editor (`hive_swarm_forge_values_v1` in localStorage) for tuning weapons, enemies, bosses, waves. Follows `FORGE_STANDARD.md`. |
+| **Stages** | 5 shipped: Outskirts → Sewers → Downtown → Highway → HiVE Core. Each = 3 waves + Guardian. |
+| **Waves** | Kill-based, not timed. Finite `waveQuota`. Ends when every spawned body is dead. |
+| **XP / cards** | Orbs from kills. Level-up offers 3 cards. Multiple level-ups **queue**. First-three and every later hand force ≥1 equipped-weapon mod unless every applicable mod is 3/3. |
+| **Meta** | 3 save slots. Biomatter buys permanent damage / HP / speed / venom and Armory unlocks. Cap +25% total meta power. |
+| **Continues** | 1 per 3 stages reached. Hook for a future `PSDK.rewarded()` — **not wired**. |
+| **FORGE** | `F2` or ⚒ only (no long-press). Key `hive_swarm_forge_values_v1`. Follow `FORGE_STANDARD.md`. |
+| **Spawns (0.6.0)** | Off-camera by construction (outside the viewport rect). Exclusion wedge so a moving player is not fed a horde in the travel direction. |
+| **Stall valve (0.6.0)** | Progress = damage, not kills. Only bodies that fail to cover ground (`e.stuckT`) relocate. |
 
-## 👾 Enemies
+### Weapons (shipped `0.6.0`)
 
-Roster lives in the `ENEMIES` table in `index.html`, gated by `unlockWave`. Behaviours in play:
-
-- **Chasers** (Shambler and family) — walk straight at the player; the bulk of every wave.
-- **Static / node enemies** — don't chase; flagged by `isStaticEnemy()` and given an off-screen
-  marker so a stage can never soft-lock on an unreachable target.
-- **Stage Guardians (bosses)** — one per stage, `isBoss:true`. HP = base × `bossMul` × cycle scaling,
-  85% knockback resistance, own FORGE slot in `EDIT.bosses` keyed by the stage's `bossId`.
-  They spawn adds during the fight on their own budget, with a stall watchdog.
-- **Status effects** — poison (`e.poisonT/poisonDps/poisonStacks`, incremental multiplicative
-  stacking) and burn (`e.burnDps/e.burnT`, take-the-max). ⚠️ These deliberately use **separate
-  fields**; they shared fields once and silently ate each other's damage.
-
-## 🔫 Weapons
-
-| Weapon | id | Kind | Damage | Rate | Range | Notes |
+| Weapon | id | Kind | Dmg | Rate | Range | Notes |
 |---|---|---|---|---|---|---|
 | Pulse Carbine | `weapon.pulse` | bullet | 18 | .16 | **100** | Starter, always owned |
-| Seeker | `weapon.seeker` | homing | 22 | .38 | **900 (exempt)** | Armory 4. **The one weapon whose range never scales** |
-| Flamethrower | `weapon.flame` | flame | 9 | .06 | **100** | Cone + burn DoT; `flameLength` tracks `range` |
-| Toxin Injector | `weapon.poison` | poison | 6 | .5 | **100** | DoT + spread; targets *clean* enemies first |
-| Breach Laser | `weapon.beam` | beam | 28 | .08 | **100** | Continuous ray, single-target king |
-| **Storm Arc** | `weapon.chain` | chain | 22 | .32 | **100** | 4 jumps, −12% damage per jump |
-| Nova Shell | `weapon.nova` | nova | 34 | .55 | **100** | Kill explosions spit mini reactor-stars |
+| Heat Seeker | `weapon.seeker` | homing | 22 | .38 | **900 (exempt)** | Armory 4. Range never scales |
+| Flamethrower | `weapon.flame` | flame | 9 | .06 | **100** | Cone + burn. `flameLength` tracks range |
+| Toxin Injector | `weapon.poison` | poison | 6 | .5 | **100** | DoT + spread; prefers clean targets |
+| Breach Laser | `weapon.beam` | beam | 28 | .08 | **100** | Continuous ray |
+| Storm Arc | `weapon.chain` | chain | 22 | .32 | **100** | 4 jumps, −12% per jump |
+| Nova Shell | `weapon.nova` | nova | 34 | .55 | **100** | Kill explosions spit mini stars |
 
-> **Range is now authoritative for every kind** (v0.6.0). Before this, `range` only fed beam and
-> chain — projectile weapons ignored it entirely and their reach was an accident of `speed × life`,
-> so the FORGE `range` field was a lie for five of the seven guns. Bullets now retire once they have
-> travelled `range` px.
+Range is authoritative for **every** kind. `wRange()` is the single source of truth. **Long Barrel** = +30% of that gun's own base per stack, max 3. Homing is excluded twice (`appliesTo` + `wRange()`).
 
-**Weapon kinds matter.** `beam`/`chain`/`flame` are continuous and never fire discrete projectiles,
-so Scatter / Pierce / Ricochet do not apply to them (enforced via each mod's `appliesTo`).
+`beam` / `chain` / `flame` are continuous. Scatter / Pierce / Ricochet do not apply (`appliesTo`). Giant Rounds is **removed** from the offer pool (`wSizeMul()` returns 1 so old saves cannot revive it).
 
-### Upgrade mods (`MODS`, max 3 stacks each)
+### Mods / skills
 
-`rapid` · `knockback` · `ricochet` · `overcharge` · **`longrange`** · `novastar` (nova) · `arcjump` (Storm Arc) ·
-flame length/spread/napalm · plus run-scoped **skills** (fleet, bulk, magnet, shield, vampiric,
-drone) and drone mods.
+Weapon mods (max 3 stacks): `rapid` · `knockback` · `ricochet` · `overcharge` · `longrange` · `novastar` · `arcjump` · flame length / spread / napalm · `scatter` · `pierce` · `venom`.
 
----
+Run skills: Fleet Footed, Reinforced, Magnet, Shield Matrix, Vampiric, Drone Escort (+ drone rate/damage once a drone exists).
 
-## 📝 Change record — 2026-08-12 (Claude)
+### Enemies
 
-Everything below is **done and verified**, with evidence in
-[`C:\Users\MiSTRFiNGA\Desktop\Tests\HiveSwarm_0812\`](file:///C:/Users/MiSTRFiNGA/Desktop/Tests/HiveSwarm_0812/).
-
-| # | Owner request | Status | What changed |
-|---|---|---|---|
-| 1 | Storm arc broken / invisible | ✅ **DONE** | Presentation fix — see the measurement below |
-| 2 | Flame should start at top of the firing rectangle | ✅ **DONE** | Cone origin + damage cone moved to the barrel tip |
-| 3 | All weapons shoot from the cannon tip | ✅ **DONE** | New `muzzle()` helper; bullets, beam, chain, flame all use it |
-| 4 | Remove large/giant bullet upgrade | ✅ **DONE** | `Giant Rounds` removed from the pool; `wSizeMul()` returns 1 |
-| 5 | Every upgrade turn needs ≥1 equipped-weapon option | ✅ **DONE** | New `rollChoices()`, used by level-up **and** stage reward |
-| 6 | Stop showing all weapons at level end | ✅ **DONE** | Debrief lists only weapons you're actually holding |
-| 7 | Stats fill the window at end of level | ✅ **DONE** | Panel fills the viewport; rows scale and centre |
-| 8 | Boss 2× scale, boss fight only | ✅ **DONE** | `BOSS_FIGHT_SCALE=2` inside `spawnBossEnemy()` only |
-| 9 | Poison bubbles ×2 and easier to see | ✅ **DONE** | Count doubled, ~70% bigger, alpha floor raised, dark rim added |
-| 10 | This document | ✅ **DONE** | You're reading it |
-
-### 🔍 The Storm Arc finding — read this before touching that weapon again
-
-**Two previous passes retuned range and damage on feel alone** (280 → 150 → 240, damage 16 → 22).
-This pass instrumented the game instead. Findings:
-
-1. **Nothing fires for the first ~10 s of a stage.** Enemies spawn ~950 px out and walk in. That is
-   not a Storm Arc bug — every short-range weapon is idle until they arrive.
-2. **Range is almost irrelevant to that wait.** A/B on time-to-first-bolt:
-   `range 241 → 11.0 s`, `range 340 → 10.4 s`. **A 41% range increase bought 0.6 seconds** because
-   travel time dominates. The range was therefore left at **240** — a balance change that buys
-   nothing is just drift.
-3. **The real defect:** once engaged, bolts were on screen ~50% of samples with a **maximum of one
-   concurrent bolt**, drawn with a 1.8 px core for 0.2 s. One thin bolt, half the time, in a busy
-   fight is invisible — you only ever noticed the weapon when several bolts stacked, i.e. "when it
-   chains 6 enemies", exactly as reported.
-
-**Fix was presentational, not a buff.** `coreWidth` 1.8 → 3.4, `glowWidth` 12 → 15,
-`glowIntensity` 1 → 1.15, bolt lifetime raised to the full fire interval (0.2 s → ~0.3 s), and an
-impact spark added per link. **Damage, rate, range and jumps are untouched.**
-
-⚠️ **Duty-cycle is a confounded metric here** — a longer range kills the pack sooner, which *lowers*
-the fraction of frames with a live target. Use **time-to-first-bolt** if you measure this again.
-
-### Verification performed
-
-- Syntax: `node --check` on the extracted script — clean.
-- Served over `http://127.0.0.1:8823` (never `file://` — that taints the canvas and silently breaks
-  all FORGE save/undo).
-- Playwright, real Chromium, **zero page errors** across every probe.
-- Screenshots: Storm Arc chaining from the barrel tip, flame cone from the barrel, laser from the
-  barrel, boss on screen at 2× next to normal enemies, poison cloud, debrief filling the window.
-- Upgrade offers captured live — slot 1 was a Storm Arc mod on every offer (`Overcharge … — Storm Arc`).
-
-### NOT done / not attempted
-
-- ❌ No mobile/touch pass on the resized debrief panel — it was verified at 900×1000 desktop only.
-- ❌ No APK rebuild. ⚠️ `art_src` **is runtime for HiveSwarm** (unlike HiveWar) — don't strip it.
-- ❌ `_game_extract.js` was **not** regenerated; the headless harness evaluates that stale copy, so
-  harness results will not reflect these changes until it's regenerated.
-- ❌ Balance not re-tuned after the Giant Rounds removal — the offer pool is one card smaller.
+Roster in `EDIT.entities`, gated by `unlockWave` **and** the stage `enemyCap`. Behaviours: chasers, static nodes (`isStaticEnemy()` — knockback must not move them), stage Guardians (`isBoss`, own `EDIT.bosses` slot). Poison and burn use **separate** fields.
 
 ---
 
-## 📝 Change record — 2026-08-13 (Claude) · v0.6.0
+## 3. Play-feel — 2026-08-14 local `0.6.0`
 
-| Owner request | Status | What changed |
+Played on http://127.0.0.1:8795/index.html (never `file://`), Playwright Chromium, portrait 540×960, WASD kite ~40 s. Evidence: `C:\Users\MiSTRFiNGA\Desktop\Tests\hiveswarm_playfeel_2026_08_14\` (9 canvas frames + `playfeel.json`). Chrome DevTools MCP was unavailable (no `chrome.exe` on this box). Zero `pageerror`s.
+
+### What the run actually did
+
+| t | State | Notes |
 |---|---|---|
-| All weapons start at range 100; upgrades extend it; **homing exempt** | ✅ DONE | 6 of 7 guns ship `range:100`; `weapon.seeker` keeps 900 and ignores range upgrades |
-| Upgrades must be **modular** — work at any base range I set | ✅ DONE | New **Long Barrel** mod is **multiplicative** (`+30% of the weapon's own base`, 3 stacks) |
-| Enemies disappear and reappear elsewhere, especially large ones | ✅ DONE | The wave stall valve was relocating **the entire field every 11s**. Root-caused and fixed |
-| A horde appears where I'm moving to instead of walking into frame | ✅ DONE | 57% of spawns landed within 30° of the travel direction. Now 0% within 60° |
-| Movement feel knobs (drag / resistance) in FORGE | ✅ DONE | `accel` / `brake` / `friction` on the **FORGE → PLAYER** tab, live + persisted |
-| Level-clear stats box 20% smaller, everything fits | ✅ DONE | `PANEL_SHRINK=.8`; removed the pitch/font floors that made overflow inevitable |
+| 0.0 | title | `v0.6.0` on the title. Cast lineup + cyan player orb. Slot 1, 0 biomatter. |
+| 0.6 | play | Pulse Carbine rank 1, range 100. Beastiary toast: Pulse Carbine. |
+| 3.5 | play | 4 hostiles, HP 100, player already off-origin. |
+| 12 | play | Score 30. Beastiary toast: Biomatter Orb. Floating stick visible. |
+| 29 | **levelup** | Wave 2/3, score 100, 13 live / 16 left. Cards: **Scatter 0→1/3**, Ricochet 0→1/3, Shield Matrix 0→1/3. Picked Scatter. |
+| 40 | play | Level 2, XP 3/11, score 170, 9 hostiles, **HP still 100**. Pulse now `shots:3` via Scatter. `spawnOnCam: 0` / `spawnOffCam: 26`. `minEnemyDist` 289–300 px. |
 
-### 🎯 Range is multiplicative on purpose
+### What feels good
 
-The owner's requirement was *"make upgrades modular so no matter what number I set the range to for
-the weapon, the upgrades work."* An **additive** `+150px` card silently fails that: at the shipped
-100 baseline it is a +150% buff, but retune a gun to 600 in FORGE and the same card is a +25% nudge.
-`RANGE_PER_STACK = .30` is a fraction of whatever `range` currently is, so a card is worth the same
-**proportion** at any baseline. `wRange()` is the single source of truth — every reach in the game
-(bullet travel, beam ray length, Storm Arc jump radius, flame cone) reads it.
+- Title is a real product screen, not a greybox.
+- Deploy is instant. Auto-fire contract holds: move only, Pulse tracks off-screen threats.
+- **Off-camera spawn holds.** 26/26 recorded spawns were off-cam. Nothing popped in the lap. Closest live body stayed ~290 px.
+- Opening wave is readable. Rubble obstacles make the arena a place, not a void.
+- Off-screen threat ticks (green pips) work.
+- Card guarantee worked on the first level-up: one of three cards was an equipped-weapon mod (Scatter). After the pick, Pulse visibly fans three cyan rounds.
+- A moving player on Pulse 100 **does not die** in the first 40 s. That matches the 0.6.0 measurement that range 100 is not a difficulty cliff.
 
-The homing exemption is enforced **twice**: `appliesTo` keeps the card from being *offered* to the
-seeker, and `wRange()` returns the flat base for `kind==='homing'` so a stack that reaches it some
-other way (old save, FORGE preset) still has **no effect**.
+### What feels unfinished or wrong
 
-**Old saves are migrated.** `forgeMerge()` keeps the saved row wholesale, so editing the shipped
-table alone does nothing for an existing player — the same trap that resurrected the rocket
-launcher. A migration walks each gun's range to 100 **only** when the saved value is still one of
-that gun's known shipped defaults, so a hand-tuned FORGE number is never overwritten.
+1. **Player is still a cyan circle.** Enemies have 8-dir sheets. The title lineup even *shows* the player as that circle. The soldier sheet exists under `art_src/topdown_v1/player*.png` and is not winning the draw. This is the biggest "greybox leftover" on screen.
+2. **HUD collision.** `Pulse Carbine` is drawn through `WAVE 1/3` at top-centre. Beastiary toasts cover the HP bar. Safe-area work happened; the weapon name and toast still fight the top band.
+3. **Opening pressure is low if you kite.** 40 s, 26 spawns, 0 damage taken. Shamblers only (stage `enemyCap` 3). Fun starts when you stop or when later archetypes arrive — the first minute is a shooting gallery.
+4. **On-screen population is thin.** HUD said 9–13 hostiles; canvas usually showed 1–3. Most of the wave lives off-screen. Off-cam spawn is correct; the *feel* of a swarm is not on the glass yet.
+5. **Card and pause UI are HTML, not canvas.** A canvas screenshot during `state=levelup` / `KeyP` looks like live play. Do not use canvas grabs to prove overlays.
+6. **Portal builds and published Pages can lie.** Local is 0.6.0. `dist/crazygames` and `dist/poki` are 0.1.1. Pages tracks `origin/master`. After this push they should match 0.6.0; verify the live URL before any phone report.
 
-### 🐛 The stall valve was the "enemies disappear" bug — measured
+### Feel verdict
 
-`WAVE_STALL_T` fires when there has been **no KILL for 11s**, which is *not* the same as "the wave is
-stuck". Two completely normal situations trip it:
-
-* **Grinding a tanky body.** A Zombie Colossus is 1200 HP; a Guardian more. Chewing one at early-run
-  DPS routinely exceeds 11s with zero kills — hence *"especially the larger enemies."*
-* **Kiting.** Running while shooting means low DPS and few kills.
-
-Once tripped, `stallCap` becomes `Infinity` as soon as the spawn quota drains, so it relocated
-**every body on the field at once**. The earlier 2026-08-13 pass made this worse, not better: moving
-stragglers **off-camera** (instead of the old 240–420px) is exactly what turned "they jump a bit"
-into "they vanish and come back somewhere else".
-
-**Reproduced and fixed** (40s probe, unkillable enemies, identical scenario both builds):
-
-| Build | Teleports >300px | Pattern |
-|---|---|---|
-| v0.5.2 (before) | **27** | All 9 enemies relocated at once at t=10.2s, 21.2s, 32.2s — i.e. every `WAVE_STALL_T` |
-| v0.6.0 (after) | **0** | — |
-
-Two narrowing fixes, neither of which weakens the genuine soft-lock guard:
-
-1. **Progress is measured as damage, not kills.** `waveStallHp` is a low-water mark of total live
-   enemy HP; any dip resets the timer. Same technique the boss guard already used (`bossStallHp`).
-2. **Only genuinely wedged bodies move.** `e.stuckT` counts seconds an enemy fails to *cover ground*
-   relative to its own `speed`. This is deliberately **not** a distance-to-player test — a kiting
-   player outruns the swarm, so "isn't getting closer" would flag every healthy chaser and blank the
-   field for exactly the playstyle that reported the bug.
-
-### 🐛 Spawns were steered into your path — measured
-
-`spawnEnemy()`'s facing cone was only disabled for the first 45 seconds. After that, **65% of spawns
-landed in a ±60° wedge centred on `player.angle`** — which is written from the movement input every
-frame, so "facing" is literally "the direction you are running."
-
-| Build | Spawns within 30° of travel | Within 60° |
-|---|---|---|
-| v0.5.2 (before) | **57.4%** | 61.7% |
-| v0.6.0 (after) | **0%** | **0%** |
-
-The wedge is now an **exclusion**: spawns are drawn from the full ring, and one landing dead ahead of
-a *moving* player is pushed to the nearer edge. A stationary player has no travel direction, so the
-ring stays uniform.
-
-### ⚖️ Range 100 is NOT a difficulty regression — measured
-
-8 headless runs per baseline (`_headless_harness.js`, 90s cap). Run-to-run variance is large, so
-single runs are meaningless here — these are means:
-
-| Starting range | Mean survival | Deaths |
-|---|---|---|
-| **100 (shipped)** | 69.8s | 5/8 |
-| 200 | 86.4s | 2/8 |
-| 300 | 87.6s | 1/8 |
-| 500 | 88.7s | 2/8 |
-| 760 (old pulse) | 63.0s | 5/8 |
-
-Range 100 (69.8s) is **not worse** than the old shipped reach (63.0s). If you want it easier, the
-measured sweet spot is **200–300** — one number per gun in FORGE → ENTITIES, and Long Barrel scales
-off whatever you pick.
-
-### 🕹️ Movement feel — FORGE → PLAYER
-
-Movement used to write straight to position (`player.x += dir * speed * dt`): infinite acceleration,
-instant dead stop, **no velocity to tune**, which is why there was nothing to expose. The pawn now
-carries a velocity.
-
-| Field | Default | Meaning |
-|---|---|---|
-| `accel` | 2600 | px/s² while a direction is held. High = arcade; low = heavy ramp-up |
-| `brake` | 3400 | px/s² when **no** direction is held. High = stops dead; low = long coast |
-| `friction` | 4 | Extra drag/sec **while coasting only**. 0 = pure linear brake |
-
-Defaults are deliberately close to the old instant response (~0.09s to top speed) so this lands as a
-tuning knob, not a stealth nerf. Measured: `accel 4000 / brake 6000 / friction 8` → full 245 px/s in
-0.25s and a 2.5px coast; `accel 300 / brake 200 / friction 0` → 75 px/s and a 13.4px slide.
-
-**`friction` is coast-only by design.** Applying drag every frame would fight `accel` and silently
-cap top speed *below* `EDIT.player.speed`, so raising friction would quietly nerf the speed stat and
-every Fleet Footed stack with it.
-
-### 📐 Debrief panel
-
-`PANEL_SHRINK = .8` on both axes, still centred; header/footer metrics scale with the panel via
-`hs`. The real fit bug was the **floors**: pitch had a hard 22px floor and the font scale a hard 1.0
-floor, so past ~14 rows the list drew straight off the bottom of the panel. Both removed — pitch is
-now exactly `avail / rows`, which fits **by construction** at any panel size or row count. Verified
-at 4 / 12 / 30 / 60 rows on desktop (1280×800) and mobile (400×860).
-
-### 🧪 Verification
-
-`qa/_verify_2026_08_13_changes.py` — Playwright probe, run against a local static server. Covers
-shipped ranges, `wRange()` modularity at bases 100/250/600, the homing exemption, the FORGE movement
-fields, debrief geometry, and the row-fit guarantee under stress. **ALL CHECKS PASSED** on desktop
-and mobile. Screenshots in `Desktop\Tests\hiveswarm_2026_08_13\`.
-
-> ⚠️ `_forge_stages_verify.js` fails with `TABS[5] !== STAGES`. **Pre-existing** — `STAGES` is at
-> index 4 and the assertion was never updated. Confirmed failing on v0.5.2 too; not caused by this
-> change set.
+It is a real survivors-like loop: deploy → kite → auto-fire → orb → card → keep moving. Identity is clear. The remaining feel gap is **presence** (player sprite, on-screen swarm density, HUD that does not sit on itself), not missing systems.
 
 ---
 
-## 📝 Change record — 2026-08-13 (Claude) · v0.5.1
+## 4. Developer rules
 
-| Owner request | Status | What changed |
-|---|---|---|
-| Storm Arc at 200 length | ✅ DONE | Shipped `range` 240 → 200, with a migration step so old saves land on it |
-| Remove rocket launcher | ✅ DONE | It was already deleted from source on 2026-08-08 — see the resurrection bug below |
-| Enemies appear/reappear on top of the player | ✅ DONE | Two separate causes, both fixed |
-| Larger stats on level clear | ✅ DONE | Debrief type scales with row pitch (~2× on a roomy screen) |
-
-### 🐛 Retired content resurrects from localStorage — READ BEFORE DELETING ANY WEAPON/ENEMY
-
-`weapon.rocket` was removed from the shipped table on 2026-08-08 (commit `1dde751`) and **was still
-appearing in game five days later.** `forgeMerge()` is why:
-
-```js
-next[key] = saved[key].map(row => Object.assign({}, shipped.get(row.id)||{}, row))
-```
-
-It iterates the **saved** array. A row whose id no longer exists in `FORGE_BASE` falls back to `{}`
-and the saved copy is kept wholesale — so **anything deleted from the shipped tables comes back from
-localStorage on every load, forever, for anyone who played the old build.**
-
-**Deleting content from source is not enough.** Add its id to `RETIRED_FORGE_IDS`; `pruneRetired()`
-strips it from `EDIT` and re-persists, and `reset()` scrubs it from the save's `ownedWeapons` /
-`startWeapon`. Verified with a poisoned save (rocket in FORGE + owned + set as start weapon): after
-one load the FORGE list is clean, `ownedWeapons` is `['weapon.pulse']`, and `startWeapon` is reset.
-
-### 🐛 Spawning on top of the player — quantified
-
-1. `spawnEnemy()` computed `player + dir*distance` then **clamped to world bounds**. Near an edge the
-   clamp eats the whole distance. Simulated at the cornered position a Playwright run actually
-   reached (794, 1424): **minimum spawn distance 0px, and 28.3% of spawns within 100px of the
-   player.** That is the bug, not bad luck.
-2. The wave-stall watchdog **teleported stragglers to `rand(60,140)` of the player** with no
-   telegraph — enemies materialising in your lap.
-
-Both now go through `placeAwayFromPlayer(r, minD, maxD)`, which retries angles until the *clamped*
-result still clears `minD` (half the screen diagonal for spawns, 240px for the stall valve) and
-falls back to the farthest legal point when genuinely cornered. The stall valve also flashes a
-`burst()` where each straggler lands. Verified in-game while cornered: worst observed spawn distance
-**703px** vs a 673px off-camera threshold. `__swarmDbg().minEnemyDist` was added so this stays
-regression-testable.
+- **One agent on `index.html` at a time.** Parallel edits on this file have stomped each other twice.
+- Never `git checkout -- index.html`. It is the whole game.
+- Bump `GAME_VERSION` **and** `sw.js CACHE_VERSION` together.
+- `art_src/` is **runtime**. Do not strip it from the APK.
+- Deleting a weapon/enemy from `FORGE_BASE` is not enough. Add the id to `RETIRED_FORGE_IDS` or `forgeMerge()` resurrects it from localStorage forever (rocket launcher bug, 2026-08-13).
+- Range / stall / spawn changes need a **measured** before/after, not a feel retune. See §8.
+- One APK on the desktop shelf. Archive or delete the rest. 2026-08-14: only `HiveSwarm-0.6.0.apk` remains.
+- Serve on a fresh port and confirm *your* file (`GAME_VERSION` in the HTML). A wedged `http.server` has served the wrong tree.
+- `_forge_stages_verify.js` currently fails `TABS[5] !== STAGES` (`STAGES` is index 4). Pre-existing since 0.5.2. Do not treat that red as a 0.6.0 regression.
+- Regenerating `_game_extract.js` is required before claiming a harness result.
 
 ---
 
-## 🗺️ Upgrade roadmap (future builds)
+## 5. AI operating rules
 
-**P1 — correctness / polish**
-1. Regenerate `_game_extract.js` so the headless harness tests the current build.
-2. Re-check the debrief panel at phone aspect ratios (320/375 wide).
-3. Storm Arc still peaks at **1 concurrent bolt** in open fights — the jump requires the next enemy
-   within `range` of the *previous link*. Consider measuring jump-chain length and, if it's usually
-   1, letting jumps 2..N use a slightly larger search radius than the first acquisition.
+| Agent | Lane |
+|---|---|
+| Whoever is assigned Swarm | `D:\Dev\HiveSwarm\**` only. Sequential edits. Write evidence back **into this file**. |
+| Grok | Art / capture / APK / publish / this doc — not a second `index.html` editor while another agent is in it. |
+| Codex | Do not open this repo unless assigned. Zelda stays in `D:\Dev\Zelda`. |
+| Claude | Design review + verification. Does not invent a second board. |
+| Eric | Play, store uploads, portal submit, Quest 3 go/no-go. Agents never submit to stores. |
 
-**P2 — content**
-4. More Guardians with distinct attack patterns (they currently just chase with more HP).
-5. Elite//modifier enemies (shielded, splitter, exploder).
-6. A second upgrade axis so late-run picks aren't just "+22% again".
+**Read order for Swarm work:** this file → `index.html` → `FORGE_STANDARD.md`.  
+Do **not** start from `design/GDD.md`, archived `BOARD_2026-08-02_HIVESWARM.md`, `BOARD_2026-08-03_LIVE.md`, `OVERLORD_HANDOFF_2026-08-09.md`, or `D:\Drive\AI\My Apps\HiveSwarm\`.
 
-**P3 — shipping**
-7. Wire the rewarded-ad SDK at the single `requestContinue()` hook.
-8. Store art + APK build (`D:\Dev\_mobile\build_apk.ps1`), then portal submission.
+Report format: `✅ DONE — who — date — sha` + **VERIFIED:** command and real output. Visual claims need a whole-frame shot. `SIM ENDED clean` proves the sim ran, not that the game plays.
 
 ---
 
-## 🚧 Dev traps (learned the hard way)
+## 6. File map
 
-- **Single file = NO parallel agents.** Fan-out on one 210 KB `index.html` stomps itself. Batch
-  sequentially, verify with a separate adversarial pass.
-- **Never open it as `file://`** — canvas taint makes all FORGE save/undo fail silently.
-- **Never `git checkout --` `index.html`** — it's the whole game.
-- **Serve on a fresh port and confirm you're getting YOUR file** (`curl | grep` a token you just
-  added). A stale `http.server` squatting a port has served the wrong game before.
-- **`window.__swarmDbg()` / `window.__hiveSwarmDebug()`** are the probe hooks; Playwright's
-  `evaluate()` cannot see game-internal variables without them.
-- Pausing to screenshot dims the whole screen — useless as visual proof. Screenshot live instead.
+| Path | Role |
+|---|---|
+| **`HiveSwarm.md`** | **This file — live source of truth** |
+| `README.md` | GitHub stub. Points here. |
+| `index.html` | The game |
+| `sw.js` / `manifest.webmanifest` | PWA cache. Bump with version. |
+| `Launch HiVE Swarm.bat` | Local serve `:8795` |
+| `build.py` | Portal zips. **Do not run until asked.** |
+| `regen_extract.py` + `_game_extract.js` | Headless extract |
+| `_headless_harness.js` / `_stage_verify.js` | Crash / stage probes |
+| `design/GDD.md` | Historical 2026-08-02 design |
+| `design/ASSET_INVENTORY.md` | Historical media inventory |
+| `docs/REF_ZombieWaves_store_and_meta.md` | Reference APK study |
+| `FORGE_STANDARD.md` / `FORGE_TEMPLATE_V3.md` | Forge rules (shared) |
+| `art_src/topdown_v1/` | Runtime 8-dir sheets |
+| `media/title_art/` | Title options (unshipped into the title screen) |
+| `forge_host_corridor_QUARANTINE.html` | Dead corridor host. Do not ship. |
+| `dist/crazygames` · `dist/poki` | **Stale 0.1.1.** Leave until owner asks. |
+
+Removed as stale on 2026-08-14: `design/HARVEST.md`, `design/DESIGN.md`, `docs/VERIFY_2026-08-06.md`.
+
+Pointers updated to this file: `README.md`, `design/GDD.md`, `design/ASSET_INVENTORY.md`, `docs/REF_ZombieWaves_store_and_meta.md`, `D:\Drive\AI\START_HERE.md`, `D:\Drive\AI\HIVEMIND_ROADMAP.md`, `D:\Drive\AI\BOARD_2026-08-03_LIVE.md`, `D:\Drive\AI\AGENT_HANDOFF.md`, `C:\Users\MiSTRFiNGA\Desktop\OVERLORD_HANDOFF_2026-08-09.md`, `D:\Drive\AI\My Apps\HiveSwarm\{RESUME,DESIGN,HIVESWARM_STATUS_ROADMAP}.md`.
+
+---
+
+## 7. Roadmap (live)
+
+Do these in order. Do not add weapons or stages in front of P0.
+
+### P0 — publish / honesty (this session's leftover)
+
+1. Push `master` so Pages = local `0.6.0`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.0`.
+2. Owner play on the **URL** or the single `0.6.0` APK. Do not play an old APK.
+3. Still **no** CrazyGames / Poki rebuild.
+
+### P1 — feel (from 2026-08-14 play)
+
+4. Draw the player with the existing 8-dir sheet, not the cyan circle.
+5. Separate weapon name from `WAVE n/3`. Move beastiary toasts off the HP bar.
+6. Raise on-screen swarm presence without breaking off-cam spawn (more bodies in frame, or stronger off-screen audio/markers). Opening minute should push, not just decorate.
+7. Fix `_forge_stages_verify.js` tab index. Regen `_game_extract.js` whenever `index.html` changes.
+
+### P2 — systems already specified
+
+8. Storm Arc jump search: measure chain length; if usually 1, give jumps 2..N a slightly larger radius than first acquire. **Do not retune damage/rate/range by feel.**
+9. Guardians need an attack besides "big chaser."
+10. Elite modifiers (shield / split / explode).
+11. A second upgrade axis so late cards are not only "+22% again."
+
+### P3 — shipping (blocked on owner)
+
+12. Wire `requestContinue()` to rewarded ads.
+13. Title art from `media/title_art/` onto the title screen (files exist, unused).
+14. Portal zips via `build.py` **only when asked**.
+15. Store submission is Eric only.
+
+### Explicitly not now
+
+- Quest 3 is not a revenue lane (research 2026-08-09). Waiting on Eric.
+- Skull Drift is frozen. Not this repo.
+- Do not resurrect Giant Rounds or the rocket launcher.
+
+---
+
+## 8. Change record (keep — measured)
+
+### 2026-08-14 — Grok · docs + shelf + play-feel
+
+- This file is now the canonical Swarm document.
+- Stale in-repo notes deleted (`HARVEST`, `DESIGN`, `VERIFY_2026-08-06`).
+- All HiveSwarm APKs except `0.6.0` removed from Desktop `_APKs` and `D:\Dev\_mobile\dist`.
+- Local play-feel recorded in §3. Title art PNGs committed.
+
+### 2026-08-13 — Claude · v0.6.0 · `636e137`
+
+Owner set: range 100 (seeker 900 exempt), modular Long Barrel, teleport fix, spawn-direction fix, FORGE movement knobs, smaller debrief.
+
+- Teleports >300 px in a 40 s unkillable probe: **27 → 0**. Cause: stall valve on "no kill for 11 s" relocated the whole field.
+- Spawns within 30° of travel: **57.4% → 0%**. Facing cone inverted to an exclusion.
+- Range 100 mean survival 69.8 s vs old pulse 760 at 63.0 s (8-run headless). Not a nerf.
+- Movement: `accel` / `brake` / `friction` on FORGE → PLAYER. Friction is coast-only.
+- `qa/_verify_2026_08_13_changes.py` passed desktop + mobile.
+
+### 2026-08-13 — Claude · v0.5.1 / 0.5.2
+
+- Rocket launcher resurrected from localStorage via `forgeMerge()`. Fix: `RETIRED_FORGE_IDS`.
+- Spawn-on-player: corner clamp ate distance (28.3% of cornered spawns <100 px). Now `placeAwayFromPlayer`.
+- 0.5.2: spawn off-camera by construction, not distance-from-player.
+
+### 2026-08-12 — Claude · muzzle / Storm Arc / cards
+
+- Storm Arc "broken" was presentation (1.8 px bolt, 0.2 s, one concurrent), not range. Core/glow/lifetime fixed. Range left at the then-current value; later 0.6.0 set all non-seeker guns to 100.
+- All weapons fire from `muzzle()`. Giant Rounds removed. `rollChoices()` guarantees an equipped-weapon card.
+- First ~10 s of a stage nothing fires — enemies spawn ~950 px out. That is travel time, not a dead gun.
+
+### 2026-08-09 — Claude · `521102c` · APK 0.4.1
+
+- HiVE WAR-style flamethrower puffs. Per-weapon `fireClocks` (Storm Arc was inheriting the flamethrower's 0.06 s cadence).
+
+### 2026-08-02–08 — Codex / Grok / Claude
+
+Greybox 360° engine, Forge-first entities, stages, bosses, poison, 8-dir art, PWA, first APKs. Genre correction: this is **not** a HiVE WAR reskin. `D:\Dev\ZombieWaves` was the wrong-named scaffold; harvest only.
+
+---
+
+## 9. Dev traps (short)
+
+- `?test=1` is a finite fixture. Never use it for art or "is it alive" claims. Use `?telemetry=1` or a normal load.
+- `_headless_harness.js` dies around 20–90 s by design. Survival numbers come from `qa/telemetry.py` or a real play.
+- Pause-to-screenshot dims / misses HTML UI. Shoot live.
+- `D:\Drive\AI\My Apps\HiveSwarm` is a stale snapshot. Not the master.
