@@ -6,7 +6,7 @@ Do not treat this README, `design/GDD.md`, old boards, or empire memory files as
 
 | | |
 |---|---|
-| **Version** | `0.6.2` (`sw.js` cache `v23`) — see [`HiveSwarm.md`](HiveSwarm.md) |
+| **Version** | `0.6.3` (`sw.js` cache `v24`) — see [`HiveSwarm.md`](HiveSwarm.md) |
 | **Repo** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game** | `index.html` (single file) |
 | **Play local** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |

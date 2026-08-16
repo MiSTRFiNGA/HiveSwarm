@@ -23,7 +23,10 @@ Facing map (engine `FACE_SFX8`): `e se s sw w nw n ne`. **s = facing camera (fro
 | `armored_dead` | 8/8 | 8/8 | strip | **usable** | |
 | `mutant_enforcer` | 8/8 | 8/8 | strip | **usable** | W view is a squat red brute — reads as the same unit. |
 | `zombie_colossus` | 8/8 | 8/8 | strip | **angle drift** | Side (`e`) is a bone-saw profile; front/back are a different mass. Same name, two bodies. |
-| `praetorian` **NEW** | 4 unique / 4 fallback | S has 4-frame idle strip; other dirs stills | **started** | Hive WAR front + generated N/E + mirrored W. SE/SW copy S, NE/NW copy N. **Queen not imported.** |
+| `praetorian` | 6 unique / 2 fallback | S walk = 4-frame idle; SE/SW new | **in** | SE/SW rebuilt 2026-08-16. NE/NW still copy N. Queen out. |
+| `psychoid` **NEW** | 1 pose × 8 dirs | 4-frame top-down | **in** | Overhead already. Same sprite all dirs. |
+| `biomorph` **NEW** | E-facing + W flip | 4-frame side walk | **in** | One facing, then flip. Unlock 7. |
+| `subterra_maw` **NEW** | 1 pose × 8 dirs | 5-frame scan | **in** | Static node. Mini-map pip leftover on some frames. |
 
 ---
 
@@ -49,5 +52,6 @@ Queen stays out.
 
 | Character | Status |
 |---|---|
-| **Praetorian** | In. HiVE Core guardian (`boss.hivecore` → `enemy.praetorian`). Art: `praetorian.png` + dirs above. Attack/death strips copied, not wired to a state machine yet. |
+| **Praetorian** | In as HiVE Core guardian. SE/SW unique as of 0.6.3. |
+| **Psychoid / Biomorph / Maw** | In as `enemy.psychoid`, `enemy.biomorph`, `enemy.maw`. |
 | **Queen** | **Out.** Do not import. |

@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.2';
+const GAME_VERSION='0.6.3';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -135,7 +135,7 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1,accel:2600
   // slowFactor = poisoned enemies move at this fraction of normal speed, so you don't have to
   // kite/run away waiting for the DoT — the target is defanged the moment it's infected.
   {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:100,dot:16,dotTime:2.2,spreadChance:.9,spreadRadius:52,spreadFactor:.7,poisonStackMax:3,slowFactor:.6,dropWeight:1,sfx:'subterrahit.mp3',icon:4}
-],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'},{id:'enemy.praetorian',name:'Praetorian',r:28,hp:320,speed:48,damage:26,color:'#5cff7a',weight:0,dropXp:14,unlockWave:99,sprite:'art_src/topdown_v1/praetorian.png'}],codexPages:null,
+],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:4,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:13,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:10,sprite:'art_src/topdown_v1/zombie_colossus.png'},{id:'enemy.praetorian',name:'Praetorian',r:28,hp:320,speed:48,damage:26,color:'#5cff7a',weight:0,dropXp:14,unlockWave:99,sprite:'art_src/topdown_v1/praetorian.png'},{id:'enemy.psychoid',name:'Psychoid',r:18,hp:44,speed:86,damage:8,color:'#c46cff',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/psychoid.png'},{id:'enemy.biomorph',name:'Biomorph',r:16,hp:28,speed:138,damage:8,color:'#7b6cff',weight:4,dropXp:2,unlockWave:7,sprite:'art_src/topdown_v1/biomorph.png'},{id:'enemy.maw',name:'Subterra Maw',r:26,hp:190,speed:0,damage:14,color:'#3d6b3a',weight:1,dropXp:6,unlockWave:6,sprite:'art_src/topdown_v1/subterra_maw.png'}],codexPages:null,
 // STAGE system (owner request 2026-08-06): discrete stages replace the pure-endless timer.
 // Each stage = its own backdrop palette + a roster cap (which entities can spawn) + a duration
 // before a boss (a scaled-up existing entity, no new art needed) spawns. Killing the boss opens
@@ -421,7 +421,7 @@ function drawSpriteAnim(img,x,y,size,moving){
 }
 function playerScale(){const s=Number(EDIT.player&&EDIT.player.scale);return Number.isFinite(s)&&s>0?s:1}
 // Preload 8-dir sheets for player + cast so first facing switch isn't a missing-frame flash
-const PRELOAD_STEMS=['player','shambler','runner','crawler','necro_node','brute','armored_dead','mutant_enforcer','zombie_colossus','praetorian'];
+const PRELOAD_STEMS=['player','shambler','runner','crawler','necro_node','brute','armored_dead','mutant_enforcer','zombie_colossus','praetorian','psychoid','biomorph','subterra_maw'];
 PRELOAD_STEMS.forEach(stem=>{
   FACE_SFX8.forEach(s=>{
     spriteFor('art_src/topdown_v1/'+stem+'_walk_'+s+'.png');
@@ -3126,7 +3126,7 @@ function renderEntitiesEditor(){
   };
   const expAll=body.querySelector('#spExpAll');
   if(expAll)expAll.onclick=async()=>{
-    const stems=['player','shambler','runner','crawler','necro_node','brute','armored_dead','mutant_enforcer','zombie_colossus','praetorian'];
+    const stems=['player','shambler','runner','crawler','necro_node','brute','armored_dead','mutant_enforcer','zombie_colossus','praetorian','psychoid','biomorph','subterra_maw'];
     expAll.disabled=true;expAll.textContent='EXPORTING…';
     try{
       for(const stem of stems){

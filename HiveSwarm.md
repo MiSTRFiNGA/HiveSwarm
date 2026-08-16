@@ -3,7 +3,7 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.2
+version: 0.6.3
 updated: 2026-08-16
 tags: [game, hivemind, webgame, documentation]
 ---
@@ -15,7 +15,7 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.2` · `sw.js` `CACHE_VERSION = v23` |
+| **Version** | `0.6.3` · `sw.js` `CACHE_VERSION = v24` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
@@ -237,6 +237,29 @@ Do these in order. Do not add weapons or stages in front of P0.
 ---
 
 ## 8. Change record (keep — measured)
+
+### Fallback (do this if 0.6.3 goes wrong)
+
+```
+cd D:\Dev\HiveSwarm
+git fetch origin
+git checkout fallback-2026-08-16-pre-cast
+# or keep the branch: git reset --hard fallback/v0.6.2-pre-cast
+```
+
+Tag + branch both point at `1548b45` (v0.6.2, pre-cast-import). Pushed to `origin`.
+
+### 2026-08-16 — Grok · v0.6.3 · desktop Assets import
+
+After the save point. Order as promised:
+
+1. **Psychoid** — sliced from the 8-cell top-down sheet. 4-frame walk. Sewers+ (`unlockWave:5`).
+2. **Praetorian dirs** — SE/SW from the field-guide + original; N/E/W from the earlier pass. Diagonals NE/NW still copy N.
+3. **Biomorph** — 4-frame side walk + idle from the 16-cell sheet. Downtown+ (`unlockWave:7`). W dirs are flips.
+4. **Subterra Maw** — scan cycle, `speed:0` node like Necro. Sewers+ (`unlockWave:6`).
+5. **runner_s** — title card replaced with a front view. `runner_walk_s` / `_n` now use the SE run strip (the old S walk was "THE RUNNER" on every frame).
+
+Slicer: `tools/slice_desktop_assets.py`. Sources stay on Desktop; we do not overwrite the save-point tree without the tag.
 
 ### 2026-08-16 — Grok · v0.6.2 · Nova vs heavies + Praetorian + sprite catalog
 
