@@ -6,7 +6,7 @@
 // player-facing string) — only CACHE_VERSION needs bumping to bust stale caches; renaming
 // the prefix would work too, but bumping the version is the documented mechanism and is
 // sufficient on its own to force every returning tester to refetch the shell.
-const CACHE_VERSION = 'v22';  // v0.6.1 — HUD unstack, punchier debrief, beam/chain range 200
+const CACHE_VERSION = 'v23';  // v0.6.2 — Nova blast uses FORGE damage + large-hitbox overlap; Praetorian Core boss
 const CACHE_NAME = `hiveswarm-game-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 

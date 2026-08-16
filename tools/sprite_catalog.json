@@ -1,0 +1,3032 @@
+[
+  {
+    "stem": "player",
+    "idle": {
+      "e": {
+        "file": "player_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 29.2,
+        "rgb": [
+          26.8,
+          69.0,
+          66.0
+        ]
+      },
+      "se": {
+        "file": "player_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          50,
+          19,
+          205,
+          248
+        ],
+        "hole_pct": 6.4,
+        "rgb": [
+          17.9,
+          71.8,
+          72.9
+        ]
+      },
+      "s": {
+        "file": "player_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 25.7,
+        "rgb": [
+          29.7,
+          71.9,
+          67.8
+        ]
+      },
+      "sw": {
+        "file": "player_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          54,
+          18,
+          201,
+          248
+        ],
+        "hole_pct": 3.9,
+        "rgb": [
+          26.1,
+          76.8,
+          77.7
+        ]
+      },
+      "w": {
+        "file": "player_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 36.6,
+        "rgb": [
+          27.3,
+          67.9,
+          64.5
+        ]
+      },
+      "nw": {
+        "file": "player_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          37,
+          18,
+          218,
+          248
+        ],
+        "hole_pct": 7.0,
+        "rgb": [
+          22.5,
+          68.4,
+          70.0
+        ]
+      },
+      "n": {
+        "file": "player_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 23.5,
+        "rgb": [
+          30.9,
+          74.0,
+          71.2
+        ]
+      },
+      "ne": {
+        "file": "player_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          36,
+          18,
+          220,
+          248
+        ],
+        "hole_pct": 6.1,
+        "rgb": [
+          17.7,
+          70.0,
+          70.6
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "player_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          42,
+          18,
+          989,
+          248
+        ],
+        "hole_pct": 15.2,
+        "rgb": [
+          30.5,
+          67.8,
+          72.0
+        ]
+      },
+      "se": {
+        "file": "player_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          17,
+          34,
+          1007,
+          248
+        ],
+        "hole_pct": 9.5,
+        "rgb": [
+          19.8,
+          71.4,
+          73.3
+        ]
+      },
+      "s": {
+        "file": "player_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          18,
+          947,
+          248
+        ],
+        "hole_pct": 27.3,
+        "rgb": [
+          24.2,
+          71.6,
+          69.0
+        ]
+      },
+      "sw": {
+        "file": "player_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          54,
+          18,
+          969,
+          248
+        ],
+        "hole_pct": 5.1,
+        "rgb": [
+          24.9,
+          74.5,
+          76.1
+        ]
+      },
+      "w": {
+        "file": "player_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          34,
+          18,
+          982,
+          248
+        ],
+        "hole_pct": 15.0,
+        "rgb": [
+          30.5,
+          67.8,
+          72.0
+        ]
+      },
+      "nw": {
+        "file": "player_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          17,
+          18,
+          1006,
+          248
+        ],
+        "hole_pct": 16.4,
+        "rgb": [
+          49.6,
+          79.8,
+          81.4
+        ]
+      },
+      "n": {
+        "file": "player_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          18,
+          947,
+          248
+        ],
+        "hole_pct": 25.8,
+        "rgb": [
+          23.3,
+          69.9,
+          68.4
+        ]
+      },
+      "ne": {
+        "file": "player_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          36,
+          18,
+          988,
+          248
+        ],
+        "hole_pct": 6.3,
+        "rgb": [
+          17.2,
+          69.0,
+          70.6
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 34.6%",
+      "idle_e holes 29.2%",
+      "walk_e holes 15.2%",
+      "walk_se holes 9.5%",
+      "idle_s holes 25.7%",
+      "walk_s holes 27.3%",
+      "idle_w holes 36.6%",
+      "walk_w holes 15.0%",
+      "walk_nw holes 16.4%",
+      "idle_n holes 23.5%",
+      "walk_n holes 25.8%"
+    ],
+    "base": {
+      "file": "player.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        77,
+        18,
+        179,
+        248
+      ],
+      "hole_pct": 34.6,
+      "rgb": [
+        23.8,
+        69.8,
+        67.2
+      ]
+    },
+    "max_idle_color_dist": [
+      "sw",
+      "w",
+      16.0
+    ],
+    "ok": false
+  },
+  {
+    "stem": "shambler",
+    "idle": {
+      "e": {
+        "file": "shambler_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          78,
+          18,
+          179,
+          247
+        ],
+        "hole_pct": 37.9,
+        "rgb": [
+          48.3,
+          67.8,
+          57.8
+        ]
+      },
+      "se": {
+        "file": "shambler_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          66,
+          18,
+          189,
+          248
+        ],
+        "hole_pct": 16.1,
+        "rgb": [
+          40.7,
+          63.0,
+          56.5
+        ]
+      },
+      "s": {
+        "file": "shambler_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          247
+        ],
+        "hole_pct": 23.0,
+        "rgb": [
+          48.5,
+          68.9,
+          58.1
+        ]
+      },
+      "sw": {
+        "file": "shambler_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          64,
+          18,
+          191,
+          248
+        ],
+        "hole_pct": 24.9,
+        "rgb": [
+          36.1,
+          56.5,
+          50.6
+        ]
+      },
+      "w": {
+        "file": "shambler_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          83,
+          47,
+          179,
+          222
+        ],
+        "hole_pct": 39.1,
+        "rgb": [
+          47.6,
+          66.1,
+          57.3
+        ]
+      },
+      "nw": {
+        "file": "shambler_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          71,
+          18,
+          186,
+          248
+        ],
+        "hole_pct": 16.9,
+        "rgb": [
+          37.3,
+          57.3,
+          52.0
+        ]
+      },
+      "n": {
+        "file": "shambler_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 25.5,
+        "rgb": [
+          49.2,
+          66.7,
+          56.3
+        ]
+      },
+      "ne": {
+        "file": "shambler_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          70,
+          18,
+          185,
+          248
+        ],
+        "hole_pct": 17.7,
+        "rgb": [
+          37.3,
+          57.3,
+          52.0
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "shambler_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          33,
+          18,
+          990,
+          248
+        ],
+        "hole_pct": 38.2,
+        "rgb": [
+          36.3,
+          69.6,
+          61.1
+        ]
+      },
+      "se": {
+        "file": "shambler_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          66,
+          15,
+          957,
+          251
+        ],
+        "hole_pct": 24.5,
+        "rgb": [
+          41.0,
+          64.4,
+          57.3
+        ]
+      },
+      "s": {
+        "file": "shambler_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          19,
+          945,
+          247
+        ],
+        "hole_pct": 25.3,
+        "rgb": [
+          50.5,
+          70.7,
+          59.6
+        ]
+      },
+      "sw": {
+        "file": "shambler_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          64,
+          15,
+          959,
+          251
+        ],
+        "hole_pct": 30.9,
+        "rgb": [
+          36.8,
+          57.9,
+          51.7
+        ]
+      },
+      "w": {
+        "file": "shambler_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          33,
+          18,
+          990,
+          248
+        ],
+        "hole_pct": 39.7,
+        "rgb": [
+          36.3,
+          69.6,
+          61.1
+        ]
+      },
+      "nw": {
+        "file": "shambler_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          71,
+          15,
+          954,
+          251
+        ],
+        "hole_pct": 24.7,
+        "rgb": [
+          37.1,
+          58.0,
+          52.1
+        ]
+      },
+      "n": {
+        "file": "shambler_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          19,
+          947,
+          248
+        ],
+        "hole_pct": 27.9,
+        "rgb": [
+          49.2,
+          66.0,
+          55.7
+        ]
+      },
+      "ne": {
+        "file": "shambler_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          70,
+          15,
+          953,
+          251
+        ],
+        "hole_pct": 25.9,
+        "rgb": [
+          37.1,
+          58.0,
+          52.1
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 27.3%",
+      "idle_e holes 37.9%",
+      "walk_e holes 38.2%",
+      "idle_se holes 16.1%",
+      "walk_se holes 24.5%",
+      "idle_s holes 23.0%",
+      "walk_s holes 25.3%",
+      "idle_sw holes 24.9%",
+      "walk_sw holes 30.9%",
+      "idle_w holes 39.1%",
+      "walk_w holes 39.7%",
+      "idle_nw holes 16.9%",
+      "walk_nw holes 24.7%",
+      "idle_n holes 25.5%",
+      "walk_n holes 27.9%",
+      "idle_ne holes 17.7%",
+      "walk_ne holes 25.9%"
+    ],
+    "base": {
+      "file": "shambler.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        77,
+        19,
+        177,
+        245
+      ],
+      "hole_pct": 27.3,
+      "rgb": [
+        49.4,
+        71.3,
+        60.0
+      ]
+    },
+    "max_idle_color_dist": [
+      "s",
+      "sw",
+      19.1
+    ],
+    "ok": false
+  },
+  {
+    "stem": "runner",
+    "idle": {
+      "e": {
+        "file": "runner_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          74,
+          18,
+          185,
+          224
+        ],
+        "hole_pct": 45.4,
+        "rgb": [
+          67.9,
+          76.9,
+          60.9
+        ]
+      },
+      "se": {
+        "file": "runner_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          25,
+          18,
+          231,
+          248
+        ],
+        "hole_pct": 20.3,
+        "rgb": [
+          57.6,
+          56.4,
+          55.7
+        ]
+      },
+      "s": {
+        "file": "runner_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          67,
+          18,
+          189,
+          243
+        ],
+        "hole_pct": 36.2,
+        "rgb": [
+          68.8,
+          78.7,
+          61.2
+        ]
+      },
+      "sw": {
+        "file": "runner_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          23,
+          18,
+          232,
+          248
+        ],
+        "hole_pct": 28.0,
+        "rgb": [
+          57.7,
+          59.8,
+          58.7
+        ]
+      },
+      "w": {
+        "file": "runner_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          67,
+          18,
+          189,
+          241
+        ],
+        "hole_pct": 35.4,
+        "rgb": [
+          63.7,
+          64.6,
+          60.9
+        ]
+      },
+      "nw": {
+        "file": "runner_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          39,
+          18,
+          217,
+          248
+        ],
+        "hole_pct": 19.5,
+        "rgb": [
+          53.8,
+          49.2,
+          53.8
+        ]
+      },
+      "n": {
+        "file": "runner_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          61,
+          18,
+          196,
+          234
+        ],
+        "hole_pct": 22.2,
+        "rgb": [
+          58.9,
+          59.1,
+          57.6
+        ]
+      },
+      "ne": {
+        "file": "runner_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          39,
+          18,
+          217,
+          248
+        ],
+        "hole_pct": 19.1,
+        "rgb": [
+          53.8,
+          49.2,
+          53.8
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "runner_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          28,
+          18,
+          992,
+          248
+        ],
+        "hole_pct": 23.5,
+        "rgb": [
+          73.7,
+          73.3,
+          69.0
+        ]
+      },
+      "se": {
+        "file": "runner_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          25,
+          15,
+          999,
+          251
+        ],
+        "hole_pct": 24.8,
+        "rgb": [
+          59.0,
+          58.3,
+          57.3
+        ]
+      },
+      "s": {
+        "file": "runner_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          66,
+          18,
+          956,
+          244
+        ],
+        "hole_pct": 39.9,
+        "rgb": [
+          66.1,
+          75.7,
+          59.4
+        ]
+      },
+      "sw": {
+        "file": "runner_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          23,
+          20,
+          1000,
+          251
+        ],
+        "hole_pct": 36.2,
+        "rgb": [
+          58.3,
+          60.6,
+          59.3
+        ]
+      },
+      "w": {
+        "file": "runner_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          32,
+          18,
+          995,
+          248
+        ],
+        "hole_pct": 24.7,
+        "rgb": [
+          73.7,
+          73.3,
+          69.0
+        ]
+      },
+      "nw": {
+        "file": "runner_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          39,
+          15,
+          985,
+          251
+        ],
+        "hole_pct": 24.4,
+        "rgb": [
+          55.3,
+          51.6,
+          55.5
+        ]
+      },
+      "n": {
+        "file": "runner_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          56,
+          19,
+          968,
+          248
+        ],
+        "hole_pct": 22.8,
+        "rgb": [
+          56.5,
+          56.7,
+          56.0
+        ]
+      },
+      "ne": {
+        "file": "runner_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          39,
+          15,
+          985,
+          251
+        ],
+        "hole_pct": 24.1,
+        "rgb": [
+          55.3,
+          51.6,
+          55.5
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 38.2%",
+      "idle_e holes 45.4%",
+      "walk_e holes 23.5%",
+      "idle_se holes 20.3%",
+      "walk_se holes 24.8%",
+      "idle_s holes 36.2%",
+      "walk_s holes 39.9%",
+      "idle_sw holes 28.0%",
+      "walk_sw holes 36.2%",
+      "idle_w holes 35.4%",
+      "walk_w holes 24.7%",
+      "idle_nw holes 19.5%",
+      "walk_nw holes 24.4%",
+      "idle_n holes 22.2%",
+      "walk_n holes 22.8%",
+      "idle_ne holes 19.1%",
+      "walk_ne holes 24.1%"
+    ],
+    "base": {
+      "file": "runner.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        67,
+        19,
+        189,
+        247
+      ],
+      "hole_pct": 38.2,
+      "rgb": [
+        66.3,
+        75.6,
+        59.3
+      ]
+    },
+    "max_idle_color_dist": [
+      "s",
+      "nw",
+      33.9
+    ],
+    "ok": false
+  },
+  {
+    "stem": "crawler",
+    "idle": {
+      "e": {
+        "file": "crawler_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          0,
+          20,
+          256,
+          247
+        ],
+        "hole_pct": 13.5,
+        "rgb": [
+          75.1,
+          83.6,
+          57.5
+        ]
+      },
+      "se": {
+        "file": "crawler_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          0,
+          18,
+          256,
+          248
+        ],
+        "hole_pct": 12.4,
+        "rgb": [
+          69.0,
+          76.8,
+          54.8
+        ]
+      },
+      "s": {
+        "file": "crawler_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          178,
+          248
+        ],
+        "hole_pct": 32.4,
+        "rgb": [
+          72.5,
+          77.9,
+          56.2
+        ]
+      },
+      "sw": {
+        "file": "crawler_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          0,
+          21,
+          256,
+          248
+        ],
+        "hole_pct": 5.7,
+        "rgb": [
+          71.9,
+          75.5,
+          56.3
+        ]
+      },
+      "w": {
+        "file": "crawler_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          78,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 44.3,
+        "rgb": [
+          76.2,
+          80.5,
+          58.4
+        ]
+      },
+      "nw": {
+        "file": "crawler_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          11,
+          18,
+          245,
+          248
+        ],
+        "hole_pct": 14.0,
+        "rgb": [
+          68.9,
+          78.6,
+          54.8
+        ]
+      },
+      "n": {
+        "file": "crawler_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          79,
+          18,
+          176,
+          248
+        ],
+        "hole_pct": 22.8,
+        "rgb": [
+          74.8,
+          84.3,
+          57.7
+        ]
+      },
+      "ne": {
+        "file": "crawler_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          11,
+          18,
+          245,
+          248
+        ],
+        "hole_pct": 13.8,
+        "rgb": [
+          68.9,
+          78.6,
+          54.8
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "crawler_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          0,
+          18,
+          1024,
+          248
+        ],
+        "hole_pct": 20.0,
+        "rgb": [
+          98.8,
+          90.4,
+          87.9
+        ]
+      },
+      "se": {
+        "file": "crawler_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          0,
+          15,
+          1024,
+          250
+        ],
+        "hole_pct": 21.6,
+        "rgb": [
+          71.2,
+          79.7,
+          56.5
+        ]
+      },
+      "s": {
+        "file": "crawler_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          18,
+          947,
+          248
+        ],
+        "hole_pct": 39.0,
+        "rgb": [
+          66.9,
+          72.8,
+          51.7
+        ]
+      },
+      "sw": {
+        "file": "crawler_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          0,
+          19,
+          1024,
+          251
+        ],
+        "hole_pct": 8.1,
+        "rgb": [
+          73.2,
+          77.3,
+          57.3
+        ]
+      },
+      "w": {
+        "file": "crawler_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          0,
+          18,
+          1024,
+          248
+        ],
+        "hole_pct": 20.1,
+        "rgb": [
+          98.8,
+          90.4,
+          87.9
+        ]
+      },
+      "nw": {
+        "file": "crawler_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          11,
+          15,
+          1013,
+          251
+        ],
+        "hole_pct": 25.6,
+        "rgb": [
+          70.5,
+          80.9,
+          55.9
+        ]
+      },
+      "n": {
+        "file": "crawler_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          80,
+          18,
+          944,
+          248
+        ],
+        "hole_pct": 27.1,
+        "rgb": [
+          69.9,
+          80.1,
+          53.8
+        ]
+      },
+      "ne": {
+        "file": "crawler_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          11,
+          15,
+          1013,
+          251
+        ],
+        "hole_pct": 25.7,
+        "rgb": [
+          70.5,
+          80.9,
+          55.9
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 38.6%",
+      "idle_e holes 13.5%",
+      "walk_e holes 20.0%",
+      "idle_se holes 12.4%",
+      "walk_se holes 21.6%",
+      "idle_s holes 32.4%",
+      "walk_s holes 39.0%",
+      "walk_sw holes 8.1%",
+      "idle_w holes 44.3%",
+      "walk_w holes 20.1%",
+      "idle_nw holes 14.0%",
+      "walk_nw holes 25.6%",
+      "idle_n holes 22.8%",
+      "walk_n holes 27.1%",
+      "idle_ne holes 13.8%",
+      "walk_ne holes 25.7%"
+    ],
+    "base": {
+      "file": "crawler.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        77,
+        18,
+        179,
+        248
+      ],
+      "hole_pct": 38.6,
+      "rgb": [
+        72.7,
+        78.2,
+        56.2
+      ]
+    },
+    "max_idle_color_dist": [
+      "se",
+      "n",
+      9.9
+    ],
+    "ok": false
+  },
+  {
+    "stem": "necro_node",
+    "idle": {
+      "e": {
+        "file": "necro_node_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          178,
+          248
+        ],
+        "hole_pct": 24.1,
+        "rgb": [
+          120.8,
+          97.0,
+          89.4
+        ]
+      },
+      "se": {
+        "file": "necro_node_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          21,
+          18,
+          234,
+          248
+        ],
+        "hole_pct": 18.8,
+        "rgb": [
+          105.2,
+          85.6,
+          86.8
+        ]
+      },
+      "s": {
+        "file": "necro_node_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          78,
+          18,
+          178,
+          248
+        ],
+        "hole_pct": 21.9,
+        "rgb": [
+          121.1,
+          96.3,
+          88.6
+        ]
+      },
+      "sw": {
+        "file": "necro_node_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          22,
+          18,
+          235,
+          248
+        ],
+        "hole_pct": 18.8,
+        "rgb": [
+          105.2,
+          85.6,
+          86.8
+        ]
+      },
+      "w": {
+        "file": "necro_node_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          78,
+          18,
+          178,
+          248
+        ],
+        "hole_pct": 26.0,
+        "rgb": [
+          123.7,
+          98.9,
+          90.8
+        ]
+      },
+      "nw": {
+        "file": "necro_node_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          21,
+          18,
+          235,
+          248
+        ],
+        "hole_pct": 20.2,
+        "rgb": [
+          108.8,
+          89.0,
+          88.1
+        ]
+      },
+      "n": {
+        "file": "necro_node_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          178,
+          248
+        ],
+        "hole_pct": 21.9,
+        "rgb": [
+          119.6,
+          94.7,
+          87.9
+        ]
+      },
+      "ne": {
+        "file": "necro_node_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          21,
+          18,
+          235,
+          248
+        ],
+        "hole_pct": 20.2,
+        "rgb": [
+          108.8,
+          89.0,
+          88.1
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "necro_node_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          24,
+          18,
+          1001,
+          248
+        ],
+        "hole_pct": 0.5,
+        "rgb": [
+          96.3,
+          82.9,
+          47.7
+        ]
+      },
+      "se": {
+        "file": "necro_node_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          21,
+          15,
+          1002,
+          251
+        ],
+        "hole_pct": 22.0,
+        "rgb": [
+          107.3,
+          87.4,
+          88.3
+        ]
+      },
+      "s": {
+        "file": "necro_node_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          78,
+          18,
+          946,
+          248
+        ],
+        "hole_pct": 23.2,
+        "rgb": [
+          119.8,
+          94.7,
+          86.7
+        ]
+      },
+      "sw": {
+        "file": "necro_node_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          22,
+          15,
+          1003,
+          251
+        ],
+        "hole_pct": 22.0,
+        "rgb": [
+          107.3,
+          87.4,
+          88.3
+        ]
+      },
+      "w": {
+        "file": "necro_node_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          22,
+          18,
+          999,
+          248
+        ],
+        "hole_pct": 0.5,
+        "rgb": [
+          96.3,
+          82.9,
+          47.7
+        ]
+      },
+      "nw": {
+        "file": "necro_node_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          21,
+          15,
+          1003,
+          251
+        ],
+        "hole_pct": 22.9,
+        "rgb": [
+          111.1,
+          91.1,
+          89.9
+        ]
+      },
+      "n": {
+        "file": "necro_node_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          18,
+          946,
+          248
+        ],
+        "hole_pct": 23.1,
+        "rgb": [
+          116.5,
+          91.7,
+          85.0
+        ]
+      },
+      "ne": {
+        "file": "necro_node_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          21,
+          15,
+          1003,
+          251
+        ],
+        "hole_pct": 22.9,
+        "rgb": [
+          111.1,
+          91.1,
+          89.9
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 23.5%",
+      "idle_e holes 24.1%",
+      "idle_se holes 18.8%",
+      "walk_se holes 22.0%",
+      "idle_s holes 21.9%",
+      "walk_s holes 23.2%",
+      "idle_sw holes 18.8%",
+      "walk_sw holes 22.0%",
+      "idle_w holes 26.0%",
+      "idle_nw holes 20.2%",
+      "walk_nw holes 22.9%",
+      "idle_n holes 21.9%",
+      "walk_n holes 23.1%",
+      "idle_ne holes 20.2%",
+      "walk_ne holes 22.9%"
+    ],
+    "base": {
+      "file": "necro_node.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        78,
+        18,
+        178,
+        248
+      ],
+      "hole_pct": 23.5,
+      "rgb": [
+        120.9,
+        95.7,
+        87.8
+      ]
+    },
+    "max_idle_color_dist": [
+      "se",
+      "w",
+      23.1
+    ],
+    "ok": false
+  },
+  {
+    "stem": "brute",
+    "idle": {
+      "e": {
+        "file": "brute_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          57,
+          18,
+          228,
+          248
+        ],
+        "hole_pct": 14.5,
+        "rgb": [
+          65.4,
+          61.7,
+          61.2
+        ]
+      },
+      "se": {
+        "file": "brute_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          29,
+          18,
+          227,
+          248
+        ],
+        "hole_pct": 8.8,
+        "rgb": [
+          59.8,
+          56.0,
+          59.4
+        ]
+      },
+      "s": {
+        "file": "brute_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          26,
+          18,
+          230,
+          248
+        ],
+        "hole_pct": 13.4,
+        "rgb": [
+          65.1,
+          61.7,
+          59.5
+        ]
+      },
+      "sw": {
+        "file": "brute_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          10,
+          18,
+          244,
+          248
+        ],
+        "hole_pct": 9.4,
+        "rgb": [
+          61.4,
+          57.9,
+          60.8
+        ]
+      },
+      "w": {
+        "file": "brute_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          25,
+          18,
+          231,
+          248
+        ],
+        "hole_pct": 15.7,
+        "rgb": [
+          66.0,
+          62.4,
+          62.0
+        ]
+      },
+      "nw": {
+        "file": "brute_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          11,
+          18,
+          245,
+          248
+        ],
+        "hole_pct": 10.0,
+        "rgb": [
+          60.2,
+          56.4,
+          61.3
+        ]
+      },
+      "n": {
+        "file": "brute_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          24,
+          18,
+          223,
+          248
+        ],
+        "hole_pct": 8.2,
+        "rgb": [
+          61.0,
+          57.4,
+          57.4
+        ]
+      },
+      "ne": {
+        "file": "brute_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          11,
+          18,
+          245,
+          248
+        ],
+        "hole_pct": 9.3,
+        "rgb": [
+          60.2,
+          56.4,
+          61.3
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "brute_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          15,
+          18,
+          995,
+          248
+        ],
+        "hole_pct": 12.4,
+        "rgb": [
+          57.5,
+          51.8,
+          51.4
+        ]
+      },
+      "se": {
+        "file": "brute_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          29,
+          15,
+          994,
+          251
+        ],
+        "hole_pct": 19.3,
+        "rgb": [
+          63.0,
+          59.0,
+          62.5
+        ]
+      },
+      "s": {
+        "file": "brute_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          26,
+          18,
+          998,
+          248
+        ],
+        "hole_pct": 18.8,
+        "rgb": [
+          64.4,
+          61.3,
+          59.2
+        ]
+      },
+      "sw": {
+        "file": "brute_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          10,
+          15,
+          1012,
+          250
+        ],
+        "hole_pct": 23.0,
+        "rgb": [
+          64.2,
+          60.4,
+          63.4
+        ]
+      },
+      "w": {
+        "file": "brute_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          28,
+          18,
+          1009,
+          248
+        ],
+        "hole_pct": 13.7,
+        "rgb": [
+          57.5,
+          51.8,
+          51.4
+        ]
+      },
+      "nw": {
+        "file": "brute_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          12,
+          15,
+          1012,
+          251
+        ],
+        "hole_pct": 21.5,
+        "rgb": [
+          60.8,
+          56.9,
+          61.9
+        ]
+      },
+      "n": {
+        "file": "brute_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          40,
+          18,
+          1000,
+          248
+        ],
+        "hole_pct": 12.6,
+        "rgb": [
+          60.5,
+          56.9,
+          57.3
+        ]
+      },
+      "ne": {
+        "file": "brute_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          12,
+          15,
+          1012,
+          251
+        ],
+        "hole_pct": 20.5,
+        "rgb": [
+          60.8,
+          56.9,
+          61.9
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 21.1%",
+      "idle_e holes 14.5%",
+      "walk_e holes 12.4%",
+      "idle_se holes 8.8%",
+      "walk_se holes 19.3%",
+      "idle_s holes 13.4%",
+      "walk_s holes 18.8%",
+      "idle_sw holes 9.4%",
+      "walk_sw holes 23.0%",
+      "idle_w holes 15.7%",
+      "walk_w holes 13.7%",
+      "idle_nw holes 10.0%",
+      "walk_nw holes 21.5%",
+      "idle_n holes 8.2%",
+      "walk_n holes 12.6%",
+      "idle_ne holes 9.3%",
+      "walk_ne holes 20.5%"
+    ],
+    "base": {
+      "file": "brute.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        26,
+        23,
+        230,
+        248
+      ],
+      "hole_pct": 21.1,
+      "rgb": [
+        67.5,
+        64.3,
+        61.9
+      ]
+    },
+    "max_idle_color_dist": [
+      "se",
+      "w",
+      9.3
+    ],
+    "ok": false
+  },
+  {
+    "stem": "armored_dead",
+    "idle": {
+      "e": {
+        "file": "armored_dead_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 23.7,
+        "rgb": [
+          57.8,
+          76.4,
+          70.7
+        ]
+      },
+      "se": {
+        "file": "armored_dead_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          72,
+          18,
+          184,
+          248
+        ],
+        "hole_pct": 8.3,
+        "rgb": [
+          54.5,
+          72.5,
+          68.9
+        ]
+      },
+      "s": {
+        "file": "armored_dead_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          76,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 9.8,
+        "rgb": [
+          56.7,
+          75.6,
+          69.8
+        ]
+      },
+      "sw": {
+        "file": "armored_dead_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 2.1,
+        "rgb": [
+          55.0,
+          72.3,
+          69.0
+        ]
+      },
+      "w": {
+        "file": "armored_dead_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          76,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 23.6,
+        "rgb": [
+          55.8,
+          75.5,
+          70.0
+        ]
+      },
+      "nw": {
+        "file": "armored_dead_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          79,
+          19,
+          177,
+          248
+        ],
+        "hole_pct": 3.5,
+        "rgb": [
+          51.3,
+          67.8,
+          64.9
+        ]
+      },
+      "n": {
+        "file": "armored_dead_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 10.3,
+        "rgb": [
+          51.0,
+          69.4,
+          64.3
+        ]
+      },
+      "ne": {
+        "file": "armored_dead_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          79,
+          19,
+          177,
+          248
+        ],
+        "hole_pct": 2.8,
+        "rgb": [
+          51.3,
+          67.8,
+          64.9
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "armored_dead_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          50,
+          18,
+          974,
+          248
+        ],
+        "hole_pct": 34.6,
+        "rgb": [
+          45.2,
+          52.0,
+          49.8
+        ]
+      },
+      "se": {
+        "file": "armored_dead_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          72,
+          15,
+          952,
+          251
+        ],
+        "hole_pct": 15.0,
+        "rgb": [
+          55.6,
+          74.5,
+          70.8
+        ]
+      },
+      "s": {
+        "file": "armored_dead_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          76,
+          18,
+          947,
+          248
+        ],
+        "hole_pct": 13.8,
+        "rgb": [
+          54.4,
+          73.4,
+          68.3
+        ]
+      },
+      "sw": {
+        "file": "armored_dead_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          15,
+          947,
+          251
+        ],
+        "hole_pct": 5.7,
+        "rgb": [
+          55.7,
+          73.6,
+          70.2
+        ]
+      },
+      "w": {
+        "file": "armored_dead_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          50,
+          18,
+          974,
+          248
+        ],
+        "hole_pct": 33.8,
+        "rgb": [
+          45.2,
+          52.0,
+          49.8
+        ]
+      },
+      "nw": {
+        "file": "armored_dead_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          79,
+          16,
+          945,
+          250
+        ],
+        "hole_pct": 10.5,
+        "rgb": [
+          52.1,
+          69.5,
+          66.5
+        ]
+      },
+      "n": {
+        "file": "armored_dead_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          76,
+          18,
+          947,
+          248
+        ],
+        "hole_pct": 14.4,
+        "rgb": [
+          49.3,
+          67.5,
+          63.0
+        ]
+      },
+      "ne": {
+        "file": "armored_dead_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          79,
+          16,
+          945,
+          250
+        ],
+        "hole_pct": 9.6,
+        "rgb": [
+          52.1,
+          69.5,
+          66.5
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 15.5%",
+      "idle_e holes 23.7%",
+      "walk_e holes 34.6%",
+      "idle_se holes 8.3%",
+      "walk_se holes 15.0%",
+      "idle_s holes 9.8%",
+      "walk_s holes 13.8%",
+      "idle_w holes 23.6%",
+      "walk_w holes 33.8%",
+      "walk_nw holes 10.5%",
+      "idle_n holes 10.3%",
+      "walk_n holes 14.4%",
+      "walk_ne holes 9.6%"
+    ],
+    "base": {
+      "file": "armored_dead.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        76,
+        18,
+        179,
+        248
+      ],
+      "hole_pct": 15.5,
+      "rgb": [
+        56.5,
+        76.2,
+        70.5
+      ]
+    },
+    "max_idle_color_dist": [
+      "e",
+      "nw",
+      12.2
+    ],
+    "ok": false
+  },
+  {
+    "stem": "mutant_enforcer",
+    "idle": {
+      "e": {
+        "file": "mutant_enforcer_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          40,
+          49,
+          217,
+          248
+        ],
+        "hole_pct": 17.5,
+        "rgb": [
+          58.1,
+          43.6,
+          41.7
+        ]
+      },
+      "se": {
+        "file": "mutant_enforcer_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          20,
+          18,
+          236,
+          248
+        ],
+        "hole_pct": 24.9,
+        "rgb": [
+          55.6,
+          37.7,
+          38.8
+        ]
+      },
+      "s": {
+        "file": "mutant_enforcer_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          76,
+          18,
+          178,
+          248
+        ],
+        "hole_pct": 26.7,
+        "rgb": [
+          57.6,
+          44.5,
+          44.1
+        ]
+      },
+      "sw": {
+        "file": "mutant_enforcer_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          28,
+          18,
+          227,
+          248
+        ],
+        "hole_pct": 21.9,
+        "rgb": [
+          56.7,
+          36.7,
+          38.0
+        ]
+      },
+      "w": {
+        "file": "mutant_enforcer_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 28.6,
+        "rgb": [
+          56.7,
+          41.9,
+          40.9
+        ]
+      },
+      "nw": {
+        "file": "mutant_enforcer_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          38,
+          18,
+          218,
+          248
+        ],
+        "hole_pct": 12.4,
+        "rgb": [
+          50.7,
+          36.4,
+          37.1
+        ]
+      },
+      "n": {
+        "file": "mutant_enforcer_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          42,
+          18,
+          214,
+          248
+        ],
+        "hole_pct": 16.1,
+        "rgb": [
+          55.2,
+          41.2,
+          39.2
+        ]
+      },
+      "ne": {
+        "file": "mutant_enforcer_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          38,
+          18,
+          218,
+          248
+        ],
+        "hole_pct": 12.5,
+        "rgb": [
+          50.7,
+          36.4,
+          37.1
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "mutant_enforcer_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          25,
+          18,
+          999,
+          248
+        ],
+        "hole_pct": 15.0,
+        "rgb": [
+          57.5,
+          57.2,
+          59.5
+        ]
+      },
+      "se": {
+        "file": "mutant_enforcer_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          20,
+          15,
+          1004,
+          251
+        ],
+        "hole_pct": 34.3,
+        "rgb": [
+          57.7,
+          38.7,
+          39.8
+        ]
+      },
+      "s": {
+        "file": "mutant_enforcer_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          39,
+          10,
+          984,
+          246
+        ],
+        "hole_pct": 17.7,
+        "rgb": [
+          57.5,
+          44.1,
+          43.9
+        ]
+      },
+      "sw": {
+        "file": "mutant_enforcer_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          28,
+          15,
+          995,
+          251
+        ],
+        "hole_pct": 30.4,
+        "rgb": [
+          59.0,
+          37.7,
+          39.1
+        ]
+      },
+      "w": {
+        "file": "mutant_enforcer_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          25,
+          18,
+          998,
+          248
+        ],
+        "hole_pct": 15.7,
+        "rgb": [
+          57.5,
+          57.2,
+          59.5
+        ]
+      },
+      "nw": {
+        "file": "mutant_enforcer_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          38,
+          15,
+          986,
+          251
+        ],
+        "hole_pct": 18.9,
+        "rgb": [
+          53.4,
+          37.5,
+          38.3
+        ]
+      },
+      "n": {
+        "file": "mutant_enforcer_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          46,
+          18,
+          982,
+          248
+        ],
+        "hole_pct": 22.1,
+        "rgb": [
+          53.7,
+          38.9,
+          37.4
+        ]
+      },
+      "ne": {
+        "file": "mutant_enforcer_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          38,
+          15,
+          986,
+          251
+        ],
+        "hole_pct": 18.7,
+        "rgb": [
+          53.4,
+          37.5,
+          38.3
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 35.5%",
+      "idle_e holes 17.5%",
+      "walk_e holes 15.0%",
+      "idle_se holes 24.9%",
+      "walk_se holes 34.3%",
+      "idle_s holes 26.7%",
+      "walk_s holes 17.7%",
+      "idle_sw holes 21.9%",
+      "walk_sw holes 30.4%",
+      "idle_w holes 28.6%",
+      "walk_w holes 15.7%",
+      "idle_nw holes 12.4%",
+      "walk_nw holes 18.9%",
+      "idle_n holes 16.1%",
+      "walk_n holes 22.1%",
+      "idle_ne holes 12.5%",
+      "walk_ne holes 18.7%"
+    ],
+    "base": {
+      "file": "mutant_enforcer.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        77,
+        18,
+        179,
+        248
+      ],
+      "hole_pct": 35.5,
+      "rgb": [
+        59.7,
+        45.0,
+        44.9
+      ]
+    },
+    "max_idle_color_dist": [
+      "s",
+      "nw",
+      12.7
+    ],
+    "ok": false
+  },
+  {
+    "stem": "zombie_colossus",
+    "idle": {
+      "e": {
+        "file": "zombie_colossus_e.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 22.2,
+        "rgb": [
+          101.8,
+          98.9,
+          89.3
+        ]
+      },
+      "se": {
+        "file": "zombie_colossus_se.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          49,
+          18,
+          207,
+          248
+        ],
+        "hole_pct": 1.2,
+        "rgb": [
+          108.5,
+          107.2,
+          100.1
+        ]
+      },
+      "s": {
+        "file": "zombie_colossus_s.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 10.4,
+        "rgb": [
+          106.0,
+          106.7,
+          93.3
+        ]
+      },
+      "sw": {
+        "file": "zombie_colossus_sw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          49,
+          18,
+          207,
+          248
+        ],
+        "hole_pct": 0.6,
+        "rgb": [
+          108.5,
+          107.2,
+          100.1
+        ]
+      },
+      "w": {
+        "file": "zombie_colossus_w.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 22.0,
+        "rgb": [
+          102.1,
+          100.5,
+          89.2
+        ]
+      },
+      "nw": {
+        "file": "zombie_colossus_nw.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          41,
+          18,
+          215,
+          248
+        ],
+        "hole_pct": 2.3,
+        "rgb": [
+          92.5,
+          92.0,
+          85.9
+        ]
+      },
+      "n": {
+        "file": "zombie_colossus_n.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          77,
+          18,
+          179,
+          248
+        ],
+        "hole_pct": 8.8,
+        "rgb": [
+          95.9,
+          94.8,
+          85.6
+        ]
+      },
+      "ne": {
+        "file": "zombie_colossus_ne.png",
+        "w": 256,
+        "h": 256,
+        "frames": 1,
+        "bbox": [
+          41,
+          18,
+          215,
+          248
+        ],
+        "hole_pct": 2.6,
+        "rgb": [
+          92.5,
+          92.0,
+          85.9
+        ]
+      }
+    },
+    "walk": {
+      "e": {
+        "file": "zombie_colossus_walk_e.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          37,
+          18,
+          990,
+          248
+        ],
+        "hole_pct": 21.3,
+        "rgb": [
+          57.4,
+          56.0,
+          56.7
+        ]
+      },
+      "se": {
+        "file": "zombie_colossus_walk_se.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          49,
+          15,
+          975,
+          251
+        ],
+        "hole_pct": 1.5,
+        "rgb": [
+          109.4,
+          108.2,
+          101.0
+        ]
+      },
+      "s": {
+        "file": "zombie_colossus_walk_s.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          18,
+          947,
+          248
+        ],
+        "hole_pct": 14.8,
+        "rgb": [
+          101.7,
+          103.2,
+          90.4
+        ]
+      },
+      "sw": {
+        "file": "zombie_colossus_walk_sw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          49,
+          15,
+          975,
+          251
+        ],
+        "hole_pct": 0.9,
+        "rgb": [
+          109.4,
+          108.2,
+          101.0
+        ]
+      },
+      "w": {
+        "file": "zombie_colossus_walk_w.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          33,
+          18,
+          986,
+          248
+        ],
+        "hole_pct": 21.8,
+        "rgb": [
+          57.4,
+          56.0,
+          56.7
+        ]
+      },
+      "nw": {
+        "file": "zombie_colossus_walk_nw.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          41,
+          15,
+          983,
+          251
+        ],
+        "hole_pct": 4.6,
+        "rgb": [
+          92.6,
+          92.3,
+          86.0
+        ]
+      },
+      "n": {
+        "file": "zombie_colossus_walk_n.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          77,
+          18,
+          947,
+          248
+        ],
+        "hole_pct": 11.5,
+        "rgb": [
+          92.2,
+          91.9,
+          83.4
+        ]
+      },
+      "ne": {
+        "file": "zombie_colossus_walk_ne.png",
+        "w": 1024,
+        "h": 256,
+        "frames": 4,
+        "bbox": [
+          41,
+          15,
+          983,
+          251
+        ],
+        "hole_pct": 4.9,
+        "rgb": [
+          92.6,
+          92.3,
+          86.0
+        ]
+      }
+    },
+    "missing": [],
+    "flags": [
+      "base interior holes 17.4%",
+      "idle_e holes 22.2%",
+      "walk_e holes 21.3%",
+      "idle_s holes 10.4%",
+      "walk_s holes 14.8%",
+      "idle_w holes 22.0%",
+      "walk_w holes 21.8%",
+      "idle_n holes 8.8%",
+      "walk_n holes 11.5%"
+    ],
+    "base": {
+      "file": "zombie_colossus.png",
+      "w": 256,
+      "h": 256,
+      "frames": 1,
+      "bbox": [
+        77,
+        18,
+        179,
+        248
+      ],
+      "hole_pct": 17.4,
+      "rgb": [
+        102.3,
+        103.2,
+        90.4
+      ]
+    },
+    "max_idle_color_dist": [
+      "se",
+      "nw",
+      26.2
+    ],
+    "ok": false
+  }
+]

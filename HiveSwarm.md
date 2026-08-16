@@ -3,8 +3,8 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.1
-updated: 2026-08-14
+version: 0.6.2
+updated: 2026-08-16
 tags: [game, hivemind, webgame, documentation]
 ---
 
@@ -15,13 +15,13 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.1` · `sw.js` `CACHE_VERSION = v22` |
+| **Version** | `0.6.2` · `sw.js` `CACHE_VERSION = v23` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.1.apk` (62,654,413 bytes, signed CN=MiSTRFiNGA, in-APK `GAME_VERSION=0.6.1`) · copy at `D:\Dev\_mobile\dist\HiveSwarm-0.6.1.apk`. `0.6.0` is in `_APKs\Archive`. |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.1.apk` until a 0.6.2 rebuild. `0.6.0` is in `_APKs\Archive`. |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
 
@@ -59,7 +59,7 @@ You only steer. Weapons fire themselves at the nearest in-range threat. Stages a
 
 | System | How it works |
 |---|---|
-| **Stages** | 5 shipped: Outskirts → Sewers → Downtown → Highway → HiVE Core. Each = 3 waves + Guardian. |
+| **Stages** | 5 shipped: Outskirts → Sewers → Downtown → Highway → HiVE Core (**Praetorian** guardian). Queen is not in this game. |
 | **Waves** | Kill-based, not timed. Finite `waveQuota`. Ends when every spawned body is dead. |
 | **XP / cards** | Orbs from kills. Level-up offers 3 cards. Multiple level-ups **queue**. First-three and every later hand force ≥1 equipped-weapon mod unless every applicable mod is 3/3. |
 | **Meta** | 3 save slots. Biomatter buys permanent damage / HP / speed / venom and Armory unlocks. Cap +25% total meta power. |
@@ -78,7 +78,7 @@ You only steer. Weapons fire themselves at the nearest in-range threat. Stages a
 | Toxin Injector | `weapon.poison` | poison | 6 | .5 | **100** | DoT + spread; prefers clean targets |
 | Breach Laser | `weapon.beam` | beam | 28 | .08 | **200** | Continuous ray. 0.6.1 owner retune |
 | Storm Arc | `weapon.chain` | chain | 22 | .32 | **200** | 4 jumps, −12% per jump. 0.6.1 owner retune |
-| Nova Shell | `weapon.nova` | nova | 34 | .55 | **100** | Kill explosions spit mini stars |
+| Nova Shell | `weapon.nova` | nova | 34 | .55 | **100** | Blast uses **weapon damage** (0.6.2). Falloff is distance-from-surface so Colossus/guardian bodies get hit. |
 
 Range is authoritative for **every** kind. `wRange()` is the single source of truth. **Long Barrel** = +30% of that gun's own base per stack, max 3. Homing is excluded twice (`appliesTo` + `wRange()`).
 
@@ -182,6 +182,7 @@ Report format: `✅ DONE — who — date — sha` + **VERIFIED:** command and r
 | `_headless_harness.js` / `_stage_verify.js` | Crash / stage probes |
 | `design/GDD.md` | Historical 2026-08-02 design |
 | `design/ASSET_INVENTORY.md` | Historical media inventory |
+| `design/SPRITE_CATALOG.md` | **Live** dir/frame/hole/angle audit + Praetorian import status |
 | `docs/REF_ZombieWaves_store_and_meta.md` | Reference APK study |
 | `FORGE_STANDARD.md` / `FORGE_TEMPLATE_V3.md` | Forge rules (shared) |
 | `art_src/topdown_v1/` | Runtime 8-dir sheets |
@@ -208,6 +209,7 @@ Do these in order. Do not add weapons or stages in front of P0.
 ### P1 — feel (from 2026-08-14 play)
 
 4. Draw the player with the existing 8-dir sheet, not the cyan circle.
+4b. Sprite rebuild per [`design/SPRITE_CATALOG.md`](design/SPRITE_CATALOG.md): Runner S title, Colossus angle split, Praetorian true diagonals + walk, torso hole pass.
 5. ✅ HUD unstack (0.6.1) — STAGE left, WAVE right, weapon under HP, toast under the stack.
 6. Raise on-screen swarm presence without breaking off-cam spawn (more bodies in frame, or stronger off-screen audio/markers). Opening minute should push, not just decorate.
 7. Fix `_forge_stages_verify.js` tab index. Regen `_game_extract.js` whenever `index.html` changes.
@@ -235,6 +237,21 @@ Do these in order. Do not add weapons or stages in front of P0.
 ---
 
 ## 8. Change record (keep — measured)
+
+### 2026-08-16 — Grok · v0.6.2 · Nova vs heavies + Praetorian + sprite catalog
+
+**Nova Shell "did not damage the 3 large enemies at the end of level 5; I set damage 22→30 in FORGE, no change."**
+
+Two stacked causes, both real:
+
+1. `explode()` used a **hardcoded 22** and never read the weapon. FORGE `damage` only lived on the held copy / `EDIT` — the blast ignored it. That is why 22→30 did nothing.
+2. The blast tested **centre-to-centre** `d < blast` (78px). A HiVE Core guardian is `r ≈ 42 × 1.8 × 2 = 151`. The shell detonates on the *surface*, so `d ≈ 151 > 78` and the enemy that was just hit took **0**. Probe on 0.6.1: `bigDealt: 0`. After the fix: `bigDealt: 30` when `novaMeta.damage=30`.
+
+Fix: falloff is distance-from-**surface**; damage is `novaMeta.damage`. Mid-run FORGE edits also sync into `heldWeapons` (rank reapplied). Probe `qa/_verify_nova_blast.py` — ALL CHECKS PASSED. Harness `SIM ENDED clean`.
+
+**Praetorian** imported from HiVE WAR as the HiVE Core guardian. Queen stays out. 8-dir folder exists; only S/N/E/W are unique (SE/SW copy S, NE/NW copy N). Walk strip is the WAR idle on south-ish dirs.
+
+**Sprite catalog:** [`design/SPRITE_CATALOG.md`](design/SPRITE_CATALOG.md). Worst live defects: `runner_s` has baked "THE RUNNER" text; Colossus side ≠ front body; player sheets exist but the pawn is still a cyan circle; magenta-key holes in several torsos.
 
 ### 2026-08-14 — Grok · v0.6.1 · HUD / debrief / range
 
