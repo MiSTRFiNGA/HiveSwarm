@@ -3,7 +3,7 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.13
+version: 0.6.14
 updated: 2026-08-18
 tags: [game, hivemind, webgame, documentation]
 ---
@@ -15,14 +15,14 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.13` · `sw.js` `CACHE_VERSION = v35` |
+| **Version** | `0.6.14` · `sw.js` `CACHE_VERSION = v36` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **Desktop play link** | `Play HiVE Swarm.lnk` (Drive id `1mwDl1OW6xcSpdh9hjFhFsNdWhY_Wet6_`) always launches that bat — never the old `standalone\PLAY.bat`. |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.13.apk` (106.38 MB, signed CN=MiSTRFiNGA). Older Swarm APKs are in `_APKs\Archive`. |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.14.apk` plus `HiveSwarm-latest.apk`. Older Swarm APKs are in `_APKs\Archive`. |
 | **Always-latest APK** | `...\My Games\_APKs\HiveSwarm-latest.apk` and `D:\Drive\APK\HiveSwarm-latest.apk` — overwritten on every Swarm APK build. |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
@@ -205,8 +205,8 @@ Do these in order. Do not add weapons or stages in front of P0.
 
 ### P0 — publish / honesty (this session's leftover)
 
-1. Push `master` so Pages = local `0.6.13`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.13`.
-2. Owner play on the **URL** or the single `0.6.13` APK. Do not play an old APK.
+1. Push `master` so Pages = local `0.6.14`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.14`.
+2. Owner play on the **URL** or `HiveSwarm-latest.apk`. Do not play an old numbered APK.
 3. Still **no** CrazyGames / Poki rebuild.
 
 ### P1 — feel (from 2026-08-14 play)
@@ -240,6 +240,10 @@ Do these in order. Do not add weapons or stages in front of P0.
 ---
 
 ## 8. Change record (keep — measured)
+
+### 2026-08-18 — Grok · v0.6.14 · owner edit list
+
+HUD: stage 2× left, hostiles-left + score + wave centered (hostiles once), weapon under, FORGE no longer covers wave. Waves add one enemy type each until the roster is used. Boss HP floors at ~22s of current player DPS; boss sprite rolls from the stage types or Praetorian. Twin Pod FORGE cells no longer show the old pawn. Brute/Enforcer first frames copied from frame 2. Crawler N scaled + NE/NW angled; Necro idle is SE−90; new Node Spawn from Necro N+180. Imported slime, cyber mutant, owner praetorian + colossus L/R. Shambler/Psychoid/Runner FORGE paint is left in IndexedDB — do not reset FORGE.
 
 ### 2026-08-18 — Grok · v0.6.13 · paper punch v2, static hull, crawler scale
 
