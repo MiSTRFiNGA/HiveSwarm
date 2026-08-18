@@ -6,12 +6,12 @@ Do not treat this README, `design/GDD.md`, old boards, or empire memory files as
 
 | | |
 |---|---|
-| **Version** | `0.6.14` (`sw.js` cache `v36`) — see [`HiveSwarm.md`](HiveSwarm.md) |
+| **Version** | `0.6.15` (`sw.js` cache `v37`) — see [`HiveSwarm.md`](HiveSwarm.md) |
 | **Repo** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game** | `index.html` (single file) |
 | **Play local** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **Desktop play link** | `Play HiVE Swarm.lnk` — always the live launcher, not `standalone\` |
-| **APK** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.14.apk` plus `HiveSwarm-latest.apk` |
+| **APK** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.15.apk` plus `HiveSwarm-latest.apk` |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
 | **Genre** | 360° survivors-like. **Not** HiVE WAR (lane shooter). |
 

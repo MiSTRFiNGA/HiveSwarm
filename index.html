@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.14';
+const GAME_VERSION='0.6.15';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -107,11 +107,11 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1,accel:2600
   // them shoot further, except homing missiles, they stay same"). Every weapon EXCEPT weapon.seeker
   // (kind:'homing') now ships range:100. The number is deliberately a round baseline the owner
   // intends to hand-tune per gun — see wRange() for why nothing downstream hardcodes it.
-  {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:100,dropWeight:1,sfx:'m41a-pulse-rifle.mp3',icon:0},
+  {id:'weapon.pulse',name:'Pulse Carbine',kind:'bullet',damage:18,rate:.16,speed:820,shots:1,pierce:2,color:'#5dfff0',range:100,dropWeight:1,sfx:'pulse_fire.mp3',icon:0},
   // RANGE EXEMPTION: the Heat Seeker keeps range:900 and is the ONE weapon wRange() never scales
   // (owner: "except homing missiles, they stay same"). A homing missile that ran out of reach after
   // 100px would never get to home on anything — reach IS the weapon.
-  {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5,dropWeight:1,sfx:'magic-spell.mp3',icon:1},
+  {id:'weapon.seeker',name:'Heat Seeker',kind:'homing',damage:22,rate:.38,speed:420,shots:1,pierce:0,color:'#ff6b3d',range:900,turn:7.5,dropWeight:1,sfx:'seeker_fire.mp3',icon:1},
   // Flamethrower replaces the old unguided multi-shot launcher weapon (owner 2026-08-08): Heat
   // Seeker ('homing') already covered the "explosive projectile" niche, making that weapon
   // redundant, and this game had no cone weapon (HiVE WAR's flamethrower). kind:'flame' is a CONTINUOUS cone, not a discrete
@@ -119,10 +119,10 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1,accel:2600
   // scatter/pierce/ricochet (same treatment as beam/chain) but keeps rapid/knockback/overcharge.
   // No dedicated flame SFX ships in assets/SFX, so it reuses light-machine-gun.mp3 (closest
   // existing continuous-fire sample) rather than a one-shot cue like grenade.mp3.
-  {id:'weapon.flame',name:'Flamethrower',kind:'flame',damage:9,rate:.06,speed:0,shots:1,pierce:99,color:'#ff9a3d',range:100,flameWidth:38,flameLength:100,burnDps:40,burnTime:2.2,dropWeight:1,sfx:'light-machine-gun.mp3',icon:5},
-  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:200,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'electric-explosive.mp3',icon:2},
-  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:200,jumps:4,dropWeight:1,coreWidth:3.4,glowWidth:15,glowIntensity:1.15,sfx:'lightning01.mp3',icon:3},
-  {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:100,blast:78,dropWeight:1,shards:3,sfx:'grenade.mp3',icon:4},
+  {id:'weapon.flame',name:'Flamethrower',kind:'flame',damage:9,rate:.06,speed:0,shots:1,pierce:99,color:'#ff9a3d',range:100,flameWidth:38,flameLength:120,burnDps:40,burnTime:2.2,dropWeight:1,sfx:'flame_loop.mp3',icon:5},
+  {id:'weapon.beam',name:'Breach Laser',kind:'beam',damage:28,rate:.08,speed:0,shots:1,pierce:99,color:'#6ea8ff',range:200,width:6,dropWeight:1,coreColor:'#eaffff',glowWidth:24,coreWidth:2.4,pulseRate:16,sfx:'beam_fire.mp3',icon:2},
+  {id:'weapon.chain',name:'Storm Arc',kind:'chain',damage:22,rate:.32,speed:0,shots:1,pierce:4,color:'#d7a6ff',range:200,jumps:4,dropWeight:1,coreWidth:3.4,glowWidth:15,glowIntensity:1.15,sfx:'chain_fire.mp3',icon:3},
+  {id:'weapon.nova',name:'Nova Shell',kind:'nova',damage:34,rate:.55,speed:340,shots:1,pierce:0,color:'#ffe066',range:100,blast:78,dropWeight:1,shards:3,sfx:'nova_fire.mp3',icon:4},
   // S.7 poison fields, all FORGE-editable: dot = damage/sec while infected, dotTime = seconds
   // an infection lasts, spreadChance = per-second chance a carrier infects a clean neighbour,
   // spreadRadius = how close that neighbour must be, spreadFactor = potency the infection is
@@ -134,7 +134,7 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1,accel:2600
   // of doing nothing, so sustained fire on a saturated field ramps up instead of idling.
   // slowFactor = poisoned enemies move at this fraction of normal speed, so you don't have to
   // kite/run away waiting for the DoT — the target is defanged the moment it's infected.
-  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:100,dot:16,dotTime:2.2,spreadChance:.9,spreadRadius:52,spreadFactor:.7,poisonStackMax:3,slowFactor:.6,dropWeight:1,sfx:'subterrahit.mp3',icon:4}
+  {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:100,dot:16,dotTime:2.2,spreadChance:.9,spreadRadius:52,spreadFactor:.7,poisonStackMax:3,slowFactor:.6,dropWeight:1,sfx:'poison_fire.mp3',icon:4}
 ],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.slime',name:'Hive Slime',r:18,hp:34,speed:52,damage:7,color:'#c48cff',weight:4,dropXp:1,unlockWave:2,sprite:'art_src/topdown_v1/slime.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:3,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.nodeSpawn',name:'Node Spawn',r:16,hp:48,speed:78,damage:8,color:'#9a6ad8',weight:3,dropXp:2,unlockWave:4,sprite:'art_src/topdown_v1/node_spawn.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.psychoid',name:'Psychoid',r:18,hp:44,speed:86,damage:8,color:'#c46cff',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/psychoid.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.biomorph',name:'Biomorph',r:16,hp:28,speed:138,damage:8,color:'#7b6cff',weight:4,dropXp:2,unlockWave:7,sprite:'art_src/topdown_v1/biomorph.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.cyberMutant',name:'Cyber Mutant',r:22,hp:160,speed:60,damage:16,color:'#c46cff',weight:2,dropXp:5,unlockWave:8,sprite:'art_src/topdown_v1/cyber_mutant.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:10,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:11,sprite:'art_src/topdown_v1/zombie_colossus.png'},{id:'enemy.praetorian',name:'Praetorian',r:28,hp:320,speed:48,damage:26,color:'#5cff7a',weight:0,dropXp:14,unlockWave:99,sprite:'art_src/topdown_v1/praetorian.png'}],codexPages:null,
 // STAGE system (owner request 2026-08-06): discrete stages replace the pure-endless timer.
 // Each stage = its own backdrop palette + a roster cap (which entities can spawn) + a duration
@@ -528,12 +528,24 @@ PRELOAD_STEMS.forEach(stem=>{
   });
 });
 spriteFor(PLAYER_HULL);spriteFor(PLAYER_TURRET);spriteFor(PLAYER_SPRITE);spriteFor(DRONE_SPRITE);
+PRELOAD_STEMS.forEach(stem=>spriteFor('art_src/topdown_v1/'+stem+'_skel.png'));
 
-const SFX_FILES=['Eggs Open.mp3','eldritch sponge attack.mp3','eldritch sponge death.mp3','electric-explosive.mp3','grenade.mp3','light-machine-gun.mp3','lightning01.mp3','lightning02.mp3','m41a-pulse-rifle.mp3','magic-spell.mp3','money.mp3','praetorian01.mp3','praetorian02.mp3','subterrahit.mp3','xeno attack.mp3','xenotera hit.mp3'];
-const SFX={fire:'assets/SFX/m41a-pulse-rifle.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;
+const SFX_FILES=['Eggs Open.mp3','eldritch sponge attack.mp3','eldritch sponge death.mp3','electric-explosive.mp3','grenade.mp3','light-machine-gun.mp3','lightning01.mp3','lightning02.mp3','m41a-pulse-rifle.mp3','magic-spell.mp3','money.mp3','praetorian01.mp3','praetorian02.mp3','subterrahit.mp3','xeno attack.mp3','xenotera hit.mp3','pulse_fire.mp3','seeker_fire.mp3','flame_loop.mp3','beam_fire.mp3','chain_fire.mp3','nova_fire.mp3','poison_fire.mp3'];
+const SFX={fire:'assets/SFX/pulse_fire.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;
+let flameLoopAud=null,flameLoopOn=false;
 function sfxUrl(file){if(!file)return'';if(String(file).startsWith('assets/'))return file;return 'assets/SFX/'+file}
 function sfx(name,vol=.25){if(!audioOn||!SFX[name]||typeof Audio==='undefined')return;let a=new Audio(SFX[name]);a.volume=vol;a.play().catch(()=>{})}
 function sfxFile(file,vol=.25){if(!audioOn||!file||typeof Audio==='undefined')return;try{const a=new Audio(sfxUrl(file));a.volume=vol;a.play().catch(()=>{})}catch(_){}}
+function startFlameLoop(){
+  if(!audioOn||typeof Audio==='undefined')return;
+  if(!flameLoopAud){flameLoopAud=new Audio(sfxUrl('flame_loop.mp3'));flameLoopAud.loop=true;flameLoopAud.volume=.2}
+  flameLoopOn=true;
+  if(flameLoopAud.paused)flameLoopAud.play().catch(()=>{});
+}
+function stopFlameLoop(){
+  flameLoopOn=false;
+  if(flameLoopAud&&!flameLoopAud.paused){try{flameLoopAud.pause();flameLoopAud.currentTime=0}catch(_){}}
+}
 function sfxOptions(selected){return '<option value="">(none)</option>'+SFX_FILES.map(f=>'<option value="'+_escAttr(f)+'" '+(selected===f?'selected':'')+'>'+_escAttr(f)+'</option>').join('')}
 
 let player={x:0,y:0,r:16,hp:100,maxHp:100,speed:245,pickupRadius:90,inv:0,angle:-Math.PI/2,hullAngle:-Math.PI/2};
@@ -557,14 +569,14 @@ const MODS=[
   {id:'scatter',   name:'Scatter',   text:'2 / 3 / 4 / 5 / 7 shots',              appliesTo:['bullet','homing','nova','poison']},
   {id:'venom',     name:'Venom',     text:'+60% poison damage and spread',        appliesTo:['poison']},
   {id:'pierce',    name:'Piercing',  text:'+1 pierce',                            appliesTo:['bullet','homing','nova','poison']},
-  {id:'rapid',     name:'Rapid',     text:'-15% time between shots',              appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
+  {id:'rapid',     name:'Rapid',     text:'-15% time between shots',              appliesTo:['bullet','homing','beam','chain','nova','poison']},
   {id:'knockback', name:'Knockback', text:'Pushes enemies back on hit',           appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
   // Ricochet: bounce off enemies and arena walls (owner 2026-08-08).
   {id:'ricochet',  name:'Ricochet',  text:'Bullets bounce off enemies & walls',   appliesTo:['bullet','homing','poison']},
   // Range extension (owner 2026-08-13). Every kind EXCEPT 'homing' — the Heat Seeker's reach is
   // fixed by owner exemption, so offering this card for it would be a dead pick. wRange() enforces
   // the same exemption independently in case a stack reaches the seeker some other way.
-  {id:'longrange',name:'Long Barrel',text:'+30% weapon range',                appliesTo:['bullet','beam','chain','nova','poison','flame']},
+  {id:'longrange',name:'Long Barrel',text:'+30% range (+70% flame reach)',    appliesTo:['bullet','beam','chain','nova','poison','flame']},
   // Damage amp — Zombie Waves Overclock cousin for raw DPS.
   {id:'overcharge',name:'Overcharge',text:'+22% weapon damage',                   appliesTo:['bullet','homing','beam','chain','nova','poison','flame']},
   // REMOVED 2026-08-12 (owner: "remove large or giant bullet upgrade"). 'Giant Rounds' is gone
@@ -576,10 +588,9 @@ const MODS=[
   {id:'novastar',  name:'Nova Star', text:'+2 mini nova stars on kill explosion', appliesTo:['nova']},
   // Storm Arc unique: adds jumps on top of the weapon's current jump count (owner 2026-08-08).
   {id:'arcjump',   name:'Forked Arc',text:'+2 Storm Arc jumps',                   appliesTo:['chain']},
-  // Flamethrower unique mods (owner 2026-08-08).
-  {id:'flamelength',name:'Pressure Tank',text:'+25% flame length',                appliesTo:['flame']},
-  {id:'flamespread',name:'Wide Nozzle',  text:'+25% flame width',                 appliesTo:['flame']},
-  {id:'flameburn',   name:'Napalm',      text:'+40% burn damage-over-time',       appliesTo:['flame']},
+  // Flamethrower: Rapid/Width retired (owner 2026-08-18 — cone is constant; width not wanted).
+  // Long Barrel is the reach card (see wFlameLen). Napalm = sticky fire, first stack enables it.
+  {id:'flameburn',   name:'Napalm',      text:'Fire sticks: burn + glow. Extra stacks = hotter/longer', appliesTo:['flame']},
 ];
 // Passive skills (not weapon-bound). Cap at MOD_MAX stacks; never offer a 5/5 skill again.
 const SKILLS=[
@@ -633,10 +644,20 @@ function wRange(w){
 // dead card on the flamethrower. Falls back to the weapon's range when flameLength is unset.
 function wFlameLen(w){
   const base=w.flameLength||w.range||100;
-  return base*(1+.25*modStacks(w.id,'flamelength'))*(1+RANGE_PER_STACK*modStacks(w.id,'longrange'));
+  const n=modStacks(w.id,'longrange');
+  // Owner 2026-08-18: Long Barrel on flame was not noticeable at +30%. +70% per stack.
+  return base*(1+.70*n);
 }
-function wFlameWidth(w){return (w.flameWidth||38)*(1+.25*modStacks(w.id,'flamespread'))}
-function wBurnDps(w){return (w.burnDps||0)*(1+.4*modStacks(w.id,'flameburn'))}
+function wFlameWidth(w){return w.flameWidth||38}
+function napalmN(w){return modStacks(w.id,'flameburn')}
+function wBurnDps(w){
+  const n=napalmN(w);if(n<=0)return 0;
+  return (w.burnDps||40)*(1+.55*Math.max(0,n-1));
+}
+function wBurnTime(w){
+  const n=napalmN(w);if(n<=0)return 0;
+  return (w.burnTime||2.2)+.85*Math.max(0,n-1);
+}
 let weaponMods={};                     // { weaponId: { modId: stacks } }
 let weaponOrbs={};                     // { weaponId: orbs banked toward the next rank }
 let skillStacks={};                    // { skillId: stacks } — run-scoped, max MOD_MAX
@@ -693,7 +714,7 @@ function applyKnockback(e,dx,dy,stacks){
 // 2026-08-08 (owner): renamed the legacy elapsed-time power-level counter to threatTier so it can't
 // collide with the new WAVE terminology below ("wave" now means "kill-quota wave", never the old
 // timer). threatTier still drives unlockWave gating exactly as `wave` used to.
-let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], elapsed=0, score=0, threatTier=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
+let cam={x:0,y:0}, enemies=[], bullets=[], particles=[], pickups=[], beams=[], obstacles=[], corpses=[], elapsed=0, score=0, threatTier=1,spawnBudget=0, fireClock=0, shake=0, state='title',xp=0,level=1,nextXp=8,choices=[],cardPicks=0,excessThreat=0,evolved=false,heldWeapons=[];
 // STAGE state — stage = index into EDIT.stages (loops with rising bossMul once past the end),
 // stageT = seconds elapsed in the CURRENT stage (freezes while the boss is up or on break),
 // stageBoss = live ref to the boss enemy object (null when none is up).
@@ -855,7 +876,7 @@ function reset(){applyForge();
   const startId=(META.startWeapon&&META.ownedWeapons[META.startWeapon])?META.startWeapon:'weapon.pulse';
   const start=weaponById(startId);
   heldWeapons=[Object.assign(copy(start),{rank:1})];WEAPON=heldWeapons[0];
-  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,vx:0,vy:0,hp:player.maxHp,inv:0,angle:-Math.PI/2,hullAngle:-Math.PI/2});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];elapsed=score=threatTier=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;fireClocks={};weaponMods={};weaponOrbs={};skillStacks={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);
+  player.speed=Math.round(player.speed*(1+Math.min(.25,META.speed*.05)));player.maxHp=Math.round(player.maxHp*(1+Math.min(.25,META.hp*.05)));Object.assign(player,{x:0,y:0,vx:0,vy:0,hp:player.maxHp,inv:0,angle:-Math.PI/2,hullAngle:-Math.PI/2});cam={x:0,y:0};enemies=[];bullets=[];particles=[];pickups=[];beams=[];corpses=[];elapsed=score=threatTier=spawnBudget=fireClock=shake=xp=cardPicks=orbsCollected=0;fireClocks={};weaponMods={};weaponOrbs={};skillStacks={};evolved=false;level=1;nextXp=8;state='play';paused=false;setPaused(false);stopFlameLoop();
   stage=0;stageT=0;stageBoss=null;stageWave=0;waveSpawned=0;waveNoKillT=0;waveStallHp=Infinity;bossPendingT=0;bossPendingCfg=null;bossAddBudget=0;bossAddSpawned=0;bossStallT=0;bossStallHp=Infinity;shieldCharges=0;shieldCd=0;resetRunStats();
   droneMods={};droneFireClock=0;continuesUsed=0;pendingRevive=null;pendingLevelUps=0;cardsOpen=false; // fresh drones + fresh continue budget every run
   genObstacles();for(const o of dmgNums)o.active=0;
@@ -1166,14 +1187,17 @@ function fire(){
         e.hp-=tick;e.hit=.08;spawnDmgNum(e.x,e.y-e.r,tick);
         applyKnockback(e,dx,dy,modStacks(w.id,'knockback'));
         if(Math.random()<.4)burst(e.x,e.y,'#ff9a3d',2);
-        // Refresh only — this writes no damage, so the ~16 refreshes/sec at rate .06 can never
-        // double-apply. All burn damage is dealt once per frame by the burn tick in update(),
-        // and fire() itself runs at most once per frame (`if(fireClock<=0)`, not `while`).
-        e.burnDps=Math.max(e.burnDps||0,burn);e.burnT=Math.max(e.burnT||0,w.burnTime||2.2);
+        // Napalm (owner 2026-08-18): first stack ENABLES stick; extra stacks raise DPS/duration.
+        // Direct cone damage always applies. No napalm = no lingering burn.
+        if(napalmN(w)>0){
+          e.burnDps=Math.max(e.burnDps||0,burn);
+          e.burnT=Math.max(e.burnT||0,wBurnTime(w));
+          e.napalm=Math.max(e.napalm||0,napalmN(w));
+        }
         if(e.hp<=0)flameKills.push(e);
       }
       for(const e of flameKills)killEnemy(e);
-      if(w.sfx)sfxFile(w.sfx,.05);else sfx('fire',.05);continue}
+      startFlameLoop();continue}
     // projectile kinds: bullet / homing / nova / poison
     if(w.sfx)sfxFile(w.sfx,kind==='nova'?.14:.08);else sfx('fire',kind==='nova'?.12:.08);
     const shots=wShots(w);
@@ -1249,9 +1273,19 @@ function killEnemy(e,gibs,killOpts){
         burst(o.x,o.y,'#7cff4f',4)}}}
   // Splice BEFORE death VFX explode so recursive AOE kills from explode() cannot leave a stale idx
   // (or re-enter this same body). Capture pos/boss flag first.
-  const wasBoss=!!e.isBoss,ex=e.x,ey=e.y,ecol=e.color||'#ff8';
+  const wasBoss=!!e.isBoss,ex=e.x,ey=e.y,ecol=e.color||'#ff8',er=e.r||16;
+  const stem=String((e.type&&e.type.sprite)||'').replace(/^.*\//,'').replace(/\.png$/,'')||'shambler';
   enemies.splice(idx,1);
-  explode(ex,ey,ecol,42,gibs);
+  corpses.push({x:ex,y:ey,s:er*2.7,t:.48,tmax:.48,src:'art_src/topdown_v1/'+stem+'_skel.png',color:ecol});
+  if((e.napalm||0)>=1){
+    const rad=56+12*(e.napalm||1);
+    for(const o of enemies){
+      const dx=o.x-ex,dy=o.y-ey;if(dx*dx+dy*dy>(rad+o.r)*(rad+o.r))continue;
+      o.burnDps=Math.max(o.burnDps||0,(e.burnDps||40)*.55);
+      o.burnT=Math.max(o.burnT||0,1.4);o.napalm=Math.max(o.napalm||0,1);
+    }
+    burst(ex,ey,'#ff6a1a',16);
+  }
   // STAGE clear: the boss dying ends the stage immediately — bigger blast, score bonus, then the
   // between-stage break screen (mirrors how the level-up card interrupts play at pickups line ~410).
   if(wasBoss){
@@ -1488,6 +1522,8 @@ if((skillStacks.shield||0)>0){shieldCd=Math.max(0,shieldCd-dt);if(shieldCd<=0&&s
 // Each weapon now owns its own clock, so every weapon's `rate` means what it says.
 for(const w of heldWeapons)fireClocks[w.id]=Math.max(-.1,(fireClocks[w.id]||0)-dt);
 fire()
+if(state==='play'&&!paused&&enemies.length&&heldWeapons.some(w=>(w.kind||'')==='flame'))startFlameLoop();
+else stopFlameLoop();
 // Drones run on their OWN clock (droneRate(), scaled independently by the Drone Overclock card)
 // instead of piggybacking on the held weapon's rate — otherwise a Rapid mod on the gun would also
 // silently speed up the drones for free, and a Drone Overclock card would have nothing to modulate.
@@ -1531,9 +1567,14 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
       // dps*dt once per frame, a damage number + puff every .18s) but orange so burn reads as
       // visually distinct from green poison. No slow and no contagion: burn is pure damage.
       // Napalm stacks scale e.burnDps upstream in wBurnDps(), never here.
-      if(e.burnT>0){e.hp-=e.burnDps*dt;e.burnT=Math.max(0,e.burnT-dt);e.burnTick=(e.burnTick||0)+dt;
+      if(e.burnT>0){e.hp-=e.burnDps*dt;e.burnT=Math.max(0,e.burnT-dt);e.burnTick=(e.burnTick||0)+dt;e.napalmPulse=(e.napalmPulse||0)+dt;
         if(e.burnTick>.18){spawnDmgNum(e.x,e.y-e.r,e.burnDps*.18);burst(e.x,e.y,'#ff9a3d',1);e.burnTick=0}
-        if(e.burnT<=0){e.burnDps=0;e.burnTick=0}}
+        // Tertiary: extra flare every 0.65s when Napalm 2+
+        if((e.napalm||0)>=2&&e.napalmPulse>0.65){
+          const flare=e.burnDps*0.45;e.hp-=flare;e.napalmPulse=0;
+          spawnDmgNum(e.x,e.y-e.r-8,flare);burst(e.x,e.y,'#ff6a1a',5);
+        }
+        if(e.burnT<=0){e.burnDps=0;e.burnTick=0;e.napalm=0;e.napalmPulse=0}}
       // NOTE: no killEnemy() here on purpose — same as the poison tick. Deaths from DoT are
       // reaped by the "clean dead marked by beam damage mid-loop" sweep after this loop, so
       // explode()'s recursive kills can never splice enemies out from under this iteration.
@@ -1654,6 +1695,10 @@ for(let i=pickups.length-1;i>=0;i--){let p=pickups[i],dx=player.x-p.x,dy=player.
     sfx('hit',.05);pickups.splice(i,1);
     if(!p.heal&&!p.weapon&&xp>=nextXp){xp-=nextXp;level++;nextXp=Math.ceil(nextXp*1.35);pendingLevelUps++;state='levelup';offerCards()}}}
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.gib)p.rot=(p.rot||0)+(p.rvel||0)*dt;if(p.life<=0)particles.splice(i,1)}
+for(let i=corpses.length-1;i>=0;i--){
+  const c=corpses[i];c.t-=dt;
+  if(c.t<=0){burst(c.x,c.y,'#d8c8a0',18);burst(c.x,c.y,'#8a7a5a',10);corpses.splice(i,1)}
+}
 // S5 — advance pooled damage numbers (float up, gravity, fade); no allocation here.
 for(let i=0;i<dmgNums.length;i++){const o=dmgNums[i];if(!o.active)continue;o.y+=o.vy*dt;o.vy+=40*dt;o.life-=dt;if(o.life<=0)o.active=0}
 shake=Math.max(0,shake-dt*25)}
@@ -1840,6 +1885,16 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
 for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;const attacking=(e.atkT||0)>0;const st=attacking?'attack':(moving?'walk':'idle');let img=spriteFor(spriteSrcForEntity(e.type,eFace,st));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
+  if((e.burnT||0)>0&&(e.napalm||0)>0){
+    const pulse=.55+.45*Math.sin(elapsed*14+e.x*.02);
+    ctx.save();ctx.globalCompositeOperation='lighter';
+    const grd=ctx.createRadialGradient(x,y,0,x,y,s*.62);
+    grd.addColorStop(0,'rgba(255,220,90,'+(0.55*pulse)+')');
+    grd.addColorStop(.4,'rgba(255,110,20,'+(0.38*pulse)+')');
+    grd.addColorStop(1,'rgba(255,40,0,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(x,y,s*.62,0,7);ctx.fill();
+    ctx.restore();
+  }
   // S4 — toxin tell: tiny green bubbles rise bottom→top over the infected (not one big blob).
   // Color differentiation + transparency so stacks read as a cloud of acid gas, not a solid disc.
   if(e.poisonT>0){
@@ -1879,6 +1934,18 @@ for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Mat
     ctx.globalAlpha=1;
   }
   ctx.fillStyle='#152025';ctx.fillRect(x-e.r,y-e.r-8,e.r*2,3);ctx.fillStyle='#8aff9b';ctx.fillRect(x-e.r,y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
+for(const c of corpses){
+  const x=sx(c.x),y=sy(c.y),s=c.s||40,a=Math.min(1,c.t/Math.max(.08,c.tmax*.35));
+  ctx.globalAlpha=a;
+  const im=spriteFor(c.src);
+  if(im&&im.complete&&im.naturalWidth){ctx.drawImage(im,x-s/2,y-s/2,s,s)}
+  else{
+    ctx.fillStyle='#e8dcc0';ctx.beginPath();ctx.arc(x,y,s*.28,0,7);ctx.fill();
+    ctx.strokeStyle='#c8b890';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(x,y-s*.22);ctx.lineTo(x,y+s*.26);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
 // Off-screen markers — static nodes / bosses can sit far from the camera; never soft-lock a stage
 // because the target is outside the viewport (owner 2026-08-08).
 for(const e of enemies){
@@ -2601,10 +2668,10 @@ const FIELD_HELP={
   id:'Stable internal id. Do not rename mid-save if you care about owned unlocks.',
   dot:'Toxin damage per second while infected.',
   dotTime:'How long a poison infection lasts (seconds).',
-  flameWidth:'Flamethrower cone width in px at full reach (flameLength). Wide Nozzle mod adds +25% per stack.',
-  flameLength:'Flamethrower cone reach in px. Pressure Tank mod adds +25% per stack.',
-  burnDps:'Flamethrower burn damage-per-second (own burnT/burnDps DoT, separate from poison). Most of the flamethrower damage lives here. Napalm mod adds +40% per stack.',
-  burnTime:'How long the flamethrower burn DoT lasts after leaving the cone (seconds).',
+  flameWidth:'Flamethrower cone width in px at full reach. Width upgrades were removed.',
+  flameLength:'Flamethrower cone reach in px. Long Barrel adds +70% of THIS per stack.',
+  burnDps:'Base napalm burn DPS once Napalm is taken. Extra Napalm stacks add +55% each.',
+  burnTime:'Base napalm stick time (seconds). Extra Napalm stacks add +0.85s each.',
   spreadChance:'Per-attempt chance a carrier infects a clean neighbour.',
   spreadRadius:'Max distance for poison contagion.',
   spreadFactor:'Potency multiplier when infection spreads (0.7 = each hop is 30% weaker).',
