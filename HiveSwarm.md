@@ -3,8 +3,8 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.3
-updated: 2026-08-16
+version: 0.6.10
+updated: 2026-08-18
 tags: [game, hivemind, webgame, documentation]
 ---
 
@@ -15,13 +15,13 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.3` · `sw.js` `CACHE_VERSION = v24` |
+| **Version** | `0.6.10` · `sw.js` `CACHE_VERSION = v32` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.3.apk` (79.26 MB, signed CN=MiSTRFiNGA, in-APK `GAME_VERSION=0.6.3`). Older Swarm APKs are in `_APKs\Archive`. |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.10.apk` (signed CN=MiSTRFiNGA). Older Swarm APKs are in `_APKs\Archive`. |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
 
@@ -61,7 +61,7 @@ You only steer. Weapons fire themselves at the nearest in-range threat. Stages a
 |---|---|
 | **Stages** | 5 shipped: Outskirts → Sewers → Downtown → Highway → HiVE Core (**Praetorian** guardian). Queen is not in this game. |
 | **Waves** | Kill-based, not timed. Finite `waveQuota`. Ends when every spawned body is dead. |
-| **XP / cards** | Orbs from kills. Level-up offers 3 cards. Multiple level-ups **queue**. First-three and every later hand force ≥1 equipped-weapon mod unless every applicable mod is 3/3. |
+| **XP / cards** | Orbs from kills. Level-up offers 3 cards. Multiple level-ups **queue**. First-three and every later hand force ≥1 equipped-weapon mod unless every applicable mod is 5/5. |
 | **Meta** | 3 save slots. Biomatter buys permanent damage / HP / speed / venom and Armory unlocks. Cap +25% total meta power. |
 | **Continues** | 1 per 3 stages reached. Hook for a future `PSDK.rewarded()` — **not wired**. |
 | **FORGE** | `F2` or ⚒ only (no long-press). Key `hive_swarm_forge_values_v1`. Follow `FORGE_STANDARD.md`. |
@@ -80,13 +80,13 @@ You only steer. Weapons fire themselves at the nearest in-range threat. Stages a
 | Storm Arc | `weapon.chain` | chain | 22 | .32 | **200** | 4 jumps, −12% per jump. 0.6.1 owner retune |
 | Nova Shell | `weapon.nova` | nova | 34 | .55 | **100** | Blast uses **weapon damage** (0.6.2). Falloff is distance-from-surface so Colossus/guardian bodies get hit. |
 
-Range is authoritative for **every** kind. `wRange()` is the single source of truth. **Long Barrel** = +30% of that gun's own base per stack, max 3. Homing is excluded twice (`appliesTo` + `wRange()`).
+Range is authoritative for **every** kind. `wRange()` is the single source of truth. **Long Barrel** = +30% of that gun's own base per stack, max 5. Homing is excluded twice (`appliesTo` + `wRange()`).
 
 `beam` / `chain` / `flame` are continuous. Scatter / Pierce / Ricochet do not apply (`appliesTo`). Giant Rounds is **removed** from the offer pool (`wSizeMul()` returns 1 so old saves cannot revive it).
 
 ### Mods / skills
 
-Weapon mods (max 3 stacks): `rapid` · `knockback` · `ricochet` · `overcharge` · `longrange` · `novastar` · `arcjump` · flame length / spread / napalm · `scatter` · `pierce` · `venom`.
+Weapon mods (max 5 stacks): `rapid` · `knockback` · `ricochet` · `overcharge` · `longrange` · `novastar` · `arcjump` · flame length / spread / napalm · `scatter` · `pierce` · `venom`. Scatter shot curve: 2 / 3 / 4 / 5 / 7.
 
 Run skills: Fleet Footed, Reinforced, Magnet, Shield Matrix, Vampiric, Drone Escort (+ drone rate/damage once a drone exists).
 
@@ -202,14 +202,14 @@ Do these in order. Do not add weapons or stages in front of P0.
 
 ### P0 — publish / honesty (this session's leftover)
 
-1. Push `master` so Pages = local `0.6.1`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.1`.
-2. Owner play on the **URL** or the single `0.6.0` APK. Do not play an old APK.
+1. Push `master` so Pages = local `0.6.10`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.10`.
+2. Owner play on the **URL** or the single `0.6.10` APK. Do not play an old APK.
 3. Still **no** CrazyGames / Poki rebuild.
 
 ### P1 — feel (from 2026-08-14 play)
 
-4. Draw the player with the existing 8-dir sheet, not the cyan circle.
-4b. Sprite rebuild per [`design/SPRITE_CATALOG.md`](design/SPRITE_CATALOG.md): Runner S title, Colossus angle split, Praetorian true diagonals + walk, torso hole pass.
+4. ✅ Player pawn is Twin Pod (0.6.5) — hull + independent turret. Cyan circle retired.
+4b. Sprite rebuild per [`design/SPRITE_CATALOG.md`](design/SPRITE_CATALOG.md): Runner S title, Colossus angle split, Praetorian true diagonals + walk. Torso hole pass started in 0.6.4 (backup-only fill + FORGE ALPHA KEY).
 5. ✅ HUD unstack (0.6.1) — STAGE left, WAVE right, weapon under HP, toast under the stack.
 6. Raise on-screen swarm presence without breaking off-cam spawn (more bodies in frame, or stronger off-screen audio/markers). Opening minute should push, not just decorate.
 7. Fix `_forge_stages_verify.js` tab index. Regen `_game_extract.js` whenever `index.html` changes.
@@ -238,7 +238,58 @@ Do these in order. Do not add weapons or stages in front of P0.
 
 ## 8. Change record (keep — measured)
 
-### Fallback (do this if 0.6.3 goes wrong)
+### 2026-08-18 — Grok · v0.6.10 · walk / idle / attack sheets
+
+Live cast now has keyed 4-frame **walk**, **idle**, and **attack** strips under `art_src/topdown_v1/` (`{stem}_{state}_{dir}.png`). Engine picks attack on contact (`atkT`), idle when still, walk when moving. Twin Pod uses `player_idle.png` for a hover cycle. Subterra Maw stays retired. Harvest was MiniMax H3 `:8191` I2V.
+
+### 2026-08-16 — Grok · v0.6.9 · drone knobs, Psychoid frame 3
+
+- Drone picker removed. Locked to **B**. FORGE PLAYER now has live **droneScale** and **droneGlow**. Tune those; tell me later and I’ll bake them as shipped defaults.
+- Psychoid walk **frame 3** rotated 180° on every facing (`psychoid_walk*.png`).
+- Enemy animation rebuild: online video harvest is blocked on this account (ZDR). Still-to-still edits drifted the Psychoid’s identity, so those tries are on the Desktop for review — **not** in the game yet. ComfyUI locally is the better next pipeline.
+
+### 2026-08-16 — Grok · v0.6.8 · drone B live
+
+Owner picked **B**. Disc + teal ring, cannon faces the target, shots leave the barrel tip. Teal glow under the disc. FORGE PLAYER still has the A–L dropdown if you want to compare.
+
+### 2026-08-16 — Grok · v0.6.7 · per-frame rotate, 5/5, scatter curve, weaker KB
+
+- FORGE ART ROTATE now hits **the selected frame only**. Tick **ALL FRAMES** for the old strip rotate. Switching thumbs resets the degree counter so you can flip one Psychoid cell 180° without spinning the rest.
+- `MOD_MAX` 3 → **5**. Weapons, skills, drone mods all 5/5.
+- Scatter shot counts: 1→**2**, 2→**3**, 3→**4**, 4→**5**, 5→**7** (was +2 per stack, so 1 stack used to be 3).
+- Knockback: impulse 130→42, cap 420→140, extra stacks +45% not +100%. One stack is a nudge, not a keep-away.
+
+### 2026-08-16 — Grok · v0.6.6 · FORGE hullSize + turretRatio
+
+Owner: ratio **1.40** is the look. 2.0 turret too big, 0.52 too small. Wants live knobs, not another rebuild per tweak.
+
+- Shipped `player.hullSize: 0.6` (pods vs the first Twin Pod ship) and `player.turretRatio: 1.40` (turret ÷ hull). Both on FORGE → PLAYER. Live.
+- `scale` stays hit radius only. Muzzle still tracks the drawn barrel tip when you change the ratio.
+- Proportion preview folder deleted after pick.
+
+### 2026-08-16 — Grok · v0.6.5 · Twin Pod player pawn
+
+Owner rejected the soldier sprites. Picked concept **L Twin Pod**.
+
+- Live pawn is two layers: `player_hull.png` (faces `hullAngle` from the stick) + `player_turret.png` (faces `player.angle` from the primary gun). Movement no longer overwrites aim.
+- Teal hover glow under each pod, pulses. Muzzle is the turret barrel tip so shots leave the gun, not the hull centre.
+- Title lineup uses the same draw. Cyan sphere is fallback only if the PNGs fail to load.
+- Art: `art_src/topdown_v1/player_hull.png`, `player_turret.png`, assembled `player.png`.
+
+### 2026-08-16 — Grok · v0.6.4 · retire Maw + FORGE rotate/frames + hole pass
+
+Owner: Subterra Maw is out. Rotate was missing from Swarm FORGE (it only lived in HiVE WAR). Wanted DUP FRAME + rearrange. Sprites still had magenta-key holes.
+
+- **Maw retired.** `enemy.maw` removed from `FORGE_BASE` and added to `RETIRED_FORGE_IDS` (entities now prune the same way as weapons, so localStorage cannot resurrect it). Art files stay on disk unused. Poison still uses `subterrahit.mp3`.
+- **FORGE rotate** ported from Hive WAR: ART ROTATE number, 15° LOCK, ↻ APPLY, ◀ 1° / 1° ▶. Incremental from the last apply. Rotates every frame of the current strip around the 128 cell centre. Hitboxes unchanged.
+- **+ DUP FRAME** copies the selected cell and inserts it after. **◀ MOVE / MOVE ▶** and **drag the thumbs** reorder the walk cycle.
+- **ALPHA KEY** (Hive WAR) punches leftover `#ff00ff` into transparent from FORGE. Shipped sheets: leftover exact magenta was already 0. Hole pass (`tools/fix_sprite_holes.py`) filled small interior islands from `_bak_pre_magenta_20260807/` only — no neighbour smear. Use ALPHA KEY / brush for anything still punched.
+
+Rotate lives on **ENTITIES → pick a body → paint tools** (under FRAME). There was never a rotate button before 0.6.4.
+
+**VERIFIED:** `python qa/_verify_0_6_4_forge.py` ALL CHECKS PASSED. `node _headless_harness.js` SIM ENDED clean (wave 3, score 460, minHp 58). APK extract: `GAME_VERSION='0.6.4'`, `ART ROTATE`, `spDupFrame`, `enemy.maw` in `RETIRED_FORGE_IDS` only.
+
+### Fallback (do this if 0.6.4 goes wrong)
 
 ```
 cd D:\Dev\HiveSwarm
@@ -256,7 +307,7 @@ After the save point. Order as promised:
 1. **Psychoid** — sliced from the 8-cell top-down sheet. 4-frame walk. Sewers+ (`unlockWave:5`).
 2. **Praetorian dirs** — SE/SW from the field-guide + original; N/E/W from the earlier pass. Diagonals NE/NW still copy N.
 3. **Biomorph** — 4-frame side walk + idle from the 16-cell sheet. Downtown+ (`unlockWave:7`). W dirs are flips.
-4. **Subterra Maw** — scan cycle, `speed:0` node like Necro. Sewers+ (`unlockWave:6`).
+4. **Subterra Maw** — **retired in 0.6.4** (owner: horrible). Was a scan-cycle node. Do not re-import unless asked.
 5. **runner_s** — title card replaced with a front view. `runner_walk_s` / `_n` now use the SE run strip (the old S walk was "THE RUNNER" on every frame).
 
 Slicer: `tools/slice_desktop_assets.py`. Sources stay on Desktop; we do not overwrite the save-point tree without the tag.

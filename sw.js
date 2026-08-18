@@ -6,7 +6,7 @@
 // player-facing string) — only CACHE_VERSION needs bumping to bust stale caches; renaming
 // the prefix would work too, but bumping the version is the documented mechanism and is
 // sufficient on its own to force every returning tester to refetch the shell.
-const CACHE_VERSION = 'v24';  // v0.6.3 — Psychoid/Biomorph/Maw import, Praetorian dirs, runner_s title fix
+const CACHE_VERSION = 'v32';  // v0.6.10 — walk/idle/attack sheets for the live cast
 const CACHE_NAME = `hiveswarm-game-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 

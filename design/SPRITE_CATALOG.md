@@ -3,8 +3,10 @@
 **This is the inventory.** Product rules stay in [`../HiveSwarm.md`](../HiveSwarm.md).
 Audited 2026-08-16 from `art_src/topdown_v1/`.
 
-Need per stem: **base + 8 idle dirs + 8 walk strips (2+ frames)**, same character at every angle,
+Need per stem: **base + 8 idle dirs + 8 walk strips + 8 attack strips (2+ frames)**, same character at every angle,
 no baked titles, no holes through the torso.
+
+**0.6.10:** H3 I2V harvest landed `{stem}_{walk|idle|attack}_{dir}.png` for the live roster. Engine uses idle when still, walk when moving, attack on contact. Twin Pod uses `player_idle.png`. Maw still retired.
 
 Facing map (engine `FACE_SFX8`): `e se s sw w nw n ne`. **s = facing camera (front).**
 
@@ -14,7 +16,7 @@ Facing map (engine `FACE_SFX8`): `e se s sw w nw n ne`. **s = facing camera (fro
 
 | Stem | Idle | Walk | Walk frames | Verdict | Notes |
 |---|---:|---:|---|---|---|
-| `player` | 8/8 | 8/8 | strip | **identity drift + unused in-game** | North is a clean back view. Default/`e` is 3/4 side. **Gameplay still draws a cyan circle** — sheets exist and are not winning `draw()`. |
+| `player` | Twin Pod hull + turret | rotate in draw | n/a | **in (0.6.5)** | Soldier 8-dir retired as the pawn. Live art is `player_hull.png` + `player_turret.png`. |
 | `shambler` | 8/8 | 8/8 | strip | **usable** | Same punk-zombie across N/E. Magenta leftover in some files (editor key). |
 | `runner` | 8/8 | 8/8 | strip | **angle broken** | `runner_s.png` has **baked "THE RUNNER" title** over the sprite. That angle will never match the others. |
 | `crawler` | 8/8 | 8/8 | 4 | **usable, different species look** | Walk `e` is a skeletal quadruped — fine if that *is* the crawler, but it does not read as the same mesh as the idle standing pose. |
@@ -26,13 +28,13 @@ Facing map (engine `FACE_SFX8`): `e se s sw w nw n ne`. **s = facing camera (fro
 | `praetorian` | 6 unique / 2 fallback | S walk = 4-frame idle; SE/SW new | **in** | SE/SW rebuilt 2026-08-16. NE/NW still copy N. Queen out. |
 | `psychoid` **NEW** | 1 pose × 8 dirs | 4-frame top-down | **in** | Overhead already. Same sprite all dirs. |
 | `biomorph` **NEW** | E-facing + W flip | 4-frame side walk | **in** | One facing, then flip. Unlock 7. |
-| `subterra_maw` **NEW** | 1 pose × 8 dirs | 5-frame scan | **in** | Static node. Mini-map pip leftover on some frames. |
+| `subterra_maw` | 1 pose × 8 dirs | 5-frame scan | **retired 0.6.4** | Owner: horrible. Files remain on disk. Not in roster / preload. |
 
 ---
 
 ## Defects that match what you saw
 
-1. **Transparent / punched torso** — several sheets were magenta-keyed. Magenta is the FORGE key color (`#ff00ff`). Aggressive keying eats body pixels that were close to pink/purple (shambler slime, runner jacket). Runtime draw uses PNG alpha, not a live chroma key, so holes are *in the file*.
+1. **Transparent / punched torso** — several sheets were magenta-keyed. Magenta is the FORGE key color (`#ff00ff`). Aggressive keying eats body pixels that were close to pink/purple (shambler slime, runner jacket). Runtime draw uses PNG alpha, not a live chroma key, so holes are *in the file*. **0.6.4:** leftover exact `#ff00ff` is gone. Interior islands were filled from `_bak_pre_magenta_20260807/` where that file matches. FORGE now has ALPHA KEY + rotate/dup/reorder. Remaining holes: paint them in FORGE.
 2. **Different creature per angle** — Krea generated each dir as a new image, not a turnaround. Worst: Runner S (title card), Colossus E vs N, Crawler walk vs idle.
 3. **Player never appears** — 8-dir sheets exist; the pawn is still the cyan circle. Separate draw bug, not missing files.
 
@@ -53,5 +55,6 @@ Queen stays out.
 | Character | Status |
 |---|---|
 | **Praetorian** | In as HiVE Core guardian. SE/SW unique as of 0.6.3. |
-| **Psychoid / Biomorph / Maw** | In as `enemy.psychoid`, `enemy.biomorph`, `enemy.maw`. |
+| **Psychoid / Biomorph** | In as `enemy.psychoid`, `enemy.biomorph`. |
+| **Subterra Maw** | **Retired 0.6.4.** Do not re-add unless asked. |
 | **Queen** | **Out.** Do not import. |
