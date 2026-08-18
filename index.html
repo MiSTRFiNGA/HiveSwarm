@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.12';
+const GAME_VERSION='0.6.13';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -427,15 +427,12 @@ function spriteFrameMeta(img){
   }
   m={frames,fw,fh,bounds}; SPRITE_META.set(img,m); return m;
 }
-/** Draw anim strip height-normalized: content height → size (fixes side-view size pop). */
+/** Draw the full cell. Sheets are pre-normalized per-cast so N/S vs E/W keep one scale. */
 function drawSpriteAnim(img,x,y,size,moving,frameOverride){
   if(!img||!img.complete||!img.naturalWidth)return false;
   const m=spriteFrameMeta(img);
   const fr=frameOverride!=null?(((frameOverride%m.frames)+m.frames)%m.frames):(moving||m.frames>1?(Math.floor(elapsed*WALK_FPS)%m.frames):0);
-  const b=m.bounds[fr]||m.bounds[0];
-  const sc=size/Math.max(1,Math.max(b.w,b.h));
-  const dw=b.w*sc, dh=b.h*sc;
-  ctx.drawImage(img, fr*m.fw+b.x, b.y, b.w, b.h, x-dw/2, y-dh/2, dw, dh);
+  ctx.drawImage(img, fr*m.fw, 0, m.fw, m.fh, x-size/2, y-size/2, size, size);
   return true;
 }
 function playerScale(){const s=Number(EDIT.player&&EDIT.player.scale);return Number.isFinite(s)&&s>0?s:1}
@@ -455,13 +452,12 @@ function drawTwinPod(px,py,hullAng,turretAng,size,alpha){
   ctx.save();
   ctx.translate(px,py);
   ctx.rotate((hullAng||0)+Math.PI/2);
-  const pulse=.82+.18*Math.sin((typeof elapsed==='number'?elapsed:0)*5.5);
   const podX=size*.275, glowR=size*.40;
   for(const ox of [-podX,podX]){
     const gy=size*.10;
     const grd=ctx.createRadialGradient(ox,gy,0,ox,gy,glowR);
-    grd.addColorStop(0,'rgba(160,255,240,'+(0.72*pulse)+')');
-    grd.addColorStop(.35,'rgba(80,230,255,'+(0.38*pulse)+')');
+    grd.addColorStop(0,'rgba(160,255,240,0.72)');
+    grd.addColorStop(.35,'rgba(80,230,255,0.38)');
     grd.addColorStop(.7,'rgba(40,180,220,.12)');
     grd.addColorStop(1,'rgba(40,180,220,0)');
     ctx.fillStyle=grd;
@@ -1963,10 +1959,10 @@ function drawTitleOrDead(){
   ];
   const rowY=H*.42, n=lineup.length, span=Math.min(W*.88,n*78), startX=cx-span/2;
   for(let i=0;i<n;i++){
-    const x=startX+(i+.5)*(span/n), bob=Math.sin(t*2.2+i*.7)*5;
+    const x=startX+(i+.5)*(span/n);
     const sz=i===n-1?86:i===0?62:58;
     if(lineup[i].kind==='player'){
-      drawTwinPod(x,rowY+bob,-Math.PI/2,-Math.PI/2,sz*1.35,1);
+      drawTwinPod(x,rowY,-Math.PI/2,-Math.PI/2,sz*1.35,1);
     }else{
       const im=spriteFor(lineup[i].path);
       if(im&&im.complete&&im.naturalWidth){
@@ -1974,10 +1970,10 @@ function drawTitleOrDead(){
         // first frame of strip if wide
         const nf=im.naturalWidth>=im.naturalHeight*1.6?Math.max(1,Math.round(im.naturalWidth/im.naturalHeight)):1;
         const fw=im.naturalWidth/nf;
-        ctx.drawImage(im,0,0,fw,im.naturalHeight,x-sz/2,rowY+bob-sz/2,sz,sz);
+        ctx.drawImage(im,0,0,fw,im.naturalHeight,x-sz/2,rowY-sz/2,sz,sz);
         ctx.restore();
       }else{
-        ctx.fillStyle='#4a6670';ctx.beginPath();ctx.arc(x,rowY+bob,sz*.28,0,7);ctx.fill();
+        ctx.fillStyle='#4a6670';ctx.beginPath();ctx.arc(x,rowY,sz*.28,0,7);ctx.fill();
       }
     }
   }

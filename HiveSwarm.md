@@ -3,7 +3,7 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.12
+version: 0.6.13
 updated: 2026-08-18
 tags: [game, hivemind, webgame, documentation]
 ---
@@ -15,13 +15,13 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.12` · `sw.js` `CACHE_VERSION = v34` |
+| **Version** | `0.6.13` · `sw.js` `CACHE_VERSION = v35` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.12.apk` (115.63 MB, signed CN=MiSTRFiNGA). Older Swarm APKs are in `_APKs\Archive`. |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.13.apk` (signed CN=MiSTRFiNGA). Older Swarm APKs are in `_APKs\Archive`. |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
 
@@ -202,8 +202,8 @@ Do these in order. Do not add weapons or stages in front of P0.
 
 ### P0 — publish / honesty (this session's leftover)
 
-1. Push `master` so Pages = local `0.6.12`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.12`.
-2. Owner play on the **URL** or the single `0.6.12` APK. Do not play an old APK.
+1. Push `master` so Pages = local `0.6.13`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.13`.
+2. Owner play on the **URL** or the single `0.6.13` APK. Do not play an old APK.
 3. Still **no** CrazyGames / Poki rebuild.
 
 ### P1 — feel (from 2026-08-14 play)
@@ -238,9 +238,13 @@ Do these in order. Do not add weapons or stages in front of P0.
 
 ## 8. Change record (keep — measured)
 
+### 2026-08-18 — Grok · v0.6.13 · paper punch v2, static hull, crawler scale
+
+Restored H3 strips and re-punched: wine frames (brute N/S), dark runner wash, and mid-magenta smears on Praetorian / Biomorph / Colossus. Twin Pod hull is a still — glow no longer pulses, title lineup no longer bobs; hull only rotates with movement. Sheets share one scale per cast so crawler N/S compact poses do not inflate to E/W length.
+
 ### 2026-08-18 — Grok · v0.6.12 · paper boxes, static hull, crawler scale
 
-Punched leftover magenta/maroon paper frames from live-cast walk/idle/attack strips (brute N/S boxes, runner checker, xeno cards). Twin Pod hull is static again — no idle-strip bounce; still rotates with movement. Draw scale uses max(width,height) so crawler N/S vs E stay the same size.
+First punch pass left wine scraps (g≈0, r≈20) on runner N and mid-magenta smears on xeno-like sheets. Superseded by 0.6.13.
 
 ### 2026-08-18 — Grok · v0.6.11 · blank APK screen
 
