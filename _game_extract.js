@@ -1,7 +1,7 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.10';
+const GAME_VERSION='0.6.11';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -1775,7 +1775,7 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    new Image().src='enemy.shambler' -> a bogus URL -> a truthy Image, so the `||` fallback to the
    real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
-for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;const attacking=(e.atkT||0)>0;const st=attacking?'attack':(moving?'walk':'idle');let img=spriteFor(spriteSrcForEntity(e.type,eFace,st));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1}
+for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;const attacking=(e.atkT||0)>0;const st=attacking?'attack':(moving?'walk':'idle');let img=spriteFor(spriteSrcForEntity(e.type,eFace,st));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
   // S4 — toxin tell: tiny green bubbles rise bottom→top over the infected (not one big blob).
   // Color differentiation + transparency so stacks read as a cloud of acid gas, not a solid disc.
   if(e.poisonT>0){
