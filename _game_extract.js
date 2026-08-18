@@ -1,7 +1,7 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.11';
+const GAME_VERSION='0.6.12';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -386,7 +386,7 @@ function drawSpriteAnim(img,x,y,size,moving,frameOverride){
   const m=spriteFrameMeta(img);
   const fr=frameOverride!=null?(((frameOverride%m.frames)+m.frames)%m.frames):(moving||m.frames>1?(Math.floor(elapsed*WALK_FPS)%m.frames):0);
   const b=m.bounds[fr]||m.bounds[0];
-  const sc=size/Math.max(1,b.h);
+  const sc=size/Math.max(1,Math.max(b.w,b.h));
   const dw=b.w*sc, dh=b.h*sc;
   ctx.drawImage(img, fr*m.fw+b.x, b.y, b.w, b.h, x-dw/2, y-dh/2, dw, dh);
   return true;
@@ -426,11 +426,7 @@ function drawTwinPod(px,py,hullAng,turretAng,size,alpha){
   if(hullReady){
     ctx.save();ctx.translate(px,py);ctx.rotate((hullAng||0)+Math.PI/2);
     ctx.imageSmoothingEnabled=true;
-    const idle=spriteFor('art_src/topdown_v1/player_idle.png');
-    if(idle&&idle.complete&&idle.naturalWidth>idle.naturalHeight*1.6&&!idle._fail){
-      const m=spriteFrameMeta(idle);const fr=Math.floor((typeof elapsed==='number'?elapsed:0)*WALK_FPS)%m.frames;
-      ctx.drawImage(idle,fr*m.fw,0,m.fw,m.fh,-size/2,-size/2,size,size);
-    }else ctx.drawImage(hull,-size/2,-size/2,size,size);
+    ctx.drawImage(hull,-size/2,-size/2,size,size);
     ctx.restore();
   }
   const tsz=size*playerTurretRatio();
