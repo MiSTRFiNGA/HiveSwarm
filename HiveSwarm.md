@@ -19,9 +19,11 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
+| **Desktop play link** | `Play HiVE Swarm.lnk` (Drive id `1mwDl1OW6xcSpdh9hjFhFsNdWhY_Wet6_`) always launches that bat — never the old `standalone\PLAY.bat`. |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
 | **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.13.apk` (106.38 MB, signed CN=MiSTRFiNGA). Older Swarm APKs are in `_APKs\Archive`. |
+| **Always-latest APK** | `...\My Games\_APKs\HiveSwarm-latest.apk` and `D:\Drive\APK\HiveSwarm-latest.apk` — overwritten on every Swarm APK build. |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
 
@@ -144,7 +146,8 @@ It is a real survivors-like loop: deploy → kite → auto-fire → orb → card
 - `art_src/` is **runtime**. Do not strip it from the APK.
 - Deleting a weapon/enemy from `FORGE_BASE` is not enough. Add the id to `RETIRED_FORGE_IDS` or `forgeMerge()` resurrects it from localStorage forever (rocket launcher bug, 2026-08-13).
 - Range / stall / spawn changes need a **measured** before/after, not a feel retune. See §8.
-- One APK on the desktop shelf. Archive or delete the rest. 2026-08-14: only `HiveSwarm-0.6.0.apk` remains.
+- One versioned APK on the desktop shelf. Archive or delete the rest. Also overwrite `HiveSwarm-latest.apk` (shelf + `D:\Drive\APK`) so the desktop/Drive play link never points at an old numbered file.
+- `Play HiVE Swarm.lnk` (including the Drive copy under `D:\Drive\PC\Desktop\My Games\HiVE Swarm\`) must target `D:\Dev\HiveSwarm\Launch HiVE Swarm.bat`. The Drive file id `1mwDl1OW6xcSpdh9hjFhFsNdWhY_Wet6_` is that shortcut.
 - Serve on a fresh port and confirm *your* file (`GAME_VERSION` in the HTML). A wedged `http.server` has served the wrong tree.
 - `_forge_stages_verify.js` currently fails `TABS[5] !== STAGES` (`STAGES` is index 4). Pre-existing since 0.5.2. Do not treat that red as a 0.6.0 regression.
 - Regenerating `_game_extract.js` is required before claiming a harness result.
