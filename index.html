@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.15';
+const GAME_VERSION='0.6.19';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -63,13 +63,59 @@ function safeAreaTop(){
   }catch(_){return 24}
 }
 const SAFE_TOP=(typeof document!=='undefined'&&document.body)?safeAreaTop():24;
-function hudLayout(){
+function wrapCanvasText(ctx,text,maxW){
+  const raw=String(text||'');
+  if(!raw)return [''];
+  if(!(maxW>0))return [raw];
+  if(ctx.measureText(raw).width<=maxW)return [raw];
+  // Prefer breaking after commas so "ricochet 1/5" stays a unit instead of orphaning "1/5".
+  const tokens=[];
+  raw.split(/,\s*/).forEach((part,i,arr)=>{
+    const piece=i<arr.length-1?part+',':part;
+    if(ctx.measureText(piece).width<=maxW)tokens.push(piece);
+    else tokens.push(...piece.split(/\s+/).filter(Boolean));
+  });
+  const lines=[];let cur='';
+  for(const tok of tokens){
+    const next=cur?cur+' '+tok:tok;
+    if(ctx.measureText(next).width<=maxW){cur=next;continue}
+    if(cur)lines.push(cur);
+    if(ctx.measureText(tok).width<=maxW){cur=tok;continue}
+    let piece='';
+    for(const ch of tok){
+      const p=piece+ch;
+      if(ctx.measureText(p).width<=maxW)piece=p;
+      else{if(piece)lines.push(piece);piece=ch}
+    }
+    cur=piece;
+  }
+  if(cur)lines.push(cur);
+  return lines.length?lines:[''];
+}
+function fitCanvasFont(ctx,text,maxW,maxPx,minPx,weight){
+  let px=maxPx;
+  const w=weight||'800';
+  ctx.font=w+' '+px+'px system-ui';
+  while(px>minPx&&ctx.measureText(text).width>maxW){px--;ctx.font=w+' '+px+'px system-ui'}
+  return px;
+}
+function hudLayout(opts){
   const t=SAFE_TOP;
-  const stageY=38+t, centerY=38+t, hpY=92+t, hpBottom=102+t, hudBottom=126+t;
-  const weaponY=68+t, weaponBarY=weaponY+10, toastY=hudBottom+36;
-  return {stageY,centerY,hpY,hpBottom,hudBottom,weaponY,weaponBarY,toastY};
+  const extra=(opts&&opts.centerLines>1)?22:0;
+  const stageY=34+t;
+  const centerY=64+t;
+  const weaponY=96+t+extra;
+  const weaponBarY=weaponY+10;
+  const hpY=weaponBarY+24;
+  const hpBottom=hpY+10;
+  const xpY=hpBottom+12;
+  const xpTextY=xpY+10;
+  const hudBottom=xpTextY+8;
+  const toastY=hudBottom+28;
+  return {stageY,centerY,hpY,hpBottom,xpY,xpTextY,hudBottom,weaponY,weaponBarY,toastY};
 }
 window.__swarmHudLayout=hudLayout;
+window.__swarmWrapText=wrapCanvasText;
 const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
 const VIEW={w:540,h:960}, WORLD={halfW:810,halfH:1440,maxEnemies:220}, CAMERA={deadZone:.15}; let dpr=1;
 function resize(){dpr=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);VIEW.w=innerWidth;VIEW.h=innerHeight} addEventListener('resize',resize);resize();
@@ -100,7 +146,7 @@ const FORGE_KEY='hive_swarm_forge_values_v1', copy=o=>JSON.parse(JSON.stringify(
 // The shipped values are deliberately close to the OLD instant-response behaviour (accel 2600 gets
 // the pawn to the 245px/s top speed in ~0.09s) so this lands as a tuning knob, not a stealth nerf
 // to how the game already felt. Turn accel down for weight, brake down for ice.
-const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1,accel:2600,brake:3400,friction:4,hullSize:.6,turretRatio:1.4,droneScale:1,droneGlow:1},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034,budgetBase:1.15,budgetExponent:1.065},drops:{xp:1,metaChance:.08,healChance:.07,heal:12,weaponChance:.05,eliteWeaponChance:.4},weapons:[
+const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1,accel:2600,brake:3400,friction:4,hullSize:.6,turretRatio:1.4,droneScale:1,droneGlow:1},world:{halfW:810,halfH:1440,maxEnemies:220,deadZone:.15},waves:{seconds:30,baseInterval:.68,intervalPerWave:.034,budgetBase:1.15,budgetExponent:1.065},drops:{xp:1,metaChance:.08,healChance:.07,heal:12,weaponChance:.08,eliteWeaponChance:.45},weapons:[
   // dropWeight = relative odds this gun is picked when a field cache rolls a weapon drop
   // (maybeDropWeapon does a weighted pick over EDIT.weapons; 1 = baseline, all guns shipped equal).
   // 2026-08-13 RANGE BASELINE (owner: "make all weapons length be 100 to start, and upgrades make
@@ -135,18 +181,18 @@ const FORGE_BASE={player:{speed:245,maxHp:100,pickupRadius:90,scale:1,accel:2600
   // slowFactor = poisoned enemies move at this fraction of normal speed, so you don't have to
   // kite/run away waiting for the DoT — the target is defanged the moment it's infected.
   {id:'weapon.poison',name:'Toxin Injector',kind:'poison',damage:6,rate:.5,speed:600,shots:1,pierce:1,color:'#7cff4f',range:100,dot:16,dotTime:2.2,spreadChance:.9,spreadRadius:52,spreadFactor:.7,poisonStackMax:3,slowFactor:.6,dropWeight:1,sfx:'poison_fire.mp3',icon:4}
-],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png'},{id:'enemy.slime',name:'Hive Slime',r:18,hp:34,speed:52,damage:7,color:'#c48cff',weight:4,dropXp:1,unlockWave:2,sprite:'art_src/topdown_v1/slime.png'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:3,sprite:'art_src/topdown_v1/runner.png'},{id:'enemy.nodeSpawn',name:'Node Spawn',r:16,hp:48,speed:78,damage:8,color:'#9a6ad8',weight:3,dropXp:2,unlockWave:4,sprite:'art_src/topdown_v1/node_spawn.png'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png'},{id:'enemy.psychoid',name:'Psychoid',r:18,hp:44,speed:86,damage:8,color:'#c46cff',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/psychoid.png'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png'},{id:'enemy.biomorph',name:'Biomorph',r:16,hp:28,speed:138,damage:8,color:'#7b6cff',weight:4,dropXp:2,unlockWave:7,sprite:'art_src/topdown_v1/biomorph.png'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png'},{id:'enemy.cyberMutant',name:'Cyber Mutant',r:22,hp:160,speed:60,damage:16,color:'#c46cff',weight:2,dropXp:5,unlockWave:8,sprite:'art_src/topdown_v1/cyber_mutant.png'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:10,sprite:'art_src/topdown_v1/mutant_enforcer.png'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:11,sprite:'art_src/topdown_v1/zombie_colossus.png'},{id:'enemy.praetorian',name:'Praetorian',r:28,hp:320,speed:48,damage:26,color:'#5cff7a',weight:0,dropXp:14,unlockWave:99,sprite:'art_src/topdown_v1/praetorian.png'}],codexPages:null,
+],entities:[{id:'enemy.shambler',name:'Shambler',r:16,hp:26,speed:68,damage:6,color:'#9ab0b4',weight:7,dropXp:1,unlockWave:1,sprite:'art_src/topdown_v1/shambler.png',sfxAttack:'shambler_attack.mp3',sfxDie:'shambler_die.mp3'},{id:'enemy.slime',name:'Hive Slime',r:18,hp:34,speed:52,damage:7,color:'#c48cff',weight:4,dropXp:1,unlockWave:2,sprite:'art_src/topdown_v1/slime.png',sfxAttack:'slime_attack.mp3',sfxDie:'slime_die.mp3'},{id:'enemy.runner',name:'Runner',r:14,hp:17,speed:128,damage:6,color:'#e97088',weight:4,dropXp:1,unlockWave:3,sprite:'art_src/topdown_v1/runner.png',sfxAttack:'runner_attack.mp3',sfxDie:'runner_die.mp3'},{id:'enemy.nodeSpawn',name:'Node Spawn',r:16,hp:48,speed:78,damage:8,color:'#9a6ad8',weight:3,dropXp:2,unlockWave:4,sprite:'art_src/topdown_v1/node_spawn.png',sfxAttack:'node_attack.mp3',sfxDie:'node_die.mp3'},{id:'enemy.crawler',name:'Crawler',r:15,hp:38,speed:96,damage:10,color:'#b5bd76',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/crawler.png',sfxAttack:'crawler_attack.mp3',sfxDie:'crawler_die.mp3'},{id:'enemy.psychoid',name:'Psychoid',r:18,hp:44,speed:86,damage:8,color:'#c46cff',weight:3,dropXp:2,unlockWave:5,sprite:'art_src/topdown_v1/psychoid.png',sfxAttack:'psychoid_attack.mp3',sfxDie:'psychoid_die.mp3'},{id:'enemy.necroNode',name:'Necro Node',r:23,hp:140,speed:0,damage:8,color:'#a46fca',weight:1,dropXp:5,unlockWave:6,sprite:'art_src/topdown_v1/necro_node.png',sfxAttack:'necro_attack.mp3',sfxDie:'necro_die.mp3'},{id:'enemy.biomorph',name:'Biomorph',r:16,hp:28,speed:138,damage:8,color:'#7b6cff',weight:4,dropXp:2,unlockWave:7,sprite:'art_src/topdown_v1/biomorph.png',sfxAttack:'biomorph_attack.mp3',sfxDie:'biomorph_die.mp3'},{id:'enemy.brute',name:'Brute',r:24,hp:95,speed:42,damage:16,color:'#e5a66e',weight:2,dropXp:3,unlockWave:8,sprite:'art_src/topdown_v1/brute.png',sfxAttack:'brute_attack.mp3',sfxDie:'brute_die.mp3'},{id:'enemy.cyberMutant',name:'Cyber Mutant',r:22,hp:160,speed:60,damage:16,color:'#c46cff',weight:2,dropXp:5,unlockWave:8,sprite:'art_src/topdown_v1/cyber_mutant.png',sfxAttack:'cyber_attack.mp3',sfxDie:'cyber_die.mp3'},{id:'enemy.armored',name:'Armored Dead',r:20,hp:120,speed:54,damage:14,color:'#71889b',weight:2,dropXp:4,unlockWave:9,sprite:'art_src/topdown_v1/armored_dead.png',sfxAttack:'armored_attack.mp3',sfxDie:'armored_die.mp3'},{id:'enemy.mutant',name:'Mutant Enforcer',r:21,hp:175,speed:68,damage:20,color:'#d86c67',weight:1,dropXp:7,unlockWave:10,sprite:'art_src/topdown_v1/mutant_enforcer.png',sfxAttack:'mutant_attack.mp3',sfxDie:'mutant_die.mp3'},{id:'enemy.colossus',name:'Zombie Colossus',r:42,hp:1200,speed:32,damage:35,color:'#8b765f',weight:1,dropXp:20,unlockWave:11,sprite:'art_src/topdown_v1/zombie_colossus.png',sfxAttack:'colossus_attack.mp3',sfxDie:'colossus_die.mp3'},{id:'enemy.rotter',name:'Rotter',r:20,hp:78,speed:56,damage:13,color:'#7a8a72',weight:2,dropXp:4,unlockWave:8,sprite:'art_src/topdown_v1/rotter.png',sfxAttack:'shambler_attack.mp3',sfxDie:'shambler_die.mp3'},{id:'enemy.praetorian',name:'Praetorian',r:28,hp:320,speed:48,damage:26,color:'#5cff7a',weight:0,dropXp:14,unlockWave:99,sprite:'art_src/topdown_v1/praetorian.png',sfxAttack:'praetorian_attack.mp3',sfxDie:'praetorian_die.mp3'}],codexPages:null,
 // STAGE system (owner request 2026-08-06): discrete stages replace the pure-endless timer.
 // Each stage = its own backdrop palette + a roster cap (which entities can spawn) + a duration
 // before a boss (a scaled-up existing entity, no new art needed) spawns. Killing the boss opens
 // a between-stage break (upgrade card + continue), then the next stage begins. Data-driven so
 // FORGE/DATA tab JSON export can retune name/seconds/enemyCap/bg/bossMul later without code edits.
 stages:[
-  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bgArt:'art_src/stages/outskirts.jpg',obstacleArt:'art_src/obstacles/outskirts.png',bossMul:6,bossId:'boss.outskirts'},
-  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bgArt:'art_src/stages/sewers.jpg',obstacleArt:'art_src/obstacles/sewers.png',bossMul:7,bossId:'boss.sewers'},
-  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bgArt:'art_src/stages/downtown.jpg',obstacleArt:'art_src/obstacles/downtown.png',bossMul:8,bossId:'boss.downtown'},
-  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bgArt:'art_src/stages/highway.jpg',obstacleArt:'art_src/obstacles/highway.png',bossMul:9,bossId:'boss.highway'},
-  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bgArt:'art_src/stages/hivecore.jpg',obstacleArt:'art_src/obstacles/hivecore.png',bossMul:12,bossId:'boss.hivecore'}
+  {id:'stage.outskirts',name:'Outskirts',seconds:60,enemyCap:3,bg:['#0a1622','#142434'],bgArt:'art_src/stages/outskirts.jpg',groundArt:'art_src/stages/outskirts_tile.png',obstacleArt:'art_src/obstacles/outskirts.png',obstacleArts:['art_src/obstacles/outskirts.png','art_src/obstacles/props_crate.png','art_src/obstacles/props_barrel.png'],bossMul:6,bossId:'boss.outskirts'},
+  {id:'stage.sewers',name:'Sewers',seconds:75,enemyCap:6,bg:['#0d1a12','#16301f'],bgArt:'art_src/stages/sewers.jpg',groundArt:'art_src/stages/sewers_tile.png',obstacleArt:'art_src/obstacles/sewers.png',obstacleArts:['art_src/obstacles/sewers_barrel.png','art_src/obstacles/sewers_crate.png','art_src/obstacles/sewers_pipe.png','art_src/obstacles/sewers_manhole.png'],bossMul:7,bossId:'boss.sewers'},
+  {id:'stage.downtown',name:'Downtown',seconds:90,enemyCap:9,bg:['#160c1e','#2a1638'],bgArt:'art_src/stages/downtown.jpg',groundArt:'art_src/stages/downtown_tile.png',obstacleArt:'art_src/obstacles/downtown.png',obstacleArts:['art_src/obstacles/props_drum.png','art_src/obstacles/props_box.png','art_src/obstacles/props_crate.png','art_src/obstacles/downtown.png'],bossMul:8,bossId:'boss.downtown'},
+  {id:'stage.highway',name:'Highway',seconds:105,enemyCap:13,bg:['#1c0a0a','#3a1414'],bgArt:'art_src/stages/highway.jpg',groundArt:'art_src/stages/highway_tile.png',obstacleArt:'art_src/obstacles/highway.png',obstacleArts:['art_src/obstacles/props_barrel.png','art_src/obstacles/props_drum.png','art_src/obstacles/highway.png'],bossMul:9,bossId:'boss.highway'},
+  {id:'stage.hivecore',name:'HiVE Core',seconds:120,enemyCap:99,bg:['#050b14','#111b2c'],bgArt:'art_src/stages/hivecore.jpg',groundArt:'art_src/stages/hivecore_tile.png',obstacleArt:'art_src/obstacles/hivecore.png',obstacleArts:['art_src/obstacles/hivecore.png'],bossMul:12,bossId:'boss.hivecore'}
 ],
 // PER-STAGE BOSS SLOTS (owner 2026-08-08, "each boss has its own slot in bosses"): first-class,
 // FORGE-editable guardians. `baseEntityId` picks which shipped entity's sprite/anim the boss borrows
@@ -193,7 +239,14 @@ if(pruneRetired(EDIT)){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}
 Object.assign(EDIT.waves,{budgetBase:EDIT.waves.budgetBase??1.15,budgetExponent:EDIT.waves.budgetExponent??1.065});
 // Migrate the deadly pre-G6 default so old localStorage cannot keep the softlock.
 if(EDIT.waves.budgetBase>=3.5){EDIT.waves.budgetBase=1.15;EDIT.waves.budgetExponent=1.065}
-function persistForge(){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){alert('Storage full — Forge values were not saved.')}
+let _dropMigrated=false;
+if(EDIT.drops){
+  const wc=+EDIT.drops.weaponChance,ec=+EDIT.drops.eliteWeaponChance;
+  if(wc===.04||wc===.05){EDIT.drops.weaponChance=.08;_dropMigrated=true}
+  if(ec===.35||ec===.4){EDIT.drops.eliteWeaponChance=.45;_dropMigrated=true}
+}
+function persistForge(){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){alert('Storage full — Forge values were not saved.')}}
+if(_dropMigrated)persistForge();
   try{if(Array.isArray(heldWeapons))syncHeldFromForge()}catch(_){}}
 function syncHeldFromForge(){
   // Mid-run FORGE edits used to write EDIT only. heldWeapons is a copy, so Nova damage 22→30
@@ -347,7 +400,10 @@ function spriteFor(src){
   }
   if(!SPRITES[src]){
     const image=new Image();
-    image.onerror=()=>{image._fail=1};
+    image.onerror=()=>{
+      if(!image._retried){image._retried=1;image.src=src;return}
+      image._fail=1;
+    };
     image.src=src;
     SPRITES[src]=image;
   }
@@ -358,7 +414,10 @@ function mediaLibraryOptions(selected){
   const opts=[];
   opts.push(`<option value="">(none / default)</option>`);
   const stock=['art_src/stages/outskirts.jpg','art_src/stages/sewers.jpg','art_src/stages/downtown.jpg','art_src/stages/highway.jpg','art_src/stages/hivecore.jpg',
+    'art_src/stages/outskirts_tile.png','art_src/stages/sewers_tile.png','art_src/stages/downtown_tile.png','art_src/stages/highway_tile.png','art_src/stages/hivecore_tile.png',
     'art_src/obstacles/outskirts.png','art_src/obstacles/sewers.png','art_src/obstacles/downtown.png','art_src/obstacles/highway.png','art_src/obstacles/hivecore.png',
+    'art_src/obstacles/sewers_barrel.png','art_src/obstacles/sewers_crate.png','art_src/obstacles/sewers_pipe.png','art_src/obstacles/sewers_manhole.png',
+    'art_src/obstacles/props_barrel.png','art_src/obstacles/props_crate.png','art_src/obstacles/props_drum.png','art_src/obstacles/props_box.png',
     OBSTACLE_SPRITE];
   stock.forEach(p=>opts.push(`<option value="${_escAttr(p)}" ${selected===p?'selected':''}>${_escAttr(p.replace(/^art_src\//,''))}</option>`));
   Object.entries(MEDIA_LIB).forEach(([id,m])=>{
@@ -401,7 +460,12 @@ function spriteSrc8(base,face8,state){
   return base;
 }
 function spriteSrcForEntity(e,face8,state){
-  const k=entitySpriteKey(e);if(SPRITE_OVR[k])return SPRITE_OVR[k];
+  const k=entitySpriteKey(e);
+  const ovr=ovrDataURL(SPRITE_OVR[k]);
+  if(ovr&&typeof ovr==='string'){
+    const im=spriteFor(ovr);
+    if(im&&!im._fail)return ovr;
+  }
   const base=(e&&e.sprite)||'';if(!base)return '';
   return spriteSrc8(base, face8, state);
 }
@@ -518,7 +582,8 @@ function drawEscortDrone(wx,wy,aim){
   ctx.restore();
 }
 // Preload 8-dir sheets for player + cast so first facing switch isn't a missing-frame flash
-const PRELOAD_STEMS=['shambler','slime','runner','node_spawn','crawler','necro_node','brute','cyber_mutant','armored_dead','mutant_enforcer','zombie_colossus','praetorian','psychoid','biomorph'];
+const PRELOAD_STEMS=['shambler','slime','runner','node_spawn','crawler','necro_node','brute','cyber_mutant','armored_dead','mutant_enforcer','zombie_colossus','rotter','praetorian','psychoid','biomorph'];
+PRELOAD_STEMS.forEach(stem=>spriteFor('art_src/topdown_v1/'+stem+'.png'));
 PRELOAD_STEMS.forEach(stem=>{
   FACE_SFX8.forEach(s=>{
     spriteFor('art_src/topdown_v1/'+stem+'_walk_'+s+'.png');
@@ -529,8 +594,9 @@ PRELOAD_STEMS.forEach(stem=>{
 });
 spriteFor(PLAYER_HULL);spriteFor(PLAYER_TURRET);spriteFor(PLAYER_SPRITE);spriteFor(DRONE_SPRITE);
 PRELOAD_STEMS.forEach(stem=>spriteFor('art_src/topdown_v1/'+stem+'_skel.png'));
+['outskirts','sewers','downtown','highway','hivecore'].forEach(n=>spriteFor('art_src/stages/'+n+'_tile.png'));
 
-const SFX_FILES=['Eggs Open.mp3','eldritch sponge attack.mp3','eldritch sponge death.mp3','electric-explosive.mp3','grenade.mp3','light-machine-gun.mp3','lightning01.mp3','lightning02.mp3','m41a-pulse-rifle.mp3','magic-spell.mp3','money.mp3','praetorian01.mp3','praetorian02.mp3','subterrahit.mp3','xeno attack.mp3','xenotera hit.mp3','pulse_fire.mp3','seeker_fire.mp3','flame_loop.mp3','beam_fire.mp3','chain_fire.mp3','nova_fire.mp3','poison_fire.mp3'];
+const SFX_FILES=['Eggs Open.mp3','eldritch sponge attack.mp3','eldritch sponge death.mp3','electric-explosive.mp3','grenade.mp3','light-machine-gun.mp3','lightning01.mp3','lightning02.mp3','m41a-pulse-rifle.mp3','magic-spell.mp3','money.mp3','praetorian01.mp3','praetorian02.mp3','subterrahit.mp3','xeno attack.mp3','xenotera hit.mp3','pulse_fire.mp3','seeker_fire.mp3','flame_loop.mp3','beam_fire.mp3','chain_fire.mp3','nova_fire.mp3','poison_fire.mp3','shambler_attack.mp3','shambler_die.mp3','slime_attack.mp3','slime_die.mp3','runner_attack.mp3','runner_die.mp3','node_attack.mp3','node_die.mp3','crawler_attack.mp3','crawler_die.mp3','psychoid_attack.mp3','psychoid_die.mp3','necro_attack.mp3','necro_die.mp3','biomorph_attack.mp3','biomorph_die.mp3','brute_attack.mp3','brute_die.mp3','cyber_attack.mp3','cyber_die.mp3','armored_attack.mp3','armored_die.mp3','mutant_attack.mp3','mutant_die.mp3','colossus_attack.mp3','colossus_die.mp3','praetorian_attack.mp3','praetorian_die.mp3'];
 const SFX={fire:'assets/SFX/pulse_fire.mp3',hit:'assets/SFX/xeno attack.mp3',kill:'assets/SFX/xenotera hit.mp3'};let audioOn=true;
 let flameLoopAud=null,flameLoopOn=false;
 function sfxUrl(file){if(!file)return'';if(String(file).startsWith('assets/'))return file;return 'assets/SFX/'+file}
@@ -695,6 +761,14 @@ function venomMul(w){return (1+.6*modStacks(w.id,'venom'))*(1+.25*(META.venom||0
 // (owner 2026-08-16: 1 stack was already a keep-away). KB_CAP stops scatter multi-hits launching.
 const KB_IMPULSE=42, KB_CAP=140, KB_HALFLIFE=.10, KB_BOSS_RESIST=.15;
 function isStaticEnemy(e){return !!(e&&((e.speed||0)<=0.05||(e.type&&(e.type.speed||0)<=0)))}
+function canBeBoss(e){
+  if(!e)return false;
+  const id=e.id||(e.type&&e.type.id)||'';
+  if(id==='enemy.necroNode')return false;
+  const spd=e.speed!=null?e.speed:(e.type&&e.type.speed);
+  return (spd||0)>0;
+}
+window.__swarmCanBeBoss=canBeBoss;
 function clampEnemy(e){
   if(!e)return;
   const r=e.r||12;
@@ -807,7 +881,7 @@ function spawnDmgNum(x,y,amount){if(!amount)return;const o=dmgNums.find(o=>!o.ac
 // against player + enemies (no pathfinding/avoidance, no bullet blocking — see report).
 function genObstacles(){
   obstacles=[];const n=16;let tries=0;
-  const cfg=curStageCfg(), art=cfg.obstacleArt||OBSTACLE_SPRITE;
+  const cfg=curStageCfg(), arts=(cfg.obstacleArts&&cfg.obstacleArts.length)?cfg.obstacleArts:[cfg.obstacleArt||OBSTACLE_SPRITE];
   while(obstacles.length<n&&tries<n*12){
     tries++;
     const ang=Math.random()*Math.PI*2, dist=rand(280, Math.min(WORLD.halfW,WORLD.halfH)*0.72);
@@ -816,7 +890,8 @@ function genObstacles(){
     if(Math.hypot(x,y)<240)continue;
     let ok=true; for(const o of obstacles){if(Math.hypot(o.x-x,o.y-y)<o.r+70){ok=false;break}}
     if(!ok)continue;
-    obstacles.push({x,y,r:rand(36,64),seed:Math.random()*999,art,scale:rand(0.9,1.25)});
+    const art=arts[(Math.random()*arts.length)|0];
+    obstacles.push({x,y,r:rand(28,52),seed:Math.random()*999,art,scale:rand(0.85,1.15)});
   }
 }
 function pushOutOfObstacles(body){for(const o of obstacles){let dx=body.x-o.x,dy=body.y-o.y,d=Math.hypot(dx,dy),gap=o.r+body.r;if(d<1e-4){dx=1;dy=0;d=1}if(d<gap){body.x=o.x+dx/d*gap;body.y=o.y+dy/d*gap}}}
@@ -828,8 +903,13 @@ function applyForge(){
   Object.assign(player,{speed:EDIT.player.speed,maxHp:EDIT.player.maxHp,pickupRadius:EDIT.player.pickupRadius,scale:psc,r:16*psc});
   WEAPON=EDIT.weapons[0];
   ENEMIES=(EDIT.entities||[]).map(e=>{if(e.scale==null)e.scale=1;return e});
-  if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.04;
-  if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.35;
+  if(EDIT.drops.weaponChance==null)EDIT.drops.weaponChance=.08;
+  if(EDIT.drops.eliteWeaponChance==null)EDIT.drops.eliteWeaponChance=.45;
+  // 0.6.19: old shipped/fill defaults were .04/.05 and .35/.4 — those made field caches feel rare.
+  // Migrate only those known defaults so a hand-tuned FORGE value is left alone.
+  const wc=+EDIT.drops.weaponChance, ec=+EDIT.drops.eliteWeaponChance;
+  if(wc===.04||wc===.05)EDIT.drops.weaponChance=.08;
+  if(ec===.35||ec===.4)EDIT.drops.eliteWeaponChance=.45;
 }applyForge();
 // G7 — weapon caches, ranks, armory seed
 function weaponById(id){return (EDIT.weapons||[]).find(w=>w.id===id)||EDIT.weapons[0]}
@@ -855,7 +935,7 @@ function grantWeapon(id){
      weapon — you could never actually see or feel what you just picked up. Same id still ranks up. */
   heldWeapons=[Object.assign(copy(base),{rank:1})];WEAPON=heldWeapons[0];noteWeapon(WEAPON);return 'swap'}
 function maybeDropWeapon(x,y,elite){
-  const p=elite?(EDIT.drops.eliteWeaponChance??.35):(EDIT.drops.weaponChance??.04);
+  const p=elite?(EDIT.drops.eliteWeaponChance??.45):(EDIT.drops.weaponChance??.08);
   if(rand(0,1)>=p)return;
   const pool=(EDIT.weapons||[]).filter(w=>w&&w.id);if(!pool.length)return;
   // Weighted pick over dropWeight (default 1 = every gun shipped equal odds; FORGE > WEAPONS lets
@@ -1002,21 +1082,25 @@ function spawnBossEnemy(){
   // OLD localStorage FORGE payload (saved before this feature existed, no `bosses` array at all)
   // from breaking the guardian fight after this update ships.
   const bcfg=curBossCfg();
-  let roster=ENEMIES.filter(e=>(e.unlockWave||1)<=stageCap);if(!roster.length)roster=ENEMIES;
+  let roster=ENEMIES.filter(e=>(e.unlockWave||1)<=stageCap&&canBeBoss(e));if(!roster.length)roster=ENEMIES.filter(canBeBoss);
   const fallbackBase=roster.reduce((best,e)=>(!best||(e.unlockWave||1)>=(best.unlockWave||1))?e:best,null);
-  const used=waveRoster();
-  const praet=ENEMIES.find(e=>e.id==='enemy.praetorian');
+  const used=waveRoster().filter(canBeBoss);
+  const praet=ENEMIES.find(e=>e.id==='enemy.praetorian'&&canBeBoss(e));
   const pickPool=used.slice();if(praet)pickPool.push(praet);
   const rolled=pickPool.length?pickPool[Math.floor(Math.random()*pickPool.length)]:null;
-  const base=rolled||(bcfg&&ENEMIES.find(e=>e.id===bcfg.baseEntityId))||fallbackBase;
+  const slotBase=bcfg&&ENEMIES.find(e=>e.id===bcfg.baseEntityId);
+  const base=rolled||(slotBase&&canBeBoss(slotBase)?slotBase:null)||fallbackBase;
+  if(!base)return;
   // BOSS_FIGHT_SCALE (owner 2026-08-12: "make level boss 2x scale just for boss fight").
   // Applied ON TOP of the per-boss FORGE `scale` so hand-tuned boss slots keep their relative
   // sizes, and applied ONLY here in spawnBossEnemy() — no normal enemy, add, or wave spawn reads
   // it, which is the "just for boss fight" part. Radius only: hp, damage and speed are untouched,
   // so this is presentation, not a difficulty change. Note r feeds the arena clamp below and the
   // enemy's hit radius, so the bigger guardian is genuinely bigger to hit, not just drawn bigger.
+  // 2026-08-18: owner "minimum 3x bigger than normal" — never let the composed scale drop below 3.
   const BOSS_FIGHT_SCALE=2;
-  const scale=(bcfg?(bcfg.scale||1.6):1.6)*BOSS_FIGHT_SCALE;
+  const scale=Math.max(3,(bcfg?(bcfg.scale||1.6):1.6)*BOSS_FIGHT_SCALE);
+  window.__swarmLastBossScale=scale;
   const a=Math.random()*Math.PI*2,distance=Math.hypot(VIEW.w,VIEW.h)*.6+160;
   const r=base.r*scale;
   let x=Math.max(-WORLD.halfW+r,Math.min(WORLD.halfW-r,player.x+Math.cos(a)*distance)),
@@ -1732,9 +1816,21 @@ function draw(){
   bgGrad.addColorStop(0,stageBg[0]);bgGrad.addColorStop(1,stageBg[1]||stageBg[0]);
   ctx.fillStyle=bgGrad;ctx.fillRect(0,0,VIEW.w,VIEW.h);
   let ox=rand(-shake,shake),oy=rand(-shake,shake);ctx.save();ctx.translate(ox,oy);
-  // Arena plane = grid again (Eric 2026-08-07: photo floors looked horrible). Stage bgArt is
-  // still pickable in FORGE for optional later use, but gameplay draws the grid.
-  ctx.strokeStyle='#0f2a38';ctx.lineWidth=1;const grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;
+  // 2026-08-19: tileable top-down ground (1024²) scrolls with the camera. Old cinematic 540×960
+  // portraits stay on bgArt for FORGE/reference; gameplay uses groundArt.
+  const ground=spriteFor(st.groundArt||'');
+  // 1024² art drawn at GROUND_TILE world-px so a floor slab is about pawn-sized, not a football field.
+  const GROUND_TILE=256;
+  if(ground&&ground.complete&&ground.naturalWidth){
+    const tw=GROUND_TILE, th=GROUND_TILE;
+    const L=cam.x-VIEW.w/2, T=cam.y-VIEW.h/2, R=L+VIEW.w+tw, B=T+VIEW.h+th;
+    const x0=Math.floor(L/tw)*tw, y0=Math.floor(T/th)*th;
+    for(let y=y0;y<B;y+=th)for(let x=x0;x<R;x+=tw)ctx.drawImage(ground,sx(x),sy(y),tw,th);
+    ctx.strokeStyle='rgba(15,42,56,.18)';
+  }else{
+    ctx.strokeStyle='#0f2a38';
+  }
+  ctx.lineWidth=1;const grid=80,startX=(-cam.x%grid+grid)%grid,startY=(-cam.y%grid+grid)%grid;
   for(let x=startX;x<VIEW.w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,VIEW.h);ctx.stroke()}
   for(let y=startY;y<VIEW.h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(VIEW.w,y);ctx.stroke()}
 // S6 — static obstacles (procedural rock-cluster shapes, deterministic per-seed so they don't
@@ -1884,7 +1980,9 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    new Image().src='enemy.shambler' -> a bogus URL -> a truthy Image, so the `||` fallback to the
    real path never ran, naturalWidth stayed 0, and every enemy drew as the plain circle.
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
-for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;const attacking=(e.atkT||0)>0;const st=attacking?'attack':(moving?'walk':'idle');let img=spriteFor(spriteSrcForEntity(e.type,eFace,st));let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
+for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;const attacking=(e.atkT||0)>0;const st=attacking?'attack':(moving?'walk':'idle');let img=spriteFor(spriteSrcForEntity(e.type,eFace,st));
+  if(!img||img._fail||(img.complete&&!img.naturalWidth)){const base=(e.type&&e.type.sprite)||'';if(base)img=spriteFor(base)}
+  let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img&&img.complete&&img.naturalWidth?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
   if((e.burnT||0)>0&&(e.napalm||0)>0){
     const pulse=.55+.45*Math.sin(elapsed*14+e.x*.02);
     ctx.save();ctx.globalCompositeOperation='lighter';
@@ -1974,28 +2072,49 @@ drawTwinPod(px,py,player.hullAngle??player.angle,player.angle,playerDrawSize(),p
 ctx.restore();
 /* S1 (Eric, playtest): the whole HUD sat under the phone's status-bar icons (clock/battery).
    Every HUD y-coordinate below is shifted down by SAFE_TOP.
-   2026-08-14: weapon name used to share the STAGE/WAVE band (y=20+SAFE_TOP vs y=32+SAFE_TOP)
-   and the beastiary toast sat on the HP bar. Left stack first, weapon under it, toast under that. */
-const HUD=hudLayout();
-ctx.fillStyle='#dce9e7';ctx.font='800 30px system-ui';
-ctx.fillText('STAGE '+(stage+1)+' · '+curStageCfg().name,16,HUD.stageY);
+   2026-08-18: STAGE and the HOSTILES/SCORE/WAVE cluster used to share the same y (both 38+SAFE_TOP)
+   at 28–30px, so they painted on top of each other. Combat stats now sit on their own band under
+   the stage title, scale/wrap to stay clear of the forge/pause chrome, and HP/XP use their own
+   stacked band with an explicit small font (they were inheriting the 28px combat font). */
 const waveLabel=(stageBoss||bossPendingT>0)?'STAGE BOSS':'WAVE '+(stageWave+1)+'/'+WAVES_PER_STAGE;
 const waveLeft=Math.max(0,waveQuota(stageWave)-waveSpawned)+enemies.length;
-const mid=stageBoss?(stageBoss.bossName||'GUARDIAN')+'  '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp
-  :bossPendingT>0?'GUARDIAN INCOMING'
-  :('HOSTILES LEFT '+waveLeft+'     SCORE '+score+'     '+waveLabel);
-ctx.textAlign='center';ctx.fillStyle='#c8efe6';ctx.font='800 28px system-ui';
-ctx.fillText(mid+(shieldCharges?'     🛡'+shieldCharges:''),VIEW.w/2,HUD.centerY);
+const combatBits=stageBoss
+  ?[(stageBoss.bossName||'GUARDIAN')+'  '+Math.max(0,Math.ceil(stageBoss.hp))+'/'+stageBoss.maxHp,'SCORE '+score]
+  :bossPendingT>0?['GUARDIAN INCOMING','SCORE '+score]
+  :['HOSTILES LEFT '+waveLeft,'SCORE '+score,waveLabel];
+if(shieldCharges)combatBits.push('🛡'+shieldCharges);
+const chromeR=70, combatMaxW=Math.max(160,VIEW.w-chromeR*2);
+ctx.font='800 22px system-ui';
+const combatLines=(function(){
+  const lines=[];let cur='';
+  for(const bit of combatBits){
+    const next=cur?cur+'     '+bit:bit;
+    if(!cur||ctx.measureText(next).width<=combatMaxW){cur=next;continue}
+    lines.push(cur);cur=bit;
+  }
+  if(cur)lines.push(cur);
+  return lines.length?lines:[''];
+})();
+const HUD=hudLayout({centerLines:combatLines.length});
+const stageStr='STAGE '+(stage+1)+' · '+curStageCfg().name;
+ctx.textAlign='left';ctx.fillStyle='#dce9e7';
+fitCanvasFont(ctx,stageStr,Math.max(140,VIEW.w-chromeR-20),30,16,'800');
+ctx.fillText(stageStr,16,HUD.stageY);
+ctx.textAlign='center';ctx.fillStyle='#c8efe6';
+fitCanvasFont(ctx,combatLines.reduce((a,b)=>a.length>=b.length?a:b,''),combatMaxW,22,13,'800');
+for(let i=0;i<combatLines.length;i++)ctx.fillText(combatLines[i],VIEW.w/2,HUD.centerY+i*22);
 ctx.textAlign='left';
-ctx.fillStyle='#26383a';ctx.fillRect(18,HUD.hpY,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,HUD.hpY,180*player.hp/player.maxHp,10);ctx.fillStyle='#dce9e7';ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,HUD.hpBottom);
+ctx.fillStyle='#26383a';ctx.fillRect(18,HUD.hpY,180,10);ctx.fillStyle=player.hp>30?'#64e7b5':'#ff718a';ctx.fillRect(18,HUD.hpY,180*player.hp/player.maxHp,10);
+ctx.fillStyle='#dce9e7';ctx.font='13px system-ui';
+ctx.fillText('HP '+Math.ceil(player.hp)+' / '+player.maxHp,205,HUD.hpBottom);
 if(bossPendingT>0){
   ctx.textAlign='center';const pulse=.6+.4*Math.sin(elapsed*10);
   ctx.fillStyle=`rgba(255,113,138,${pulse})`;ctx.font='900 26px system-ui';
   ctx.fillText((bossPendingCfg&&bossPendingCfg.name||curStageCfg().name+' Guardian').toUpperCase()+' INCOMING',VIEW.w/2,VIEW.h*0.32);
   ctx.textAlign='left';
 }
-ctx.fillStyle='#1b2f33';ctx.fillRect(18,88+SAFE_TOP,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,88+SAFE_TOP,180*Math.max(0,Math.min(1,xp/nextXp)),8);
-ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected+'   🔫 '+heldWeapons.length,205,96+SAFE_TOP);
+ctx.fillStyle='#1b2f33';ctx.fillRect(18,HUD.xpY,180,8);ctx.fillStyle='#6fffe2';ctx.fillRect(18,HUD.xpY,180*Math.max(0,Math.min(1,xp/nextXp)),8);
+ctx.fillStyle='#9fded2';ctx.font='13px system-ui';ctx.fillText('LVL '+level+'   XP '+Math.floor(xp)+' / '+nextXp+'   ◆ '+orbsCollected+'   🔫 '+heldWeapons.length,205,HUD.xpTextY);
 if((state==='play'||state==='levelup'||state==='stagebreak')&&heldWeapons[0]){ctx.save();ctx.textAlign='center';ctx.fillStyle='#ffe066';ctx.font='700 15px system-ui';ctx.shadowColor='#000';ctx.shadowBlur=4;
   ctx.fillText((heldWeapons[0].name||'')+(heldWeapons[0].rank>1?'  Rk.'+heldWeapons[0].rank:''),VIEW.w/2,HUD.weaponY);
   const hw=heldWeapons[0], need=orbsForRank(hw.rank||1), got=weaponOrbs[hw.id]||0;
@@ -2325,7 +2444,7 @@ function debriefRows(){
     const rank=live.rank||w.rank||1;
     const mods=weaponMods[w.id]||{};
     const modTxt=Object.keys(mods).filter(k=>mods[k]>0).map(k=>k+' '+mods[k]+'/'+MOD_MAX).join(', ');
-    rows.push({label:(live.name||w.name)+'  Rk.'+rank+(modTxt?' · '+modTxt:''),value:rank,col:live.color||'#ffe08a',wep:live,weapon:1});
+    rows.push({label:(live.name||w.name)+'  Rk.'+rank,detail:modTxt,value:rank,col:live.color||'#ffe08a',wep:live,weapon:1});
   }
   debriefRowsCache=rows;return rows;
 }
@@ -2408,19 +2527,28 @@ function drawDebrief(){
   // overflow inevitable rather than preventing it. Shrinking the panel 20% made that reachable with
   // far fewer rows, so the floors have to go: pitch is now exactly avail/rows when the list is
   // long, which fits BY CONSTRUCTION at any panel size or row count.
-  const pitch=Math.min(64,rows.length>1?avail/rows.length:64);
+  const weights=rows.map(r=>r.weapon?2:(r.big?1.35:1));
+  const weightSum=weights.reduce((a,b)=>a+b,0)||1;
+  const unit=Math.min(64,avail/weightSum);
   // Type follows the pitch all the way down instead of stopping at 1.0, so rows can never overlap
   // each other. The 0.55 floor is a legibility backstop for an absurd row count; below that the
   // list is unreadable anyway and clamping is preferable to sub-pixel text.
-  const fs=Math.max(.55,Math.min(1.9,pitch/34));
+  const fs=Math.max(.55,Math.min(1.9,unit/34));
   const px_=n=>Math.round(n*fs);
-  // A short list (few enemy types killed) would otherwise bunch at the top of a now-full-screen
-  // panel and leave a huge void — centre the block vertically when it doesn't fill the space.
-  const startY=rowTop+Math.max(0,(avail-rows.length*pitch)/2);
+  const blockH=weightSum*unit;
+  const startY=rowTop+Math.max(0,(avail-blockH)/2);
+  // Clip row text to the panel so a long weapon-mod string can never spill onto the backdrop
+  // (owner 2026-08-18). wrapCanvasText keeps it readable; the clip is the last-ditch guard.
+  ctx.save();
+  ctx.beginPath();ctx.rect(px0+10,py0+Math.round(90*hs),panelW-20,panelH-Math.round(120*hs));ctx.clip();
+  let yCursor=startY;
   rows.forEach((r,i)=>{
-    const appear=i*0.45, shown=debriefT-appear;if(shown<=0)return;
+    const appear=i*0.45, shown=debriefT-appear;
+    const rowH=weights[i]*unit;
+    const y=yCursor+rowH*0.38;
+    yCursor+=rowH;
+    if(shown<=0)return;
     const k=Math.min(1,shown/0.4), val=Math.round((r.value||0)*k*k);
-    const y=startY+i*pitch;
     if(r.big){
       ctx.fillStyle='#fff';ctx.font=`900 ${px_(28)}px system-ui`;ctx.shadowColor='#4ff';ctx.shadowBlur=16;
       ctx.fillText(String(val),W/2,y);
@@ -2428,22 +2556,32 @@ function drawDebrief(){
       ctx.fillText(r.label,W/2,y+px_(18));
     }else{
       ctx.textAlign='left';ctx.fillStyle=r.col||'#dce9e7';ctx.font=`700 ${px_(15)}px system-ui`;
-      const labelX=px0+28, chip=px_(22);
+      const labelX=px0+28, chip=px_(22), valueX=px0+panelW-28;
+      const textX=r.wep?labelX+chip+px_(8):labelX;
+      const textMax=Math.max(40,valueX-textX-px_(16));
       if(r.wep){/* weapon chip — scales with the type so it doesn't float next to giant text */
         ctx.fillStyle=(r.wep.color||'#6ff')+'33';ctx.fillRect(labelX,y-chip*.73,chip,chip);
         ctx.strokeStyle=r.wep.color||'#6ff';ctx.strokeRect(labelX,y-chip*.73,chip,chip);
         ctx.fillStyle=r.wep.color||'#6ff';ctx.font=`900 ${px_(12)}px system-ui`;ctx.textAlign='center';
         ctx.fillText((r.wep.name||'?')[0],labelX+chip/2,y+px_(1));ctx.textAlign='left';
         ctx.fillStyle=r.col||'#dce9e7';ctx.font=`700 ${px_(14)}px system-ui`;
-        ctx.fillText(r.label,labelX+chip+px_(8),y);
+        const nameLines=wrapCanvasText(ctx,r.label,textMax);
+        nameLines.forEach((ln,li)=>ctx.fillText(ln,textX,y+li*px_(16)));
+        if(r.detail){
+          ctx.fillStyle='#8fd8cc';ctx.font=`600 ${px_(12)}px system-ui`;
+          const detLines=wrapCanvasText(ctx,r.detail,textMax);
+          detLines.forEach((ln,li)=>ctx.fillText(ln,textX,y+nameLines.length*px_(16)+li*px_(14)));
+        }
       }else{
-        ctx.fillText(r.label,labelX,y);
+        const lines=wrapCanvasText(ctx,r.label,textMax);
+        lines.forEach((ln,li)=>ctx.fillText(ln,labelX,y+li*px_(16)));
       }
       ctx.textAlign='right';ctx.fillStyle='#fff';ctx.font=`900 ${px_(18)}px system-ui`;
-      ctx.fillText(String(val),px0+panelW-28,y);
+      ctx.fillText(String(val),valueX,y);
       ctx.textAlign='center';
     }
   });
+  ctx.restore();
   // Fireworks paint OVER the panel (screen space, additive-ish glow) — HiVE WAR draws them in the
   // same slot, after the rows and before the continue prompt.
   for(const f of fireworks){

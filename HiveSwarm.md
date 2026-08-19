@@ -3,7 +3,7 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.15
+version: 0.6.19
 updated: 2026-08-18
 tags: [game, hivemind, webgame, documentation]
 ---
@@ -15,15 +15,15 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.15` · `sw.js` `CACHE_VERSION = v37` |
+| **Version** | `0.6.19` · `sw.js` `CACHE_VERSION = v41` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **Desktop play link** | `Play HiVE Swarm.lnk` (Drive id `1mwDl1OW6xcSpdh9hjFhFsNdWhY_Wet6_`) always launches that bat — never the old `standalone\PLAY.bat`. |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.15.apk` plus `HiveSwarm-latest.apk`. Older Swarm APKs are in `_APKs\Archive`. |
-| **Always-latest APK** | `...\My Games\_APKs\HiveSwarm-latest.apk` and `D:\Drive\APK\HiveSwarm-latest.apk` — overwritten on every Swarm APK build. |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.19.apk`. Older Swarm APKs are in `_APKs\Archive`. |
+| **Always-latest APK** | Not used for 0.6.16 — owner asked for numbered APKs only (`HiveSwarm-0.6.16.apk`). |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
 
@@ -240,6 +240,22 @@ Do these in order. Do not add weapons or stages in front of P0.
 ---
 
 ## 8. Change record (keep — measured)
+
+### 2026-08-19 — Grok · v0.6.19 · Praetorian dirs, weapon drops, sprite punch
+
+Praetorian walk/attack were the same front strip on every facing (and attack frames were sliced). New 8-dir walk (E/W stride, S cycle, N back, diagonals from stills) and attack (raise → slash). Weapon caches: shipped `weaponChance` was 0.05 but `applyForge` / `maybeDropWeapon` filled **0.04**, and old FORGE saves kept that — plus guns **replace** instead of stacking, so it felt like fewer drops. Defaults now **0.08 / 0.45 elite**; old 0.04/0.05 and 0.35/0.40 values migrate. Lime punch across 463 sprite files; node_spawn / cyber_mutant / psychoid cloned walks rebuilt from unique stills.
+
+### 2026-08-19 — Grok · v0.6.18 · ground 256, biomorph stock fallback
+
+Ground tiles draw at 256 world-px (was 1024) so slabs/grates match pawn size. Biomorph purple circle was the missing-sprite fallback: FORGE override objects and late/failed loads now retry and fall back to `biomorph.png`.
+
+### 2026-08-19 — Grok · v0.6.17 · tiled grounds, rotter, colossus L/R, biomorph feet, slime west
+
+Stage floors are now 1024² top-down tiles (`art_src/stages/*_tile.png`) drawn in world space. Isolated barrels/crates/pipes spawn on matching stages. Colossus east/west is the armored body again. The leftover rotting L/R is a new **Rotter** with N/S/NE/NW/SE/SW. Biomorph has feet. Slime west/SW/NW are mirrored left-facing.
+
+### 2026-08-18 — Grok · v0.6.16 · slime punch, no necro boss, 3× boss, enemy SFX
+
+Re-imported Hive Slime from the owner sheet by blob (not a 10-col grid), punched lime/label splash, dropped the clipped bottom row. Necro / speed-0 bodies can no longer roll as the guardian. Boss visual/hit scale floors at 3× the base entity. First pass of per-enemy attack/die samples in `assets/SFX/*_{attack,die}.mp3`. APK is numbered `HiveSwarm-0.6.16.apk` only.
 
 ### 2026-08-18 — Grok · v0.6.15 · flame Napalm, skeleton deaths, weapon SFX
 
