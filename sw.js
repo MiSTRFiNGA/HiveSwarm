@@ -6,7 +6,7 @@
 // player-facing string) — only CACHE_VERSION needs bumping to bust stale caches; renaming
 // the prefix would work too, but bumping the version is the documented mechanism and is
 // sufficient on its own to force every returning tester to refetch the shell.
-const CACHE_VERSION = 'v41';  // v0.6.19 — praetorian dirs, drop rate, sprite punch
+const CACHE_VERSION = 'v42';  // v0.6.20 — fix persistForge syntax (0.6.19 blank launch)
 const CACHE_NAME = `hiveswarm-game-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 

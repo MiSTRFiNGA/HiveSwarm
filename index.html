@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.19';
+const GAME_VERSION='0.6.20';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -245,9 +245,9 @@ if(EDIT.drops){
   if(wc===.04||wc===.05){EDIT.drops.weaponChance=.08;_dropMigrated=true}
   if(ec===.35||ec===.4){EDIT.drops.eliteWeaponChance=.45;_dropMigrated=true}
 }
-function persistForge(){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){alert('Storage full — Forge values were not saved.')}}
-if(_dropMigrated)persistForge();
+function persistForge(){try{localStorage.setItem(FORGE_KEY,JSON.stringify(EDIT))}catch(_){alert('Storage full — Forge values were not saved.')}
   try{if(Array.isArray(heldWeapons))syncHeldFromForge()}catch(_){}}
+if(_dropMigrated)persistForge();
 function syncHeldFromForge(){
   // Mid-run FORGE edits used to write EDIT only. heldWeapons is a copy, so Nova damage 22→30
   // (and any other live field) did nothing until the next run. Re-apply rank on top of the
