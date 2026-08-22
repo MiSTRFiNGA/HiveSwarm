@@ -72,6 +72,32 @@ def main() -> None:
         )
         page.wait_for_timeout(250)
         page.screenshot(path=str(OUT / "02_runner_colossus.png"))
+        page.evaluate(
+            """() => {
+              enemies.length = 0;
+              const crawler = ENEMIES.find(e => e.id === 'enemy.crawler');
+              const praet = ENEMIES.find(e => e.id === 'enemy.praetorian');
+              const angles = [Math.PI/2, Math.PI*0.25, 0, -Math.PI/2];
+              const xs = [-160, -50, 60, 170];
+              for (let i = 0; i < 4; i++) {
+                enemies.push({
+                  x: player.x + xs[i], y: player.y - 80, r:(crawler.r||16),
+                  hp:9999,maxHp:9999,speed:40,damage:0,type:crawler,color:crawler.color,
+                  hit:0,elite:null,t:0.4,angle:angles[i],
+                  vx:Math.cos(angles[i])*50, vy:Math.sin(angles[i])*50
+                });
+                if (praet) enemies.push({
+                  x: player.x + xs[i], y: player.y + 140, r:(praet.r||28),
+                  hp:9999,maxHp:9999,speed:20,damage:0,type:praet,color:praet.color,
+                  hit:0,elite:null,t:0.4,angle:angles[i],
+                  vx:Math.cos(angles[i])*20, vy:Math.sin(angles[i])*20
+                });
+              }
+              WORLD.maxEnemies = enemies.length;
+            }"""
+        )
+        page.wait_for_timeout(250)
+        page.screenshot(path=str(OUT / "03_crawler_praet.png"))
         print("errors", errs)
         browser.close()
 

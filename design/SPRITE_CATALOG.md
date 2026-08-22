@@ -19,13 +19,13 @@ Facing map (engine `FACE_SFX8`): `e se s sw w nw n ne`. **s = facing camera (fro
 | `player` | Twin Pod hull + turret | rotate in draw | n/a | **in (0.6.5)** | Soldier 8-dir retired as the pawn. Live art is `player_hull.png` + `player_turret.png`. |
 | `shambler` | 8/8 | 8/8 | strip | **usable** | Same punk-zombie across N/E. Magenta leftover in some files (editor key). |
 | `runner` | 8/8 | 8/8 | strip | **usable** | S walk frame 0 was a headless torso — replaced 2026-08-22. E idle no longer has baked "HIVE ZOM" title. |
-| `crawler` | 8/8 | 8/8 | 4 | **usable, different species look** | Walk `e` is a skeletal quadruped — fine if that *is* the crawler, but it does not read as the same mesh as the idle standing pose. |
+| `crawler` | 8/8 | 8/8 | 4 | **usable** | Unified 2026-08-22 to the skull-hopper. E/W are a two-leg hopper profile, not the old skeleton dog. |
 | `necro_node` | 8/8 | 8/8 | strip | **usable** | Stationary; walk dirs are mostly unused. |
 | `brute` | 8/8 | 8/8 | strip | **usable** | Most consistent silhouette. |
 | `armored_dead` | 8/8 | 8/8 | strip | **usable** | |
 | `mutant_enforcer` | 8/8 | 8/8 | strip | **usable** | W view is a squat red brute — reads as the same unit. |
-| `zombie_colossus` | 8/8 | 8/8 | strip | **mostly same tank** | E/W idle+walk rebuilt from the front tank body (2026-08-22). SE/SW walk is still the skull-and-saw giant. |
-| `praetorian` | 6 unique / 2 fallback | S walk = 4-frame idle; SE/SW new | **in** | SE/SW rebuilt 2026-08-16. NE/NW still copy N. Queen out. |
+| `zombie_colossus` | 8/8 | 8/8 | strip | **tank** | E/W tank profile. SE/SW copy the front tank walk (2026-08-22 live play). |
+| `praetorian` | 8/8 | 8/8 | strip | **in** | SE/SW copy S; NE/NW copy N. Old SE/NE stills were shattered claws. E/W remain the scythe profile. Queen out. |
 | `psychoid` **NEW** | 1 pose × 8 dirs | 4-frame top-down | **in** | Overhead already. Same sprite all dirs. |
 | `biomorph` **NEW** | E-facing + W flip | 4-frame side walk | **in** | One facing, then flip. Unlock 7. |
 | `subterra_maw` | 1 pose × 8 dirs | 5-frame scan | **retired 0.6.4** | Owner: horrible. Files remain on disk. Not in roster / preload. |

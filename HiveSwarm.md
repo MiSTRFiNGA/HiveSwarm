@@ -3,7 +3,7 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.24
+version: 0.6.25
 updated: 2026-08-22
 tags: [game, hivemind, webgame, documentation]
 ---
@@ -15,14 +15,14 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.24` · `sw.js` `CACHE_VERSION = v46` |
+| **Version** | `0.6.25` · `sw.js` `CACHE_VERSION = v47` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **Desktop play link** | `Play HiVE Swarm.lnk` (Drive id `1mwDl1OW6xcSpdh9hjFhFsNdWhY_Wet6_`) always launches that bat — never the old `standalone\PLAY.bat`. |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.24.apk`. Older Swarm APKs are in `_APKs\Archive`. |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.25.apk`. Older Swarm APKs are in `_APKs\Archive`. |
 | **Always-latest APK** | Not used for 0.6.16 — owner asked for numbered APKs only (`HiveSwarm-0.6.16.apk`). |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
@@ -240,6 +240,10 @@ Do these in order. Do not add weapons or stages in front of P0.
 ---
 
 ## 8. Change record (keep — measured)
+
+### 2026-08-22 — Grok · v0.6.25 · crawler identity + runner idle + praet SE
+
+Live play: Crawler turned into a skeletal dog on E/SE/SW. All dirs now the skull hopper; E/W get a two-legged hopper profile. Runner idle_s was a side-run loop — now the standing front. Praetorian SE/NE idle+walk were shattered claws — copied from S/N.
 
 ### 2026-08-22 — Grok · v0.6.24 · live-play colossus SE/SW
 
