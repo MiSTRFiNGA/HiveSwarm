@@ -6,7 +6,7 @@
 // player-facing string) — only CACHE_VERSION needs bumping to bust stale caches; renaming
 // the prefix would work too, but bumping the version is the documented mechanism and is
 // sufficient on its own to force every returning tester to refetch the shell.
-const CACHE_VERSION = 'v43';  // v0.6.21 — sprite crop + twin-stick title pick
+const CACHE_VERSION = 'v44';  // v0.6.22 — density, elites, guardian dash, coolant/shockwave
 const CACHE_NAME = `hiveswarm-game-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 

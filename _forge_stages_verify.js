@@ -99,9 +99,10 @@ async function loadGame() {
   let H = await loadGame();
   if (!H.forge || !H.ui) { console.error('API ERROR: forge hooks missing'); process.exit(1); }
   const tabs = H.ui.tabs();
-  if (tabs[5] !== 'STAGES') { console.error('FAIL: TABS[5] !==STAGES, got', tabs); process.exit(1); }
+  const stagesAt = tabs.indexOf('STAGES');
+  if (stagesAt < 0) { console.error('FAIL: STAGES tab missing, got', tabs); process.exit(1); }
   H.reset();
-  H.ui.setTab(5);
+  H.ui.setTab(stagesAt);
   const html1 = H.ui.html();
   const expectStages = ['Outskirts', 'Sewers', 'Downtown', 'Highway', 'HiVE Core'];
   for (const name of expectStages) {
@@ -136,7 +137,7 @@ async function loadGame() {
   if (after.stages[0].name !== 'Outskirts EDITED') { console.error('FAIL: stage name edit did not survive reload. got', after.stages[0].name); process.exit(1); }
   if (!after.stages[0].bg || after.stages[0].bg[0] !== '#111111') { console.error('FAIL: stage bg edit did not survive reload. got', after.stages[0].bg); process.exit(1); }
   if (after.stages.length !== 5) { console.error('FAIL: stage count changed unexpectedly', after.stages.length); process.exit(1); }
-  H.ui.setTab(5);
+  H.ui.setTab(stagesAt);
   const html2 = H.ui.html();
   if (!html2.includes('Outskirts EDITED') || !html2.includes('value="999"')) {
     console.error('FAIL: re-rendered STAGES tab does not reflect the persisted edit\n', html2.slice(0, 400));

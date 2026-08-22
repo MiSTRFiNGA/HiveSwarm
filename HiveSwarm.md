@@ -3,7 +3,7 @@ type: game-documentation
 title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
-version: 0.6.20
+version: 0.6.22
 updated: 2026-08-22
 tags: [game, hivemind, webgame, documentation]
 ---
@@ -15,14 +15,14 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.21` · `sw.js` `CACHE_VERSION = v43` |
+| **Version** | `0.6.22` · `sw.js` `CACHE_VERSION = v44` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
 | **Desktop play link** | `Play HiVE Swarm.lnk` (Drive id `1mwDl1OW6xcSpdh9hjFhFsNdWhY_Wet6_`) always launches that bat — never the old `standalone\PLAY.bat`. |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.21.apk`. Older Swarm APKs are in `_APKs\Archive`. |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.22.apk`. Older Swarm APKs are in `_APKs\Archive`. |
 | **Always-latest APK** | Not used for 0.6.16 — owner asked for numbered APKs only (`HiveSwarm-0.6.16.apk`). |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
@@ -214,15 +214,15 @@ Do these in order. Do not add weapons or stages in front of P0.
 4. ✅ Player pawn is Twin Pod (0.6.5) — hull + independent turret. Cyan circle retired.
 4b. Sprite rebuild per [`design/SPRITE_CATALOG.md`](design/SPRITE_CATALOG.md): Runner S title, Colossus angle split, Praetorian true diagonals + walk. Torso hole pass started in 0.6.4 (backup-only fill + FORGE ALPHA KEY).
 5. ✅ HUD unstack (0.6.1) — STAGE left, WAVE right, weapon under HP, toast under the stack.
-6. Raise on-screen swarm presence without breaking off-cam spawn (more bodies in frame, or stronger off-screen audio/markers). Opening minute should push, not just decorate.
-7. Fix `_forge_stages_verify.js` tab index. Regen `_game_extract.js` whenever `index.html` changes.
+6. ✅ 0.6.22 — spawn in a thin off-camera band + higher wave quota. Off-cam invariant kept.
+7. ✅ 0.6.22 — `_forge_stages_verify.js` uses `tabs.indexOf('STAGES')` (tab 4, not 5).
 
 ### P2 — systems already specified
 
-8. Storm Arc jump search: measure chain length; if usually 1, give jumps 2..N a slightly larger radius than first acquire. **Do not retune damage/rate/range by feel.**
-9. Guardians need an attack besides "big chaser."
-10. Elite modifiers (shield / split / explode).
-11. A second upgrade axis so late cards are not only "+22% again."
+8. ✅ 0.6.22 — jumps 2..N search at 1.35× first-acquire range.
+9. ✅ 0.6.22 — guardian dash (speed burst + telegraph) besides chase.
+10. ✅ 0.6.22 — 9% elites: shield / split / explode (ring).
+11. ✅ 0.6.22 — Coolant Loop + Shockwave skills. **No Giant Rounds.**
 
 ### P3 — shipping (blocked on owner)
 
@@ -240,6 +240,10 @@ Do these in order. Do not add weapons or stages in front of P0.
 ---
 
 ## 8. Change record (keep — measured)
+
+### 2026-08-22 — Grok · v0.6.22 · density, elites, guardian dash, extra skills
+
+Closer off-cam spawn band + bigger wave quotas. Storm Arc later jumps 1.35× radius. Guardians dash. Elites shield/split/explode. Coolant Loop / Shockwave. Giant Rounds stays banned.
 
 ### 2026-08-22 — Grok · v0.6.21 · sprite crop + twin stick
 

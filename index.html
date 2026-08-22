@@ -48,7 +48,7 @@
 <script>
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.21';
+const GAME_VERSION='0.6.22';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -708,6 +708,8 @@ const SKILLS=[
   {id:'shield', name:'Shield Matrix',text:'Negate 1 hit every 12s (stacks = charges)'},
   {id:'vampiric',name:'Vampiric',    text:'Heal 2 HP per kill (stacks add +1)'},
   {id:'drone',  name:'Drone Escort', text:'Orbiting drones fire with you'},
+  {id:'coolant',name:'Coolant Loop', text:'-8% all weapon cooldowns'},
+  {id:'shockwave',name:'Shockwave',  text:'Kills shove nearby enemies'},
 ];
 // Drone-specific upgrades (owner 2026-08-08 spec: "allow drone upgrades to appear for weapon speed
 // and damage"). Not weapon-bound like MODS and not player-passive like SKILLS, so they get their own
@@ -897,7 +899,7 @@ function playerCombatPower(){
 function waveBudgetMul(w){return 1+(w??stageWave)*0.55} // wave 1 = 1x, wave 2 ≈1.55x, wave 3 ≈2.1x
 // Total enemies this wave will ever spawn. Ramps with waveBudgetMul so wave 1 is smallest, wave 3
 // biggest, and scales up gently with stage index so later stages still feel denser.
-function waveQuota(w){return Math.max(4,Math.round((10+stage*3)*waveBudgetMul(w)))}
+function waveQuota(w){return Math.max(6,Math.round((14+stage*4)*waveBudgetMul(w)))}
 let shieldCharges=0,shieldCd=0; // Shield Matrix runtime
 // Drone Escort runtime (owner 2026-08-08 — orbit/sprite ported from HiVE War, see fireDrones()/draw()).
 // droneMods is a SEPARATE stack table from weaponMods because drone upgrades are not weapon-bound —
@@ -1049,11 +1051,12 @@ function placeOutsideView(r,margin){
   const L=cam.x-VIEW.w/2-margin, R=cam.x+VIEW.w/2+margin;
   const T=cam.y-VIEW.h/2-margin, B=cam.y+VIEW.h/2+margin;
   const minX=-WORLD.halfW+r, maxX=WORLD.halfW-r, minY=-WORLD.halfH+r, maxY=WORLD.halfH-r;
+  const band=96; // thin strip just off-camera so bodies walk into frame instead of camping the fog
   const sides=[];
-  if(L>minX)sides.push(()=>({x:rand(minX,L),         y:rand(minY,maxY)}));
-  if(R<maxX)sides.push(()=>({x:rand(R,maxX),         y:rand(minY,maxY)}));
-  if(T>minY)sides.push(()=>({x:rand(minX,maxX),      y:rand(minY,T)}));
-  if(B<maxY)sides.push(()=>({x:rand(minX,maxX),      y:rand(B,maxY)}));
+  if(L>minX)sides.push(()=>({x:rand(Math.max(minX,L-band),L), y:rand(Math.max(minY,T),Math.min(maxY,B))}));
+  if(R<maxX)sides.push(()=>({x:rand(R,Math.min(maxX,R+band)), y:rand(Math.max(minY,T),Math.min(maxY,B))}));
+  if(T>minY)sides.push(()=>({x:rand(Math.max(minX,L),Math.min(maxX,R)), y:rand(Math.max(minY,T-band),T)}));
+  if(B<maxY)sides.push(()=>({x:rand(Math.max(minX,L),Math.min(maxX,R)), y:rand(B,Math.min(maxY,B+band))}));
   if(sides.length)return sides[Math.floor(Math.random()*sides.length)]();
   return placeAwayFromPlayer(r,Math.hypot(VIEW.w,VIEW.h)*.5,Math.hypot(VIEW.w,VIEW.h));
 }
@@ -1086,7 +1089,7 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
     // visible spawn seams), preserving which side of the player it was going to appear on.
     if(Math.abs(off)<AHEAD)a=heading+(off<0?-1:1)*(AHEAD+rand(0,.6));
   }
-  let distance=Math.hypot(VIEW.w,VIEW.h)*.72+rand(60,180),level=1+Math.floor(elapsed/EDIT.waves.seconds),
+  let distance=Math.hypot(VIEW.w,VIEW.h)*.48+rand(20,80),level=1+Math.floor(elapsed/EDIT.waves.seconds),
     // STAGE roster gate: each stage caps which entities can appear (its own enemy SET), on top of
     // the pre-existing wave-based unlock ramp. Falls back to the full roster if the cap is somehow
     // stricter than every entity's unlockWave (keeps spawnEnemy from ever finding an empty roster).
@@ -1102,7 +1105,7 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   const er=(type.r||16)*(type.scale||1);
   let x=Math.max(-WORLD.halfW+er,Math.min(WORLD.halfW-er,player.x+Math.cos(a)*distance)),
       y=Math.max(-WORLD.halfH+er,Math.min(WORLD.halfH-er,player.y+Math.sin(a)*distance));
-  if(isOnCamera(x,y,er+24)){const p=placeOutsideView(er,er+24);x=p.x;y=p.y}
+  {const p=placeOutsideView(er,er+18);x=p.x;y=p.y}
   // Regression counters (2026-08-13). spawnFixups = how often the raw angle would have put an enemy
   // on screen and we corrected it; spawnOnCam = how often one STILL landed on screen, which must
   // stay 0. Counting at the spawn site is the only honest way to test this — sampling live enemies
@@ -1110,7 +1113,10 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   if(isOnCamera(x,y,0))spawnOnCam++; else spawnOffCam++;
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
-  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});return true}
+  let elite=null;
+  if(Math.random()<0.09 && (type.speed||0)>0) elite=['shield','split','explode'][(Math.random()*3)|0];
+  const hpMul=elite==='shield'?1.7:elite?1.25:1;
+  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost*hpMul,maxHp:type.hp*(1+level*.13)*boost*hpMul,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0,elite});return true}
 // STAGE climax: one scaled-up copy of the strongest entity this stage's roster allows (no new art
 // needed). cycle = how many full laps through EDIT.stages we've made, so re-visiting Stage 1 after
 // looping past HiVE Core still fields a tougher guardian than the first time.
@@ -1289,8 +1295,9 @@ function fire(){
         // links deep, and shoving every link straight back toward the player would fight the arc's
         // own path instead of reading as "this link just got hit FROM here".
         applyKnockback(cur,cur.x-from.x,cur.y-from.y,modStacks(w.id,'knockback'));if(cur.hp<=0)killEnemy(cur);
-        from={x:cur.x,y:cur.y};cur=nearestEnemy(from,hit);
-        if(cur&&(cur.x-from.x)**2+(cur.y-from.y)**2>wRange(w)**2)cur=null}
+        from={x:cur.x,y:cur.y};
+        const jumpR=wRange(w)*(j===0?1:1.35);
+        cur=nearestEnemy(from,hit,e=>(e.x-from.x)**2+(e.y-from.y)**2<=jumpR*jumpR);}
       if(w.sfx)sfxFile(w.sfx,.12);else sfx('hit',.1);continue}
     if(kind==='flame'){
       // Flamethrower (owner 2026-08-08): continuous cone, not a projectile — same family as
@@ -1424,8 +1431,22 @@ function killEnemy(e,gibs,killOpts){
   // Splice BEFORE death VFX explode so recursive AOE kills from explode() cannot leave a stale idx
   // (or re-enter this same body). Capture pos/boss flag first.
   const wasBoss=!!e.isBoss,ex=e.x,ey=e.y,ecol=e.color||'#ff8',er=e.r||16;
+  const eliteKind=e.elite;
+  if(eliteKind==='explode'){
+    for(const o of enemies){if(o===e)continue;const dx=o.x-ex,dy=o.y-ey;if(dx*dx+dy*dy<(90+o.r)*(90+o.r)){o.hp-=28;o.hit=.12}}
+    burst(ex,ey,'#ff8a3d',18);shake=Math.min(8,shake+3);
+  }
+  if(skillN('shockwave')){
+    for(const o of enemies){if(o===e||o.isBoss)continue;const dx=o.x-ex,dy=o.y-ey,d=Math.hypot(dx,dy)||1;if(d<130)applyKnockback(o,dx,dy,1+skillN('shockwave'))}
+  }
   const stem=String((e.type&&e.type.sprite)||'').replace(/^.*\//,'').replace(/\.png$/,'')||'shambler';
   enemies.splice(idx,1);
+  if(eliteKind==='split'&&!(killOpts&&killOpts.fromSplit)){
+    for(let n=0;n<2;n++){
+      const a=Math.random()*Math.PI*2,d=18;
+      enemies.push({x:ex+Math.cos(a)*d,y:ey+Math.sin(a)*d,r:er*.62,hp:Math.max(8,(e.maxHp||20)*.28),maxHp:Math.max(8,(e.maxHp||20)*.28),speed:(e.speed||70)*1.15,damage:Math.max(3,(e.damage||6)*.6),type:e.type,color:e.color,hit:.2,elite:null});
+    }
+  }
   corpses.push({x:ex,y:ey,s:er*2.7,t:.48,tmax:.48,src:'art_src/topdown_v1/'+stem+'_skel.png',color:ecol});
   if((e.napalm||0)>=1){
     const rad=56+12*(e.napalm||1);
@@ -1670,7 +1691,7 @@ if((skillStacks.shield||0)>0){shieldCd=Math.max(0,shieldCd-dt);if(shieldCd<=0&&s
 // chain branch deals its FULL `dmg` per call (unlike beam/flame, which multiply by w.rate and so
 // cancel the cadence out), its DPS swung wildly with whatever else you happened to be holding.
 // Each weapon now owns its own clock, so every weapon's `rate` means what it says.
-for(const w of heldWeapons)fireClocks[w.id]=Math.max(-.1,(fireClocks[w.id]||0)-dt);
+for(const w of heldWeapons)fireClocks[w.id]=Math.max(-.1,(fireClocks[w.id]||0)-dt*(1+0.08*skillN('coolant')));
 fire()
 if(state==='play'&&!paused&&enemies.length&&heldWeapons.some(w=>(w.kind||'')==='flame'))startFlameLoop();
 else stopFlameLoop();
@@ -1682,6 +1703,11 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
     // S.7 feel pass: poisoned enemies are slowed (poisonSlow, from weapon.poison's slowFactor) so
     // the player never has to kite/run away waiting the DoT out — infection defangs on contact.
     moveSpeed=e.speed*(e.poisonT>0?(e.poisonSlow||1):1);
+  if(e.isBoss){
+    e.dashCd=(e.dashCd==null?2.4:e.dashCd)-dt;
+    if(e.dashCd<=0){e.dashCd=2.6+Math.random()*1.1;e.dashT=.4;burst(e.x,e.y,'#ffe066',10);if(e.type&&e.type.sfxAttack)sfxFile(e.type.sfxAttack,.22)}
+    if((e.dashT||0)>0){e.dashT-=dt;moveSpeed*=3.1}
+  }
   if(!isStaticEnemy(e)){e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt}
   e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;
   // Knockback offset: applied AFTER the chase step, BEFORE separation/pushOutOfObstacles so both
@@ -2048,7 +2074,7 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
 for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;const attacking=(e.atkT||0)>0;const st=attacking?'attack':(moving?'walk':'idle');let img=spriteFor(spriteSrcForEntity(e.type,eFace,st));
   if(!img||img._fail||(img.complete&&!img.naturalWidth)){const base=(e.type&&e.type.sprite)||'';if(base)img=spriteFor(base)}
-  let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img&&img.complete&&img.naturalWidth?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
+  let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img&&img.complete&&img.naturalWidth?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}if(e.elite){ctx.save();ctx.globalAlpha=.55;ctx.strokeStyle=e.elite==='shield'?'#8cf':e.elite==='split'?'#fc8':'#f63';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,s*.52,0,7);ctx.stroke();ctx.restore()}ctx.globalAlpha=1
   if((e.burnT||0)>0&&(e.napalm||0)>0){
     const pulse=.55+.45*Math.sin(elapsed*14+e.x*.02);
     ctx.save();ctx.globalCompositeOperation='lighter';
