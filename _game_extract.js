@@ -1,7 +1,7 @@
 
 'use strict';
 // S.3 greybox core: world-space simulation. Deliberately contains no lanes, horizon, road, or gates.
-const GAME_VERSION='0.6.20';
+const GAME_VERSION='0.6.23';
 // S1 (Eric, playtest): HUD sat under the phone's status-bar icons (clock/battery). Read the
 // safe-area inset via a probe element (env() only resolves against a real CSS property, not a
 // custom property read-back) with a sensible fallback for devices/browsers without the env().
@@ -73,19 +73,56 @@ const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
 const VIEW={w:540,h:960}, WORLD={halfW:810,halfH:1440,maxEnemies:220}, CAMERA={deadZone:.15}; let dpr=1;
 function resize(){dpr=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);VIEW.w=innerWidth;VIEW.h=innerHeight} addEventListener('resize',resize);resize();
 const keys=new Set(), pointer={active:false,x:0,y:0};
-// Virtual thumbstick (owner request 2026-08-03): anchors where the thumb lands; idle rest bottom-centre.
-const STICK={home:{x:0,y:0},base:{x:0,y:0},knob:{x:0,y:0},radius:78,dead:0.16,active:false,dx:0,dy:0};
-function stickHome(){STICK.home.x=VIEW.w/2;STICK.home.y=VIEW.h-Math.min(150,VIEW.h*0.22);}
-function stickSet(x,y){let dx=x-STICK.base.x,dy=y-STICK.base.y,d=Math.hypot(dx,dy);
-  if(d>STICK.radius){dx*=STICK.radius/d;dy*=STICK.radius/d;d=STICK.radius}
-  STICK.knob.x=STICK.base.x+dx;STICK.knob.y=STICK.base.y+dy;
-  let n=d/STICK.radius;if(n<STICK.dead){STICK.dx=STICK.dy=0;return}
-  STICK.dx=dx/(d||1);STICK.dy=dy/(d||1);}
-function stickRelease(){STICK.active=false;STICK.dx=STICK.dy=0;stickHome();STICK.base.x=STICK.home.x;STICK.base.y=STICK.home.y;STICK.knob.x=STICK.base.x;STICK.knob.y=STICK.base.y;}
+const lastMouse={x:0,y:0,on:false};
+function twinMode(){try{return !!(META&&META.twinStick)}catch(_){return false}}
+// Virtual thumbstick (owner request 2026-08-03): anchors where the thumb lands.
+// Twin-stick (2026-08-22): left = move, right = aim. Single-stick keeps auto-aim.
+function makeStick(){return {home:{x:0,y:0},base:{x:0,y:0},knob:{x:0,y:0},radius:78,dead:0.16,active:false,dx:0,dy:0,pid:null}}
+const STICK=makeStick(), AIM=makeStick();
+const stickPointers=new Map();
+function stickHome(){
+  const y=VIEW.h-Math.min(150,VIEW.h*0.22);
+  if(twinMode()){STICK.home.x=Math.min(118,VIEW.w*0.22); AIM.home.x=VIEW.w-Math.min(118,VIEW.w*0.22);}
+  else {STICK.home.x=VIEW.w/2; AIM.home.x=VIEW.w-Math.min(118,VIEW.w*0.22);}
+  STICK.home.y=y; AIM.home.y=y;
+}
+function stickSetOn(S,x,y){let dx=x-S.base.x,dy=y-S.base.y,d=Math.hypot(dx,dy);
+  if(d>S.radius){dx*=S.radius/d;dy*=S.radius/d;d=S.radius}
+  S.knob.x=S.base.x+dx;S.knob.y=S.base.y+dy;
+  let n=d/S.radius;if(n<S.dead){S.dx=S.dy=0;return}
+  S.dx=dx/(d||1);S.dy=dy/(d||1);}
+function parkStick(S){S.active=false;S.dx=S.dy=0;S.pid=null;S.base.x=S.home.x;S.base.y=S.home.y;S.knob.x=S.base.x;S.knob.y=S.base.y;}
+function stickRelease(){stickHome();parkStick(STICK);parkStick(AIM);stickPointers.clear();}
+function grabStick(S,x,y,pid){S.active=true;S.pid=pid;S.base.x=x;S.base.y=y;stickSetOn(S,x,y);}
 stickRelease();addEventListener('resize',stickRelease);
 
 addEventListener('keydown',e=>{keys.add(e.key.toLowerCase());if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key))e.preventDefault()});addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-canvas.addEventListener('pointerdown',e=>{if(state!=='play')return;pointer.active=true;pointer.x=e.clientX;pointer.y=e.clientY;canvas.setPointerCapture(e.pointerId);STICK.active=true;STICK.base.x=e.clientX;STICK.base.y=e.clientY;stickSet(e.clientX,e.clientY)});canvas.addEventListener('pointermove',e=>{if(pointer.active){pointer.x=e.clientX;pointer.y=e.clientY;if(STICK.active)stickSet(e.clientX,e.clientY)}});canvas.addEventListener('pointerup',()=>{pointer.active=false;stickRelease()});canvas.addEventListener('pointercancel',()=>{pointer.active=false;stickRelease()});
+addEventListener('pointermove',e=>{lastMouse.x=e.clientX;lastMouse.y=e.clientY;lastMouse.on=true;lastMouse.mouse=e.pointerType==='mouse'});
+canvas.addEventListener('pointerdown',e=>{
+  if(state==='title'||state==='dead'){titlePointer(e);return}
+  if(state!=='play')return;
+  pointer.active=true;pointer.x=e.clientX;pointer.y=e.clientY;
+  try{canvas.setPointerCapture(e.pointerId)}catch(_){}
+  if(!twinMode()){grabStick(STICK,e.clientX,e.clientY,e.pointerId);stickPointers.set(e.pointerId,'move');return}
+  const taken=new Set(stickPointers.values());
+  let role=e.clientX<VIEW.w/2?'move':'aim';
+  if(taken.has(role))role=role==='move'?'aim':'move';
+  stickPointers.set(e.pointerId,role);
+  grabStick(role==='move'?STICK:AIM,e.clientX,e.clientY,e.pointerId);
+});
+canvas.addEventListener('pointermove',e=>{
+  lastMouse.x=e.clientX;lastMouse.y=e.clientY;lastMouse.on=true;
+  pointer.x=e.clientX;pointer.y=e.clientY;
+  const role=stickPointers.get(e.pointerId); if(!role)return;
+  stickSetOn(role==='move'?STICK:AIM,e.clientX,e.clientY);
+});
+function dropPointer(e){
+  const role=stickPointers.get(e.pointerId);
+  stickPointers.delete(e.pointerId);
+  if(role==='move')parkStick(STICK); else if(role==='aim')parkStick(AIM);
+  if(!stickPointers.size)pointer.active=false;
+}
+canvas.addEventListener('pointerup',dropPointer);canvas.addEventListener('pointercancel',dropPointer);
 
 // ---- FORGE values ----
 const FORGE_KEY='hive_swarm_forge_values_v1', copy=o=>JSON.parse(JSON.stringify(o));
@@ -287,7 +324,7 @@ if(EDIT.waves.budgetBase===1.15&&EDIT.waves.budgetExponent===1.065){try{const ra
 
 // ---- SAVE SLOTS (mirror HiVE WAR: 3 slots + erase; legacy single key migrates into slot 1) ----
 const SAVE_SLOTS=3, LEGACY_KEY='hive_swarm_meta_v1', SLOT_PICK_KEY='hive_swarm_slot';
-function metaDefaults(){return {credits:0,damage:0,hp:0,speed:0,venom:0,bestScore:0,codexSeen:{},ownedWeapons:{'weapon.pulse':true},startWeapon:'weapon.pulse'}}
+function metaDefaults(){return {credits:0,damage:0,hp:0,speed:0,venom:0,bestScore:0,codexSeen:{},ownedWeapons:{'weapon.pulse':true},startWeapon:'weapon.pulse',twinStick:false}}
 function slotKey(n){return LEGACY_KEY+'_s'+n}
 function currentSlot(){const n=Number(localStorage.getItem(SLOT_PICK_KEY));return Number.isFinite(n)&&n>=1&&n<=SAVE_SLOTS?n:1}
 function migrateLegacySave(){try{const legacy=localStorage.getItem(LEGACY_KEY);if(legacy&&localStorage.getItem(slotKey(1))===null)localStorage.setItem(slotKey(1),legacy)}catch(_){}}
@@ -442,14 +479,19 @@ function spriteFrameMeta(img){
     }
     bounds.push(hit?{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1}:{x:0,y:0,w:fw,h:fh});
   }
-  m={frames,fw,fh,bounds}; SPRITE_META.set(img,m); return m;
+  let ux=fw,uy=fh,ur=0,ub=0;
+  for(const bd of bounds){if(!bd.w)continue;ux=Math.min(ux,bd.x);uy=Math.min(uy,bd.y);ur=Math.max(ur,bd.x+bd.w);ub=Math.max(ub,bd.y+bd.h);}
+  const union=ur>ux?{x:ux,y:uy,w:ur-ux,h:ub-uy}:{x:0,y:0,w:fw,h:fh};
+  m={frames,fw,fh,bounds,union}; SPRITE_META.set(img,m); return m;
 }
-/** Draw the full cell. Sheets are pre-normalized per-cast so N/S vs E/W keep one scale. */
+/** Crop to the opaque union so cell padding / leftover scrap does not draw as blank glass. */
 function drawSpriteAnim(img,x,y,size,moving,frameOverride){
   if(!img||!img.complete||!img.naturalWidth)return false;
   const m=spriteFrameMeta(img);
   const fr=frameOverride!=null?(((frameOverride%m.frames)+m.frames)%m.frames):(moving||m.frames>1?(Math.floor(elapsed*WALK_FPS)%m.frames):0);
-  ctx.drawImage(img, fr*m.fw, 0, m.fw, m.fh, x-size/2, y-size/2, size, size);
+  const u=m.union||{x:0,y:0,w:m.fw,h:m.fh};
+  const sc=size/Math.max(u.w,u.h,1), dw=u.w*sc, dh=u.h*sc;
+  ctx.drawImage(img, fr*m.fw+u.x, u.y, u.w, u.h, x-dw/2, y-dh/2, dw, dh);
   return true;
 }
 function playerScale(){const s=Number(EDIT.player&&EDIT.player.scale);return Number.isFinite(s)&&s>0?s:1}
@@ -619,6 +661,8 @@ const SKILLS=[
   {id:'shield', name:'Shield Matrix',text:'Negate 1 hit every 12s (stacks = charges)'},
   {id:'vampiric',name:'Vampiric',    text:'Heal 2 HP per kill (stacks add +1)'},
   {id:'drone',  name:'Drone Escort', text:'Orbiting drones fire with you'},
+  {id:'coolant',name:'Coolant Loop', text:'-8% all weapon cooldowns'},
+  {id:'shockwave',name:'Shockwave',  text:'Kills shove nearby enemies'},
 ];
 // Drone-specific upgrades (owner 2026-08-08 spec: "allow drone upgrades to appear for weapon speed
 // and damage"). Not weapon-bound like MODS and not player-passive like SKILLS, so they get their own
@@ -808,7 +852,7 @@ function playerCombatPower(){
 function waveBudgetMul(w){return 1+(w??stageWave)*0.55} // wave 1 = 1x, wave 2 ≈1.55x, wave 3 ≈2.1x
 // Total enemies this wave will ever spawn. Ramps with waveBudgetMul so wave 1 is smallest, wave 3
 // biggest, and scales up gently with stage index so later stages still feel denser.
-function waveQuota(w){return Math.max(4,Math.round((10+stage*3)*waveBudgetMul(w)))}
+function waveQuota(w){return Math.max(6,Math.round((14+stage*4)*waveBudgetMul(w)))}
 let shieldCharges=0,shieldCd=0; // Shield Matrix runtime
 // Drone Escort runtime (owner 2026-08-08 — orbit/sprite ported from HiVE War, see fireDrones()/draw()).
 // droneMods is a SEPARATE stack table from weaponMods because drone upgrades are not weapon-bound —
@@ -960,11 +1004,12 @@ function placeOutsideView(r,margin){
   const L=cam.x-VIEW.w/2-margin, R=cam.x+VIEW.w/2+margin;
   const T=cam.y-VIEW.h/2-margin, B=cam.y+VIEW.h/2+margin;
   const minX=-WORLD.halfW+r, maxX=WORLD.halfW-r, minY=-WORLD.halfH+r, maxY=WORLD.halfH-r;
+  const band=96; // thin strip just off-camera so bodies walk into frame instead of camping the fog
   const sides=[];
-  if(L>minX)sides.push(()=>({x:rand(minX,L),         y:rand(minY,maxY)}));
-  if(R<maxX)sides.push(()=>({x:rand(R,maxX),         y:rand(minY,maxY)}));
-  if(T>minY)sides.push(()=>({x:rand(minX,maxX),      y:rand(minY,T)}));
-  if(B<maxY)sides.push(()=>({x:rand(minX,maxX),      y:rand(B,maxY)}));
+  if(L>minX)sides.push(()=>({x:rand(Math.max(minX,L-band),L), y:rand(Math.max(minY,T),Math.min(maxY,B))}));
+  if(R<maxX)sides.push(()=>({x:rand(R,Math.min(maxX,R+band)), y:rand(Math.max(minY,T),Math.min(maxY,B))}));
+  if(T>minY)sides.push(()=>({x:rand(Math.max(minX,L),Math.min(maxX,R)), y:rand(Math.max(minY,T-band),T)}));
+  if(B<maxY)sides.push(()=>({x:rand(Math.max(minX,L),Math.min(maxX,R)), y:rand(B,Math.min(maxY,B+band))}));
   if(sides.length)return sides[Math.floor(Math.random()*sides.length)]();
   return placeAwayFromPlayer(r,Math.hypot(VIEW.w,VIEW.h)*.5,Math.hypot(VIEW.w,VIEW.h));
 }
@@ -997,7 +1042,7 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
     // visible spawn seams), preserving which side of the player it was going to appear on.
     if(Math.abs(off)<AHEAD)a=heading+(off<0?-1:1)*(AHEAD+rand(0,.6));
   }
-  let distance=Math.hypot(VIEW.w,VIEW.h)*.72+rand(60,180),level=1+Math.floor(elapsed/EDIT.waves.seconds),
+  let distance=Math.hypot(VIEW.w,VIEW.h)*.48+rand(20,80),level=1+Math.floor(elapsed/EDIT.waves.seconds),
     // STAGE roster gate: each stage caps which entities can appear (its own enemy SET), on top of
     // the pre-existing wave-based unlock ramp. Falls back to the full roster if the cap is somehow
     // stricter than every entity's unlockWave (keeps spawnEnemy from ever finding an empty roster).
@@ -1013,7 +1058,7 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   const er=(type.r||16)*(type.scale||1);
   let x=Math.max(-WORLD.halfW+er,Math.min(WORLD.halfW-er,player.x+Math.cos(a)*distance)),
       y=Math.max(-WORLD.halfH+er,Math.min(WORLD.halfH-er,player.y+Math.sin(a)*distance));
-  if(isOnCamera(x,y,er+24)){const p=placeOutsideView(er,er+24);x=p.x;y=p.y}
+  {const p=placeOutsideView(er,er+18);x=p.x;y=p.y}
   // Regression counters (2026-08-13). spawnFixups = how often the raw angle would have put an enemy
   // on screen and we corrected it; spawnOnCam = how often one STILL landed on screen, which must
   // stay 0. Counting at the spawn site is the only honest way to test this — sampling live enemies
@@ -1021,7 +1066,10 @@ function spawnEnemy(){if(enemies.length>=WORLD.maxEnemies){excessThreat++;return
   if(isOnCamera(x,y,0))spawnOnCam++; else spawnOffCam++;
   // BEASTIARY unlocks on first SIGHTING (spawn), not kill — mirror HiVE WAR codexSee
   codexSee('enemy:'+type.id,0);
-  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost,maxHp:type.hp*(1+level*.13)*boost,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0});return true}
+  let elite=null;
+  if(Math.random()<0.09 && (type.speed||0)>0) elite=['shield','split','explode'][(Math.random()*3)|0];
+  const hpMul=elite==='shield'?1.7:elite?1.25:1;
+  enemies.push({x,y,r:(type.r||16)*(type.scale||1),hp:type.hp*(1+level*.13)*boost*hpMul,maxHp:type.hp*(1+level*.13)*boost*hpMul,speed:type.speed*(1+level*.025),damage:type.damage*boost,type,color:type.color,hit:0,elite});return true}
 // STAGE climax: one scaled-up copy of the strongest entity this stage's roster allows (no new art
 // needed). cycle = how many full laps through EDIT.stages we've made, so re-visiting Stage 1 after
 // looping past HiVE Core still fields a tougher guardian than the first time.
@@ -1110,9 +1158,33 @@ function muzzle(w,ang){
   const d=playerTurretDraw()*PLAYER_MUZZLE_FRAC;
   return{x:player.x+Math.cos(ang)*d,y:player.y+Math.sin(ang)*d}
 }
+function nearestInCone(from,ang,half){
+  let best=null,bestD=1e12;
+  const c=Math.cos(ang),s=Math.sin(ang);
+  for(const e of enemies){
+    const dx=e.x-from.x,dy=e.y-from.y,d=Math.hypot(dx,dy)||1;
+    if((dx*c+dy*s)/d<Math.cos(half))continue;
+    if(d<bestD){bestD=d;best=e}
+  }
+  return best;
+}
+function aimOverride(){
+  if(!twinMode())return null;
+  if(AIM.active&&(AIM.dx||AIM.dy))return Math.atan2(AIM.dy,AIM.dx);
+  // Phone: left stick only → auto-aim. Desktop: mouse aims while WASD moves.
+  if(STICK.active&&stickPointers.size)return null;
+  if(lastMouse.on&&lastMouse.mouse){
+    const wx=cam.x+(lastMouse.x-VIEW.w/2), wy=cam.y+(lastMouse.y-VIEW.h/2);
+    const dx=wx-player.x, dy=wy-player.y;
+    if(dx*dx+dy*dy>16)return Math.atan2(dy,dx);
+  }
+  return null;
+}
 function fire(){
-  let target=nearestEnemy(player);if(!target)return;
-  let a=Math.atan2(target.y-player.y,target.x-player.x);player.angle=a;
+  const forced=aimOverride();
+  let target=forced!=null?nearestInCone(player,forced,0.7)||nearestEnemy(player):nearestEnemy(player);
+  if(!target&&forced==null)return;
+  let a=forced!=null?forced:Math.atan2(target.y-player.y,target.x-player.x);player.angle=a;
   const dmgMul=1+Math.min(.25,META.damage*.05);
   for(const w of heldWeapons){
     if((fireClocks[w.id]||0)>0)continue;      // this weapon is still on cooldown
@@ -1121,8 +1193,8 @@ function fire(){
     // Each weapon aims for itself now - the toxin gun wants a clean target, everything else wants
     // the closest body.
     let wTarget=kind==='poison'?poisonTarget():target;
-    if(!wTarget){fireClocks[w.id]=0;continue}   // declined to fire -> don't burn the cooldown
-    let wa=Math.atan2(wTarget.y-player.y,wTarget.x-player.x);
+    if(!wTarget&&forced==null){fireClocks[w.id]=0;continue}   // declined to fire -> don't burn the cooldown
+    let wa=forced!=null?a:(wTarget?Math.atan2(wTarget.y-player.y,wTarget.x-player.x):a);
     if(w===heldWeapons[0])player.angle=wa;
     if(kind==='beam'){
       // continuous ray — damage everything on the segment this tick
@@ -1176,8 +1248,9 @@ function fire(){
         // links deep, and shoving every link straight back toward the player would fight the arc's
         // own path instead of reading as "this link just got hit FROM here".
         applyKnockback(cur,cur.x-from.x,cur.y-from.y,modStacks(w.id,'knockback'));if(cur.hp<=0)killEnemy(cur);
-        from={x:cur.x,y:cur.y};cur=nearestEnemy(from,hit);
-        if(cur&&(cur.x-from.x)**2+(cur.y-from.y)**2>wRange(w)**2)cur=null}
+        from={x:cur.x,y:cur.y};
+        const jumpR=wRange(w)*(j===0?1:1.35);
+        cur=nearestEnemy(from,hit,e=>(e.x-from.x)**2+(e.y-from.y)**2<=jumpR*jumpR);}
       if(w.sfx)sfxFile(w.sfx,.12);else sfx('hit',.1);continue}
     if(kind==='flame'){
       // Flamethrower (owner 2026-08-08): continuous cone, not a projectile — same family as
@@ -1311,8 +1384,22 @@ function killEnemy(e,gibs,killOpts){
   // Splice BEFORE death VFX explode so recursive AOE kills from explode() cannot leave a stale idx
   // (or re-enter this same body). Capture pos/boss flag first.
   const wasBoss=!!e.isBoss,ex=e.x,ey=e.y,ecol=e.color||'#ff8',er=e.r||16;
+  const eliteKind=e.elite;
+  if(eliteKind==='explode'){
+    for(const o of enemies){if(o===e)continue;const dx=o.x-ex,dy=o.y-ey;if(dx*dx+dy*dy<(90+o.r)*(90+o.r)){o.hp-=28;o.hit=.12}}
+    burst(ex,ey,'#ff8a3d',18);shake=Math.min(8,shake+3);
+  }
+  if(skillN('shockwave')){
+    for(const o of enemies){if(o===e||o.isBoss)continue;const dx=o.x-ex,dy=o.y-ey,d=Math.hypot(dx,dy)||1;if(d<130)applyKnockback(o,dx,dy,1+skillN('shockwave'))}
+  }
   const stem=String((e.type&&e.type.sprite)||'').replace(/^.*\//,'').replace(/\.png$/,'')||'shambler';
   enemies.splice(idx,1);
+  if(eliteKind==='split'&&!(killOpts&&killOpts.fromSplit)){
+    for(let n=0;n<2;n++){
+      const a=Math.random()*Math.PI*2,d=18;
+      enemies.push({x:ex+Math.cos(a)*d,y:ey+Math.sin(a)*d,r:er*.62,hp:Math.max(8,(e.maxHp||20)*.28),maxHp:Math.max(8,(e.maxHp||20)*.28),speed:(e.speed||70)*1.15,damage:Math.max(3,(e.damage||6)*.6),type:e.type,color:e.color,hit:.2,elite:null});
+    }
+  }
   corpses.push({x:ex,y:ey,s:er*2.7,t:.48,tmax:.48,src:'art_src/topdown_v1/'+stem+'_skel.png',color:ecol});
   if((e.napalm||0)>=1){
     const rad=56+12*(e.napalm||1);
@@ -1557,7 +1644,7 @@ if((skillStacks.shield||0)>0){shieldCd=Math.max(0,shieldCd-dt);if(shieldCd<=0&&s
 // chain branch deals its FULL `dmg` per call (unlike beam/flame, which multiply by w.rate and so
 // cancel the cadence out), its DPS swung wildly with whatever else you happened to be holding.
 // Each weapon now owns its own clock, so every weapon's `rate` means what it says.
-for(const w of heldWeapons)fireClocks[w.id]=Math.max(-.1,(fireClocks[w.id]||0)-dt);
+for(const w of heldWeapons)fireClocks[w.id]=Math.max(-.1,(fireClocks[w.id]||0)-dt*(1+0.08*skillN('coolant')));
 fire()
 if(state==='play'&&!paused&&enemies.length&&heldWeapons.some(w=>(w.kind||'')==='flame'))startFlameLoop();
 else stopFlameLoop();
@@ -1569,6 +1656,11 @@ for(let i=enemies.length-1;i>=0;i--){let e=enemies[i],vx=player.x-e.x,vy=player.
     // S.7 feel pass: poisoned enemies are slowed (poisonSlow, from weapon.poison's slowFactor) so
     // the player never has to kite/run away waiting the DoT out — infection defangs on contact.
     moveSpeed=e.speed*(e.poisonT>0?(e.poisonSlow||1):1);
+  if(e.isBoss){
+    e.dashCd=(e.dashCd==null?2.4:e.dashCd)-dt;
+    if(e.dashCd<=0){e.dashCd=2.6+Math.random()*1.1;e.dashT=.4;burst(e.x,e.y,'#ffe066',10);if(e.type&&e.type.sfxAttack)sfxFile(e.type.sfxAttack,.22)}
+    if((e.dashT||0)>0){e.dashT-=dt;moveSpeed*=3.1}
+  }
   if(!isStaticEnemy(e)){e.x+=vx/d*moveSpeed*dt;e.y+=vy/d*moveSpeed*dt}
   e.vx=(e.x-(e._px||e.x));e.vy=(e.y-(e._py||e.y));e._px=e.x;e._py=e.y;
   // Knockback offset: applied AFTER the chase step, BEFORE separation/pushOutOfObstacles so both
@@ -1935,7 +2027,7 @@ for(const p of pickups){let x=sx(p.x),y=sy(p.y),bob=Math.sin((p.t||0)*6)*1.6,
    spriteSrcForEntity() resolves override-or-path correctly, which is what spriteFor() wants. */
 for(const e of enemies){let x=sx(e.x),y=sy(e.y);const eFace=facingFromAngle8(Math.atan2(e.vy||0,e.vx||1));const moving=Math.hypot(e.vx||0,e.vy||0)>0.35;const attacking=(e.atkT||0)>0;const st=attacking?'attack':(moving?'walk':'idle');let img=spriteFor(spriteSrcForEntity(e.type,eFace,st));
   if(!img||img._fail||(img.complete&&!img.naturalWidth)){const base=(e.type&&e.type.sprite)||'';if(base)img=spriteFor(base)}
-  let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img&&img.complete&&img.naturalWidth?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}ctx.globalAlpha=1
+  let s=e.r*2.7;ctx.globalAlpha=e.hit?.72:1;const atkFr=attacking&&img&&img.complete&&img.naturalWidth?Math.min(Math.max(0,((spriteFrameMeta(img).frames||1)-1)),Math.floor((1-((e.atkT||0)/0.5))*Math.max(1,spriteFrameMeta(img).frames))):null;if(!drawSpriteAnim(img,x,y,s,moving||attacking,atkFr)){if(img&&img.complete&&img.naturalWidth){ctx.save();ctx.translate(x,y);ctx.drawImage(img,-s/2,-s/2,s,s);ctx.restore()}else{ctx.fillStyle=e.hit?'#fff':e.color;ctx.beginPath();ctx.arc(x,y,e.r,0,7);ctx.fill()}}if(e.elite){ctx.save();ctx.globalAlpha=.55;ctx.strokeStyle=e.elite==='shield'?'#8cf':e.elite==='split'?'#fc8':'#f63';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,s*.52,0,7);ctx.stroke();ctx.restore()}ctx.globalAlpha=1
   if((e.burnT||0)>0&&(e.napalm||0)>0){
     const pulse=.55+.45*Math.sin(elapsed*14+e.x*.02);
     ctx.save();ctx.globalCompositeOperation='lighter';
@@ -2077,11 +2169,14 @@ if((state==='play'||state==='levelup'||state==='stagebreak')&&heldWeapons[0]){ct
   const tags=MODS.filter(m=>modStacks(hw.id,m.id)>0).map(m=>m.name[0]+modStacks(hw.id,m.id)).join(' ');
   if(tags){ctx.fillStyle='#9fded2';ctx.font='11px system-ui';ctx.fillText(tags,VIEW.w/2,by+16)}
   ctx.restore()}
-if(state==='play'){let bx=STICK.active?STICK.base.x:STICK.home.x,by=STICK.active?STICK.base.y:STICK.home.y,
-  kx=STICK.active?STICK.knob.x:bx,ky=STICK.active?STICK.knob.y:by;
-  ctx.save();ctx.globalAlpha=STICK.active?.34:.16;ctx.strokeStyle='#6fffe2';ctx.lineWidth=2;
-  ctx.beginPath();ctx.arc(bx,by,STICK.radius,0,7);ctx.stroke();
-  ctx.globalAlpha=STICK.active?.5:.22;ctx.fillStyle='#6fffe2';ctx.beginPath();ctx.arc(kx,ky,26,0,7);ctx.fill();ctx.restore()}
+if(state==='play'){
+  function drawStick(S,col,show){if(!show)return;const bx=S.active?S.base.x:S.home.x,by=S.active?S.base.y:S.home.y,kx=S.active?S.knob.x:bx,ky=S.active?S.knob.y:by;
+    ctx.save();ctx.globalAlpha=S.active?.34:.16;ctx.strokeStyle=col;ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(bx,by,S.radius,0,7);ctx.stroke();
+    ctx.globalAlpha=S.active?.5:.22;ctx.fillStyle=col;ctx.beginPath();ctx.arc(kx,ky,26,0,7);ctx.fill();ctx.restore()}
+  drawStick(STICK,'#6fffe2',true);
+  drawStick(AIM,'#ffe066',twinMode());
+}
 if(state==='title'||state==='dead')drawTitleOrDead()
 // First-sighting toast
 if(newCodexT>0&&newCodexTitle){const a=Math.min(1,newCodexT/.5);ctx.save();ctx.globalAlpha=a;ctx.textAlign='center';
@@ -2135,9 +2230,7 @@ function drawTitleOrDead(){
       if(im&&im.complete&&im.naturalWidth){
         ctx.save();ctx.globalAlpha=.95;ctx.shadowColor='#000';ctx.shadowBlur=12;
         // first frame of strip if wide
-        const nf=im.naturalWidth>=im.naturalHeight*1.6?Math.max(1,Math.round(im.naturalWidth/im.naturalHeight)):1;
-        const fw=im.naturalWidth/nf;
-        ctx.drawImage(im,0,0,fw,im.naturalHeight,x-sz/2,rowY-sz/2,sz,sz);
+        drawSpriteAnim(im,x,rowY,sz,false,0);
         ctx.restore();
       }else{
         ctx.fillStyle='#4a6670';ctx.beginPath();ctx.arc(x,rowY,sz*.28,0,7);ctx.fill();
@@ -2167,34 +2260,31 @@ function drawTitleOrDead(){
     ctx.beginPath();ctx.moveTo(cx-90,H*.16+10);ctx.lineTo(cx+90,H*.16+10);ctx.stroke();
     ctx.globalAlpha=1;
     ctx.font='600 13px system-ui';ctx.fillStyle='#7ecfc0';
-    ctx.fillText('OPEN ARENA  ·  AUTO-FIRE  ·  SURVIVE THE SWARM',cx,H*.16+34);
+    ctx.fillText('OPEN ARENA  ·  SURVIVE THE SWARM',cx,H*.16+34);
     ctx.restore();
     ctx.fillStyle='rgba(150,200,190,.55)';ctx.font='12px system-ui';
     ctx.fillText('v'+GAME_VERSION,cx,H*.16+54);
   }
-  // Footer CTA card
-  const cardY=H*.72, cardW=Math.min(360,W*.86), cardH=108;
-  ctx.fillStyle='rgba(8,24,28,.82)';ctx.strokeStyle='#3a6a62';ctx.lineWidth=1.5;
-  roundRectPath(ctx,cx-cardW/2,cardY,cardW,cardH,12);ctx.fill();ctx.stroke();
   ctx.fillStyle='#8ab';ctx.font='14px system-ui';
-  ctx.fillText('SLOT '+currentSlot()+'  ·  '+(META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),cx,cardY+32);
-  const pulse=.75+.25*Math.sin(t*3.5);
-  ctx.fillStyle='rgba(111,255,226,'+pulse+')';ctx.font='700 17px system-ui';
-  ctx.fillText(state==='dead'?'Click or Enter — deploy again':'Click or press Enter to deploy',cx,cardY+64);
+  ctx.fillText('SLOT '+currentSlot()+'  ·  '+(META.credits||0)+' biomatter  ·  best '+(META.bestScore||0),cx,H*.62);
   ctx.fillStyle='#5a8a84';ctx.font='12px system-ui';
-  ctx.fillText('WASD / stick · weapons fire automatically',cx,cardY+88);
+  ctx.fillText('Pick a control scheme below to deploy',cx,H*.62+22);
   ctx.textAlign='left';
 }
 function roundRectPath(c,x,y,w,h,r){
   c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);
   c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();
 }
-function tryDeploy(){if(state==='title'||state==='dead'){setPaused(false);reset()}}
+function tryDeploy(twin){
+  if(state!=='title'&&state!=='dead')return;
+  META.twinStick=!!twin; saveMeta(); stickRelease(); setPaused(false); reset();
+}
+function titlePointer(){/* DOM chrome owns title hits */}
 addEventListener('keydown',e=>{
-  if(e.key==='Enter')tryDeploy();
+  if(e.key==='Enter'&&(state==='title'||state==='dead'))tryDeploy(!!META.twinStick);
   if(e.key==='Escape'||e.key==='p'||e.key==='P'){e.preventDefault();togglePause()}
 });
-canvas.addEventListener('click',()=>{if(state==='title'||state==='dead')tryDeploy();else if(state==='debrief')finishDebrief()});
+canvas.addEventListener('click',()=>{if(state==='debrief')finishDebrief()});
 canvas.addEventListener('pointerdown',(e)=>{if(state==='debrief'){e.preventDefault();finishDebrief()}});
 (function wirePauseBtn(){
   const btn=document.getElementById('pauseBtn');if(!btn)return;
@@ -2654,13 +2744,17 @@ function ensureTitleChrome(){
   if((state!=='title'&&state!=='dead')||forgeOpen){
     if(bar){if(typeof bar.remove==='function')bar.remove();else if(bar.parentNode)bar.parentNode.removeChild(bar)}
     return}
-  if(!bar){bar=document.createElement('div');if(!bar||typeof bar!=='object')return;bar.id='titleChrome';bar.style.cssText='position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
-    bar.innerHTML=`<button id="btnSlots" style="padding:10px 14px;background:#16383a;color:#dff;border:1px solid #5cf;border-radius:8px;cursor:pointer;font-weight:700">💾 SAVE SLOTS</button>
+  if(!bar){bar=document.createElement('div');if(!bar||typeof bar!=='object')return;bar.id='titleChrome';bar.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:92vw';
+    bar.innerHTML=`<button id="btnSingle" style="padding:12px 16px;background:#16383a;color:#6fffe2;border:1px solid #6fffe2;border-radius:8px;cursor:pointer;font-weight:800">SINGLE STICK<div style="font:600 11px system-ui;color:#9ec4c0;margin-top:4px">move · auto-aim</div></button>
+      <button id="btnTwin" style="padding:12px 16px;background:#2a2610;color:#ffe066;border:1px solid #ffe066;border-radius:8px;cursor:pointer;font-weight:800">TWIN STICK<div style="font:600 11px system-ui;color:#d8c878;margin-top:4px">left move · right aim</div></button>
+      <button id="btnSlots" style="padding:10px 14px;background:#16383a;color:#dff;border:1px solid #5cf;border-radius:8px;cursor:pointer;font-weight:700">💾 SAVE SLOTS</button>
       <button id="btnCodex" style="padding:10px 14px;background:#261638;color:#e8d8ff;border:1px solid #c6f;border-radius:8px;cursor:pointer;font-weight:700">📖 BEASTIARY</button>
       <button id="btnMeta" style="padding:10px 14px;background:#16383a;color:#dff;border:1px solid #6fffe2;border-radius:8px;cursor:pointer;font-weight:700">META (M)</button>`;
     try{document.body.append(bar)}catch(_){return}
     const qs=sel=>bar.querySelector?bar.querySelector(sel):null;
-    const b1=qs('#btnSlots'),b2=qs('#btnCodex'),b3=qs('#btnMeta');
+    const bS=qs('#btnSingle'),bT=qs('#btnTwin'),b1=qs('#btnSlots'),b2=qs('#btnCodex'),b3=qs('#btnMeta');
+    if(bS)bS.onclick=e=>{e.stopPropagation();tryDeploy(false)};
+    if(bT)bT.onclick=e=>{e.stopPropagation();tryDeploy(true)};
     if(b1)b1.onclick=e=>{e.stopPropagation();openSlots()};
     if(b2)b2.onclick=e=>{e.stopPropagation();openCodex()};
     if(b3)b3.onclick=e=>{e.stopPropagation();openMeta()}}
