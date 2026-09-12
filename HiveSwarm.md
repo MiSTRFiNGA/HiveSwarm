@@ -205,8 +205,14 @@ Do these in order. Do not add weapons or stages in front of P0.
 
 ### P0 — publish / honesty (this session's leftover)
 
-1. Push `master` so Pages = local `0.6.14`. Confirm https://mistrfinga.github.io/HiveSwarm/ shows `v0.6.14`.
-2. Owner play on the **URL** or `HiveSwarm-latest.apk`. Do not play an old numbered APK.
+1. ✅ **CLOSED 2026-09-11** — pushed `df61fd5..84c2235`; `origin/master` == local. Verified **over
+   the wire**, not asserted: live `sw.js` → `CACHE_VERSION = 'v48'`; live `index.html` →
+   `GAME_VERSION='0.6.25'`; live `art_src/topdown_v1/praetorian_walk_se.png` md5 `d0fb501067d1`,
+   identical to disk and to the APK. (This item had been stale since 0.6.14 — it still said
+   "Pages = local 0.6.14" while local was 0.6.25.)
+2. Owner play on the **URL** or `HiveSwarm-latest.apk` (rebuilt 2026-09-11). Do not play an old
+   numbered APK. ⚠️ Both the URL and that APK carry the §7 item 1b torso blob — **movement/feel
+   only, not an art verdict** until it is fixed and rebuilt.
 3. Still **no** CrazyGames / Poki rebuild.
 
 ### P1 — feel (from 2026-08-14 play)
