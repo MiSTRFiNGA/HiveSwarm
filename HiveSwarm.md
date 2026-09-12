@@ -22,7 +22,7 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 | **Desktop play link** | `Play HiVE Swarm.lnk` (Drive id `1mwDl1OW6xcSpdh9hjFhFsNdWhY_Wet6_`) always launches that bat — never the old `standalone\PLAY.bat`. |
 | **GitHub** | https://github.com/MiSTRFiNGA/HiveSwarm (public, Pages on `master`) |
 | **Pages** | https://mistrfinga.github.io/HiveSwarm/ |
-| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.25.apk`. Older Swarm APKs are in `_APKs\Archive`. |
+| **APK (one only)** | `C:\Users\MiSTRFiNGA\Desktop\My Games\_APKs\HiveSwarm-0.6.25.apk` (rebuilt 2026-09-11, 125.46 MB, art md5 matches `praetorian_walk_se` `d0fb501067d1`). Older: `_APKs\Archive\HiveSwarm-0.6.25-20260822.apk`. |
 | **Always-latest APK** | Not used for 0.6.16 — owner asked for numbered APKs only (`HiveSwarm-0.6.16.apk`). |
 | **Genre** | 360° top-down survivors-like / bullet-heaven. Reference feel: `Zombie Waves.apk` (study only — never its art, audio, or code). |
 | **Not** | HiVE WAR (`D:\Dev\HiveWar`) is a **lane / corridor shooter**. "Like HiVE WAR" means borrow a *behaviour*, not edit that repo. |
@@ -212,7 +212,7 @@ Do these in order. Do not add weapons or stages in front of P0.
 ### P1 — feel (from 2026-08-14 play)
 
 4. ✅ Player pawn is Twin Pod (0.6.5) — hull + independent turret. Cyan circle retired.
-4b. ✅ 2026-09-11 — Praetorian **NE/NW** walks true (commit `5558add`). **SE/SW idle+walk+attack** redone as solid bodies (orange `#FF7800` contact: core opaque, head/torso/legs attached). SW/NW = flip of SE/NE. Attack diagonals se/sw/ne/nw no longer snap to S/N copies. `walk_n = idle_n = attack_n` still collapsed (one md5). I2V blocked (ZDR); keyframe edits from a solid S-derived still.
+4b. ⬜ **STILL OPEN** (verification 2026-09-11 — re-ticked by Grok, un-ticked by Claude: the orange proof shows an opaque near-black torso blob, see §7 open item 1b). Praetorian **NE/NW** walks true (commit `5558add`). **SE/SW idle+walk+attack** redone as solid bodies (orange `#FF7800` contact: core opaque, head/torso/legs attached). SW/NW = flip of SE/NE. Attack diagonals se/sw/ne/nw no longer snap to S/N copies. `walk_n = idle_n = attack_n` still collapsed (one md5). I2V blocked (ZDR); keyframe edits from a solid S-derived still.
 5. ✅ HUD unstack (0.6.1) — STAGE left, WAVE right, weapon under HP, toast under the stack.
 6. ✅ 0.6.22 — spawn in a thin off-camera band + higher wave quota. Off-cam invariant kept.
 7. ✅ 0.6.22 — `_forge_stages_verify.js` uses `tabs.indexOf('STAGES')` (tab 4, not 5).
@@ -270,16 +270,29 @@ being visibly shattered.
 
 **Open right now (2026-09-11, carried into 0.7.0):**
 
-1. `praetorian_{walk,idle}_{se,sw}` were reverted to their **pre-alpha-fill** state, so they now
-   carry *more* interior holes than the cardinals they copy (`walk_se` 8885 vs `walk_s` 6641;
-   `idle_se` 10980 vs `idle_s` 8140). Re-copy from the **filled** S/N, then author true diagonals.
+1. ✅ RESOLVED `45a5539` — SE/SW are solid bodies, unique md5, **0** interior holes (was 8885 /
+   10980). The packer's luma-22 key was the shatter; a true-black border key fixed it.
+1b. ⚠️ **NEW — opaque near-black blob on the SE/SW torso.** Not transparency, so the interior-hole
+   audit reads 0 and misses it. Largest contiguous near-black mass (RGB≤16, α≥16) per frame:
+   `idle_se` 1680/1680/1680/1680 · `walk_se` 1680/363/1857/1693 · `attack_se` 1680/9/198/77.
+   Healthy reference is 48–81 px (`idle_s`, `walk_ne`), so this is ~20×. It rides the
+   idle-derived source still — `attack_se` frames 2–4 are clean. Same edge-vs-interior
+   distinction as before, inverted: the border key leaves *interior* black pockets opaque.
+   Fix by keying interior near-black islands above ~300 px, **not** by lowering the global
+   luma threshold — that is what shattered it. **4b stays open until this is gone.**
+   ⚠️ **The 2026-09-11 shelf APK was built from this art and carries the blob.** Fine for a
+   movement/feel playtest, not for any art verdict. Fix, then rebuild, before Eric installs.
 2. Praetorian `walk_n` = `idle_n` = `attack_n` = `attack_ne` = one image (md5 `6162801e9a5c`).
    North has no distinct walk / idle / attack.
 3. Praetorian E/W is a different creature (crouched scythe body) from the N/S armoured knight.
-4. Attack diagonals still copy S/N.
+4. ✅ RESOLVED `45a5539` — attack diagonals `se/sw/ne/nw` no longer copy S/N (unique md5).
 5. Edge-connected punch-throughs: `mutant_enforcer` arms/face, shattered colossus idle,
-   Praetorian armour gaps.
+   Praetorian armour gaps. `_fill_edge_bays.py` (≥6/8 opaque neighbours) closed the cracks;
+   the large border-open holes need real inpaint, not another neighbour fill.
 6. 330 files still carry interior islands (fill was capped at 400 px; big cavities untouched).
+7. The Praetorian **cardinals** are now the worst files in the set, not the diagonals:
+   `walk_s` 6328 · `idle_s` 7740 · `attack_s` 7791 interior holes. They never got the
+   big-cavity pass. The solid-pack route that fixed SE/SW should work here too.
 
 ### Explicitly not now
 
@@ -306,6 +319,14 @@ Art-only. **Did not** edit `index.html` or run `build.py`. `GAME_VERSION` stays 
 **Edge bays (PARTIAL):** 8-neighbor majority fill (`tools/_fill_edge_bays.py`, need ≥6 opaque neighbors) on mutant_enforcer / colossus idle / Praetorian S. Closes cracks, does **not** rebuild large disconnected chunks (colossus idle still shattered; enforcer arm holes still open to the border). Orange sheets in the same contact folder (`bay_*`).
 
 `walk_n = idle_n = attack_n` still md5 `6162801e9a5c`. E/W remain the scythe profile. Claude verify: `D:\Tests\hiveswarm_baseline_2026-09-11\`.
+
+**Claude verification of the 2026-09-11 APK rebuild.** All claims true, read out of the zip: `HiveSwarm-0.6.25.apk` 125.46 MB (131,552,692 B); old shelf APK archived as `HiveSwarm-0.6.25-20260822.apk`; `praetorian_walk_se` apk `d0fb501067d1` = disk, `praetorian_idle_se` apk `82141b0f73a1` = disk, so the bundle really carries the `45a5539` art; `assets/public/index.html` → `GAME_VERSION 0.6.25`, not bumped; `HiveSwarm-latest.apk` updated on both the shelf and `D:\Drive\APK`, satisfying the §4 play-link rule. `build.py` was not run — `build_apk.ps1` is a separate path and was never under the lockdown. **Caveat: this APK contains the §7 item 1b torso blob.**
+
+**Grok 2026-09-11 — phone / install.** Fold 7 `SM-F966U` serial `RFGL42X28QV` was on adb (`com.empiregames.hiveswarm` already installed). Streamed `adb install -r` failed (empty error); device went offline after `adb usb` / kill-server. **Eric will sideload the shelf APK himself.** Grok did **not** land install-on-device. Playtest = movement/feel only until 1b is gone and the APK is rebuilt.
+
+**Claude verification of `45a5539` (2026-09-11).** Shatter confirmed fixed — SE/SW idle+walk are solid, all 8 dirs unique md5, interior holes `walk_se`/`walk_sw`/`idle_se`/`idle_sw` **8885/10980 → 0**. Commit scope clean (`index.html`, `build.py`, `sw.js` absent from the commit; 62 files). `regen_extract.py` 266562 chars, `_headless_harness.js` SIM ENDED clean.
+
+**But a new defect the hole audit cannot see:** an opaque near-black blob on the SE/SW torso. Largest contiguous near-black mass (RGB≤16, α≥16) is ~1680–1857 px per frame versus 48–81 px on healthy frames (`idle_s`, `walk_ne`) — roughly 20×. It rides the idle-derived source still, so `attack_se` frames 2–4 are clean while frame 1 is not. The true-black border key removes only border-touching black; interior black pockets stay opaque — the same edge-vs-interior distinction as the original hole bug, inverted. **4b un-ticked** until it is gone. Third time this milestone a passing metric has shipped a visibly wrong frame: hash-unique and holes-0 are necessary, not sufficient. Look at the render.
 
 ### 2026-08-22 — Grok · v0.6.25 · crawler identity + runner idle + praet SE
 
