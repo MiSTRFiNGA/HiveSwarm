@@ -25,7 +25,7 @@ Facing map (engine `FACE_SFX8`): `e se s sw w nw n ne`. **s = facing camera (fro
 | `armored_dead` | 8/8 | 8/8 | strip | **usable** | |
 | `mutant_enforcer` | 8/8 | 8/8 | strip | **usable** | W view is a squat red brute — reads as the same unit. |
 | `zombie_colossus` | 8/8 | 8/8 | strip | **tank** | E/W tank profile. SE/SW copy the front tank walk (2026-08-22 live play). |
-| `praetorian` | 8/8 | 8/8 | strip | **in** | **NE/NW true** 3/4 back walks (2026-09-11). **SE/SW still copies of S** (generated SE/SW shattered; reverted). E/W remain the scythe profile. Attack diagonals still copy S/N. Queen out. |
+| `praetorian` | 8/8 | 8/8 | strip | **in** | NE/NW true 3/4 backs. SE/SW idle+walk+attack redone solid 2026-09-11 (orange contact, not copies). E/W remain the scythe profile. `walk_n=idle_n=attack_n` still one image. Queen out. |
 | `psychoid` **NEW** | 1 pose × 8 dirs | 4-frame top-down | **in** | Overhead already. Same sprite all dirs. |
 | `biomorph` **NEW** | E-facing + W flip | 4-frame side walk | **in** | One facing, then flip. Unlock 7. |
 | `subterra_maw` | 1 pose × 8 dirs | 5-frame scan | **retired 0.6.4** | Owner: horrible. Files remain on disk. Not in roster / preload. |
@@ -43,7 +43,7 @@ Facing map (engine `FACE_SFX8`): `e se s sw w nw n ne`. **s = facing camera (fro
 1. `runner_s` / `runner_e` title cards — **done 2026-08-22**. S walk frame 0 no longer headless. E idle no longer says HIVE ZOM.
 2. `zombie_colossus` E/W — **done 2026-08-22** from the front tank body. SE/SW copy the front tank (0.6.24).
 3. `player` — **done 0.6.5** Twin Pod. Cyan circle is fallback only.
-4. `praetorian` NE/NW walks — **done 2026-09-11**. SE/SW still copies of S (shattered gens reverted). Attack diagonals still copy S/N. E/W still the scythe profile.
+4. `praetorian` NE/NW walks — **done 2026-09-11** (`5558add`). SE/SW idle+walk+attack solid redo — **done same day** (orange `#FF7800` contact). E/W still the scythe profile. N walk/idle/attack still collapsed.
 5. Hole-pass interior islands — **done 2026-09-11**. Edge-connected punch-throughs: FORGE paint.
 
 Queen stays out.

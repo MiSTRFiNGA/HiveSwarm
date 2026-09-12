@@ -212,7 +212,7 @@ Do these in order. Do not add weapons or stages in front of P0.
 ### P1 — feel (from 2026-08-14 play)
 
 4. ✅ Player pawn is Twin Pod (0.6.5) — hull + independent turret. Cyan circle retired.
-4b. Sprite rebuild per [`design/SPRITE_CATALOG.md`](design/SPRITE_CATALOG.md): Praetorian **NE/NW** walks are true 3/4 backs (2026-09-11). **SE/SW still copies of S** — generated SE/SW were shattered (head/torso/legs fragmented); reverted to HEAD before commit. Torso interior-island fill done; edge-connected punch-throughs remain. Attack diagonals still copy S/N.
+4b. ✅ 2026-09-11 — Praetorian **NE/NW** walks true (commit `5558add`). **SE/SW idle+walk+attack** redone as solid bodies (orange `#FF7800` contact: core opaque, head/torso/legs attached). SW/NW = flip of SE/NE. Attack diagonals se/sw/ne/nw no longer snap to S/N copies. `walk_n = idle_n = attack_n` still collapsed (one md5). I2V blocked (ZDR); keyframe edits from a solid S-derived still.
 5. ✅ HUD unstack (0.6.1) — STAGE left, WAVE right, weapon under HP, toast under the stack.
 6. ✅ 0.6.22 — spawn in a thin off-camera band + higher wave quota. Off-cam invariant kept.
 7. ✅ 0.6.22 — `_forge_stages_verify.js` uses `tabs.indexOf('STAGES')` (tab 4, not 5).
@@ -230,6 +230,56 @@ Do these in order. Do not add weapons or stages in front of P0.
 13. Title art from `media/title_art/` onto the title screen (files exist, unused).
 14. Portal zips via `build.py` **only when asked**.
 15. Store submission is Eric only.
+
+### 🎯 v0.7.0 — DEFINITION OF DONE (public release quality)
+
+Owner ruling 2026-09-11: the next milestone is **`0.7.0` = public release quality**. Until every
+box below is ticked the game is not releasable. Nothing here is optional, and neither agent
+declares the milestone done — Eric does, from play.
+
+**Lane A — code / bugs (Claude)**
+
+- [ ] Every known bug named anywhere in this file, in the change record, or raised by Eric is
+      fixed or explicitly written off with a reason. No silent drops.
+- [ ] Every fix request Eric has made is closed.
+- [ ] General code issues found on review are fixed (§4 rules, dead code, silent failures).
+- [ ] `_headless_harness.js`, `_stage_verify.js`, `_forge_stages_verify.js` and the `qa/_verify_*`
+      suite all green, with real output pasted into §8.
+- [ ] All 5 stages beatable end to end; guardians killable; no crash in a full run.
+
+**Lane B — art / audio (Grok)**
+
+Grok may author any asset that does not exist yet. Missing art is not a blocker to be reported —
+it is work to be done.
+
+- [ ] **Beastiary complete** — every entry has art and reads as finished.
+- [ ] **Enemies** — full cast, all 8 dirs, per-state (idle / walk / attack) actually distinct.
+      No direction is a byte-copy of another. No creature changes identity between angles.
+- [ ] **Character** — player pawn and all its states.
+- [ ] **Items** — pickups, orbs, cards, weapon icons.
+- [ ] **Backgrounds** — every stage has finished ground + props, not placeholder tiles.
+- [ ] **Sounds** — per-enemy attack/die, per-weapon, UI, music beds.
+- [ ] Zero interior alpha holes. Zero edge-connected punch-throughs on any shipped sheet.
+- [ ] `design/SPRITE_CATALOG.md` fully green — no row left **usable**, **tank**, or **in**.
+
+**Lane C — shipping (Eric only, items 12–15 below)**
+
+**Standing gate for both agents:** a claim of "fixed" needs a whole-frame render or real command
+output. A hash diff is not proof — `praetorian_walk_se` passed the copy test on 2026-09-11 while
+being visibly shattered.
+
+**Open right now (2026-09-11, carried into 0.7.0):**
+
+1. `praetorian_{walk,idle}_{se,sw}` were reverted to their **pre-alpha-fill** state, so they now
+   carry *more* interior holes than the cardinals they copy (`walk_se` 8885 vs `walk_s` 6641;
+   `idle_se` 10980 vs `idle_s` 8140). Re-copy from the **filled** S/N, then author true diagonals.
+2. Praetorian `walk_n` = `idle_n` = `attack_n` = `attack_ne` = one image (md5 `6162801e9a5c`).
+   North has no distinct walk / idle / attack.
+3. Praetorian E/W is a different creature (crouched scythe body) from the N/S armoured knight.
+4. Attack diagonals still copy S/N.
+5. Edge-connected punch-throughs: `mutant_enforcer` arms/face, shattered colossus idle,
+   Praetorian armour gaps.
+6. 330 files still carry interior islands (fill was capped at 400 px; big cavities untouched).
 
 ### Explicitly not now
 
@@ -249,7 +299,13 @@ Art-only. **Did not** edit `index.html` or run `build.py`. `GAME_VERSION` stays 
 
 **Still open on alpha:** edge-connected punch-throughs (`mutant_enforcer` arms/face, shattered `zombie_colossus` idle, remaining armor gaps on Praetorian). Those are silhouette, not islands — FORGE paint, not another flood fill.
 
-**Praetorian:** NE/NW walks are true 3/4 backs (not copies of N). **SE/SW generated walks/idles were shattered** (same class of defect 0.6.25 already reverted once). Reverted those four files to HEAD before this commit — they are S-copies again. Attack diagonals still copy S/N. E/W remain the scythe profile. Claude verify: `D:\Tests\hiveswarm_baseline_2026-09-11\`.
+**Praetorian:** NE/NW walks are true 3/4 backs (not copies of N). **SE/SW generated walks/idles were shattered** (same class of defect 0.6.25 already reverted once). Reverted those four files to HEAD before commit `5558add` — they were S-copies in that milestone.
+
+**SE/SW redo (same day, after `5558add`):** I2V blocked (ZDR). Built a solid 3/4 still from `walk_s` f0, then keyframe walk/attack edits. Packed with **true-black border key only** (the earlier shatter was luma-22 edge-key eating dark armor). Orange `#FF7800` contact: head/torso/legs attached, no orange through the core. SW = flip of SE. Attack se/sw/ne/nw shipped. Contact: `C:\Users\MiSTRFiNGA\Desktop\Tests\hiveswarm_praet_se_2026_09_11\contact\`.
+
+**Edge bays (PARTIAL):** 8-neighbor majority fill (`tools/_fill_edge_bays.py`, need ≥6 opaque neighbors) on mutant_enforcer / colossus idle / Praetorian S. Closes cracks, does **not** rebuild large disconnected chunks (colossus idle still shattered; enforcer arm holes still open to the border). Orange sheets in the same contact folder (`bay_*`).
+
+`walk_n = idle_n = attack_n` still md5 `6162801e9a5c`. E/W remain the scythe profile. Claude verify: `D:\Tests\hiveswarm_baseline_2026-09-11\`.
 
 ### 2026-08-22 — Grok · v0.6.25 · crawler identity + runner idle + praet SE
 
