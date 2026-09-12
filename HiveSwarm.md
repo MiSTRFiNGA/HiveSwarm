@@ -4,7 +4,7 @@ title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
 version: 0.6.25
-updated: 2026-08-22
+updated: 2026-09-11
 tags: [game, hivemind, webgame, documentation]
 ---
 
@@ -15,7 +15,7 @@ Boards, GDD, README, empire memory, and `My Apps` copies are pointers or history
 
 | | |
 |---|---|
-| **Version** | `0.6.25` · `sw.js` `CACHE_VERSION = v47` |
+| **Version** | `0.6.25` · `sw.js` `CACHE_VERSION = v48` |
 | **Master path** | `D:\Dev\HiveSwarm` — edit here only |
 | **Game file** | `index.html` — one file: engine, FORGE, HUD, run loop |
 | **Launcher** | `Launch HiVE Swarm.bat` → http://127.0.0.1:8795/index.html |
@@ -212,7 +212,7 @@ Do these in order. Do not add weapons or stages in front of P0.
 ### P1 — feel (from 2026-08-14 play)
 
 4. ✅ Player pawn is Twin Pod (0.6.5) — hull + independent turret. Cyan circle retired.
-4b. Sprite rebuild per [`design/SPRITE_CATALOG.md`](design/SPRITE_CATALOG.md): Runner S title, Colossus angle split, Praetorian true diagonals + walk. Torso hole pass started in 0.6.4 (backup-only fill + FORGE ALPHA KEY).
+4b. Sprite rebuild per [`design/SPRITE_CATALOG.md`](design/SPRITE_CATALOG.md): Praetorian **NE/NW** walks are true 3/4 backs (2026-09-11). **SE/SW still copies of S** — generated SE/SW were shattered (head/torso/legs fragmented); reverted to HEAD before commit. Torso interior-island fill done; edge-connected punch-throughs remain. Attack diagonals still copy S/N.
 5. ✅ HUD unstack (0.6.1) — STAGE left, WAVE right, weapon under HP, toast under the stack.
 6. ✅ 0.6.22 — spawn in a thin off-camera band + higher wave quota. Off-cam invariant kept.
 7. ✅ 0.6.22 — `_forge_stages_verify.js` uses `tabs.indexOf('STAGES')` (tab 4, not 5).
@@ -241,9 +241,19 @@ Do these in order. Do not add weapons or stages in front of P0.
 
 ## 8. Change record (keep — measured)
 
+### 2026-09-11 — Grok · v0.6.25 · interior alpha fill + Praetorian NE/NW walks
+
+Art-only. **Did not** edit `index.html` or run `build.py`. `GAME_VERSION` stays `0.6.25`. **`sw.js` `CACHE_VERSION` = `v48`** (Claude, Eric-authorized) so the repaired pixels reach the PWA. Deliberate split: cache busts, player-facing version string does not move.
+
+**Alpha:** Inspected on orange `#FF7800` (green `#00FF00` hid lime visors/eyes). Exact `#ff00ff` leftovers were already 0. Filled **interior** transparent islands 2–400 px (not connected to the cell edge) by copying the nearest opaque pixel — 517 enemy sheets, **1,192,486** px. Outer silhouette and large designed cavities kept (crawler eye sockets, necro-node hollow, brute armor bites that open to the border). Tool: `tools/_fill_interior_alpha.py` (int32 distance; int16 overflow had falsely keyed ~23% of `brute_walk` — aborted and restored from git before this pass).
+
+**Still open on alpha:** edge-connected punch-throughs (`mutant_enforcer` arms/face, shattered `zombie_colossus` idle, remaining armor gaps on Praetorian). Those are silhouette, not islands — FORGE paint, not another flood fill.
+
+**Praetorian:** NE/NW walks are true 3/4 backs (not copies of N). **SE/SW generated walks/idles were shattered** (same class of defect 0.6.25 already reverted once). Reverted those four files to HEAD before this commit — they are S-copies again. Attack diagonals still copy S/N. E/W remain the scythe profile. Claude verify: `D:\Tests\hiveswarm_baseline_2026-09-11\`.
+
 ### 2026-08-22 — Grok · v0.6.25 · crawler identity + runner idle + praet SE
 
-Live play: Crawler turned into a skeletal dog on E/SE/SW. All dirs now the skull hopper; E/W get a two-legged hopper profile. Runner idle_s was a side-run loop — now the standing front. Praetorian SE/NE idle+walk were shattered claws — copied from S/N.
+Live play: Crawler turned into a skeletal dog on E/SE/SW. All dirs now the skull hopper; E/W get a two-legged hopper profile. Runner idle_s was a side-run loop — now the standing front. Praetorian SE/NE idle+walk were shattered claws — copied from S/N. **Superseded for diagonals 2026-09-11** (copies replaced; crawler/runner identity still holds).
 
 ### 2026-08-22 — Grok · v0.6.24 · live-play colossus SE/SW
 

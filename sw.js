@@ -6,7 +6,7 @@
 // player-facing string) — only CACHE_VERSION needs bumping to bust stale caches; renaming
 // the prefix would work too, but bumping the version is the documented mechanism and is
 // sufficient on its own to force every returning tester to refetch the shell.
-const CACHE_VERSION = 'v47';  // v0.6.25 — crawler hopper identity, runner idle, praet SE
+const CACHE_VERSION = 'v48';  // v0.6.25 — interior alpha hole fill (517 sheets), Praetorian NE/NW walk diagonals
 const CACHE_NAME = `hiveswarm-game-shell-${CACHE_VERSION}`;
 const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest'];
 
