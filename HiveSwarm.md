@@ -4,7 +4,7 @@ title: HiVE SWARM
 description: Canonical source of truth for HiVE SWARM — status, play-feel, developer rules, AI rules, and roadmap.
 status: playable-in-development
 version: 0.6.25
-updated: 2026-09-11
+updated: 2026-09-14
 tags: [game, hivemind, webgame, documentation]
 ---
 
@@ -186,6 +186,7 @@ Report format: `✅ DONE — who — date — sha` + **VERIFIED:** command and r
 | `design/GDD.md` | Historical 2026-08-02 design |
 | `design/ASSET_INVENTORY.md` | Historical media inventory |
 | `design/SPRITE_CATALOG.md` | **Live** dir/frame/hole/angle audit + Praetorian import status |
+| `tools/build_pixel_review.py` | Local orange contact sheets + HTML pager for Eric to inspect pixels. Output: `Desktop\HiveSwarm_pixel_review\` |
 | `docs/REF_ZombieWaves_store_and_meta.md` | Reference APK study |
 | `FORGE_STANDARD.md` / `FORGE_TEMPLATE_V3.md` | Forge rules (shared) |
 | `art_src/topdown_v1/` | Runtime 8-dir sheets |
@@ -309,6 +310,26 @@ being visibly shattered.
 ---
 
 ## 8. Change record (keep — measured)
+
+### 2026-09-14 — Grok · pixel-review pack (no version bump)
+
+Eric asked for sheets/frames he can inspect by hand instead of burning model credits on pixel hunts.
+
+- Tool: `tools/build_pixel_review.py` — orange `#FF7800` contact sheets + exploded 256px cells + HTML pager (`←` `→`).
+- Output (not in git): `C:\Users\MiSTRFiNGA\Desktop\HiveSwarm_pixel_review\` — 30 character sheets, `index.html`. Rebuild after art edits.
+- Does not modify `art_src/`. Green backdrop is banned for inspection (hides lime visors).
+
+**Git on `master` for this art/docs line (pushed together):**
+
+| sha | what |
+|---|---|
+| `5558add` | interior alpha fill (517 sheets) + Praetorian NE/NW walks + `sw.js` v48 + `_fill_interior_alpha.py` |
+| `45a5539` | solid Praetorian SE/SW idle/walk/attack + `_fill_edge_bays.py` / `_pack_praet_solid.py` |
+| `84c2235` | APK rebuild note, Fold 7 install miss, torso-blob caveat (4b open) |
+| `21e576d` | P0 Pages verification over the wire (`CACHE_VERSION` v48 live) |
+| this commit | pixel-review tool + this rollup |
+
+`index.html` / `build.py` / `GAME_VERSION` never touched in this line. Portal zips still stale `0.1.1` on purpose.
 
 ### 2026-09-11 — Grok · v0.6.25 · interior alpha fill + Praetorian NE/NW walks
 
